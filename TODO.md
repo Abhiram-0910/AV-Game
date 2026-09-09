@@ -20,10 +20,15 @@ exists for static meshes but must not be pointed at a skinned mesh as-is.
   auto-passes each gate (`QuizAutoPass`, records no score).
 - Levels 2–5 scenes and the enemy AI (`systems/ai/`). Spawner pieces exist: the skinned
   budget registry and the pure wave scheduler are built and tested, nothing spawns yet.
-- Costume textures. Both base bodies ship with the Quaternius "superhero" skin, which reads
-  on screen as a bodybuilder in briefs. Rama, Dasharatha, and the rishis need a dhoti /
-  angavastra base-colour texture (one per character is enough; the factory already tints).
-  Highest-impact visual fix in the project.
+- Crown for Rama and Dasharatha, jata/topknot hair for the rishis (pass 3 phase A mentioned
+  both; only the dhoti/sash modesty fix shipped). No new hairstyle asset needed for jata — the
+  rishis already use the existing `beard` hairstyle. A crown would be new prop geometry parented
+  to `Head`, same pattern as `attachProp` in `character-factory.ts`.
+- Confirm the angavastram sash (`src/render/garments.ts`) is actually visible on characters
+  other than Rama — see SESSION-LOG.md pass 3 phase A. Suspect pose occlusion or a colour too
+  close to the body tint, not a skinning bug (weights are unit-tested). A `?debug=cast` view
+  that lines up every `CHARACTER_SPECS` id facing the camera would let this be judged directly
+  instead of depending on whatever pose an L1 NPC happens to be in.
 - Dialogue portraits from the Meshy renders (1024px PNGs) in the dialogue panel.
 - Audio: `platform/audio` (Howler) is built and unused. No sound assets exist in `raw/`.
 - Assets: `public/assets/low/` is unbuilt; `render/manifest.ts` serves the high tier to
