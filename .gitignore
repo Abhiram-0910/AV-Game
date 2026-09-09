@@ -6,3 +6,4 @@ release/
 raw/
 .code-review-graph/
 *.local
+*:Zone.Identifier
