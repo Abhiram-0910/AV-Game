@@ -1,75 +1,25 @@
-# React + TypeScript + Vite
+# bala-kanda — Rama: Guardian of the Yajna
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A 15-minute 3D action game on Valmiki's Bala Kanda for Classes 6–10. Web build plus
+offline Windows/Linux desktop builds. See `ARCHITECTURE.md` for the design and `AGENTS.md`
+for the rules every contributor and agent follows.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Commands
 
 ```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+npm run dev          # Vite dev server
+npm run build        # typecheck + production build (dist/)
+npm run preview      # serve dist/
+npm run test         # Vitest unit tests (headless core)
+npm run e2e          # Playwright against the preview server
+npm run typecheck    # tsc -b
+npm run lint         # eslint .
+npm run assets:build # regenerate public/assets/{low,high}   (pass 2)
+npm run electron:dev # desktop dev                           (pass 2)
+npm run package:win | package:linux                          (pass 2)
 ```
+
+## Layers
+
+`data` ← `core` ← `systems` ← `entities` ← `scenes`. `core` and `data` never import
+`three` or React; ESLint enforces it and `tests/unit/lint-boundary.test.ts` proves it.

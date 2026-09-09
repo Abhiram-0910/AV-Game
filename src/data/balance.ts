@@ -1,0 +1,115 @@
+// Every tunable number in the game. Zero imports. Change only with a reason in SESSION-LOG.md.
+// Times are in ticks unless the name says otherwise (60 ticks = 1 second, see loop.HZ).
+
+export const BALANCE = {
+  loop: {
+    HZ: 60,
+    /** Spiral-of-death guard: never simulate more than this many ticks per frame. */
+    MAX_SUBSTEPS: 5,
+    /** Absorbs float drift in the accumulator so 30fps and 144fps tick identically. */
+    ACCUMULATOR_EPS: 1e-6,
+  },
+
+  player: {
+    MAX_HEALTH: 100,
+    WALK_SPEED: 2.0,
+    JOG_SPEED: 4.0,
+    SPRINT_SPEED: 6.5,
+    TURN_SPEED_RAD: 6.0,
+    MAX_ARROWS: 20,
+    START_ARROWS: 12,
+    ARROW_PICKUP: 5,
+    /** Ticks the player cannot be hit again after taking damage. */
+    INVULN_TICKS: 45,
+    /** Health regained per tick while out of combat. */
+    REGEN_PER_TICK: 0.05,
+    REGEN_DELAY_TICKS: 240,
+  },
+
+  arrow: {
+    DAMAGE: 15,
+    HEADSHOT_DAMAGE: 30,
+    SPEED: 40,
+    GRAVITY: 9.8,
+    LIFETIME_TICKS: 180,
+    /** Ticks from click to release at full draw. */
+    DRAW_TICKS: 30,
+    /** Minimum draw fraction that still fires. */
+    MIN_DRAW: 0.25,
+    HIT_RADIUS: 0.45,
+    HEAD_RADIUS: 0.18,
+  },
+
+  astra: {
+    MAX_CHARGES: 3,
+    START_CHARGES: 1,
+    CHARGE_TICKS: 90,
+    COOLDOWN_TICKS: 180,
+    DAMAGE: 60,
+    /** Manavastra (used on Maricha) flings instead of damaging. */
+    FLING_DISTANCE: 100,
+    /** Vayavyastra scatters every enemy within this radius. */
+    SCATTER_RADIUS: 12,
+  },
+
+  enemies: {
+    rakshasa: { HEALTH: 30, SPEED: 3.0, DAMAGE: 10, ATTACK_COOLDOWN: 60, REACH: 1.6, YAJNA_DAMAGE: 5 },
+    tataka: { HEALTH: 150, SPEED: 2.4, DAMAGE: 15, ATTACK_COOLDOWN: 90, REACH: 2.4, YAJNA_DAMAGE: 0 },
+    subahu: { HEALTH: 120, SPEED: 3.2, DAMAGE: 15, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
+    maricha: { HEALTH: 90, SPEED: 3.6, DAMAGE: 12, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
+  },
+
+  combat: {
+    /** Ticks any target stays invulnerable after a valid hit (prevents multi-hit per arrow). */
+    INVULN_TICKS: 6,
+    /** Beyond this distance a hit report is rejected as invalid. */
+    MAX_HIT_RANGE: 60,
+    /** Boulder thrown by Tataka. */
+    BOULDER_DAMAGE: 15,
+    BOULDER_SPEED: 14,
+  },
+
+  spawn: {
+    /** Hard budget from the performance model: concurrent SkinnedMesh instances. */
+    MAX_SKINNED: 12,
+    DEFAULT_INTERVAL_TICKS: 90,
+    /** Defeated enemies dissolve over this many ticks before their slot frees. */
+    DESPAWN_TICKS: 60,
+  },
+
+  yajna: {
+    MAX_INTEGRITY: 100,
+    /** Level 5 total guard duration (the six days and nights, compressed). */
+    GUARD_TICKS: 5400,
+  },
+
+  targets: {
+    /** Level 2 tutorial and Level 4 challenge. */
+    L2_COUNT: 3,
+    L4_COUNT: 5,
+    L4_TIME_LIMIT_TICKS: 3600,
+    L4_ARROW_BUDGET: 10,
+  },
+
+  archery: {
+    /** Procedural aim (pass 2): bones whose rotation is blended toward the aim vector. */
+    AIM_BONES: ['upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r', 'spine_03'],
+    AIM_WEIGHTS: {
+      upperarm_l: 0.45,
+      lowerarm_l: 0.3,
+      upperarm_r: 0.55,
+      lowerarm_r: 0.4,
+      spine_03: 0.2,
+    },
+    /** Seconds to blend into and out of the aim pose. */
+    AIM_BLEND_IN_SEC: 0.15,
+    AIM_BLEND_OUT_SEC: 0.25,
+    /** Clamp on pitch so the arms never fold through the torso. */
+    MAX_PITCH_RAD: 1.1,
+  },
+
+  ui: {
+    DIALOGUE_CHARS_PER_SEC: 40,
+    HIT_FLASH_TICKS: 8,
+  },
+} as const

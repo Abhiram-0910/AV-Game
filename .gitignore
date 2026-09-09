@@ -7,3 +7,7 @@ raw/
 .code-review-graph/
 *.local
 *:Zone.Identifier
+coverage/
+playwright-report/
+test-results/
+.vitest/
