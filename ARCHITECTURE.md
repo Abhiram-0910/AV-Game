@@ -156,8 +156,9 @@ vertex — a hard WebGL shader limit; exceeding it silently truncates the buffer
       typings of its own and DefinitelyTyped had not published 0.186 as of 2026-09-09; the
       0.185 declarations typecheck against every 0.186 API we use. Bump when it appears.
 - [ ] `public/assets/low/` is unbuilt; `render/manifest.ts` serves the high tier to both.
-- [ ] Skinned decimation is a **blocker for Level 5** (12 characters × 14.3k ≈ 172k skinned
-      triangles against a 60k budget). See `TODO.md`.
+- [x] Skinned decimation for Level 5 — resolved pass 3 phase B. `characters/male-low.glb` /
+      `female-low.glb` (~4.7k tris each) via `tools/decimate-skinned.py`; 12 concurrent stays
+      under the 60k skinned budget. See `TODO.md` for the spawn-time policy still needed.
 
 ---
 

@@ -1,15 +1,26 @@
 # TODO
 
-## BLOCKER for Level 5 — skinned decimation (pass 3, before any L5 work)
+## RESOLVED — skinned decimation blocker (pass 3 phase B, 2026-09-09)
 
-The character bodies are ~14.3k triangles each. Level 5 runs the full 12-character budget:
-**12 × 14.3k ≈ 172k skinned triangles against a 60k skinned budget** (and a 120k frame
-budget). L5 cannot be started until the bodies are decimated. This is a deliberate,
-visual job, not a pipeline flag: `gltf-transform simplify` on a skinned mesh risks weight
-artefacts at the joints, so it must be done with the original and the decimated body on
-screen side by side (`?debug` overlay), animating, and compared before it lands. Blender
-`Decimate` with the armature intact is the first thing to try; `tools/decimate.py` already
-exists for static meshes but must not be pointed at a skinned mesh as-is.
+`tools/decimate-skinned.py` (Blender headless, armature untouched, decimates only the body
+primitive, then `vertex_group_limit_total(limit=4)`) produces `characters/male-low.glb`
+(4,702 tris) and `female-low.glb` (4,697 tris) — 12 concurrent low-detail bodies is 56,424
+skinned triangles, under the 60k budget. Joint count verified unchanged (65) by the build
+script itself (throws otherwise). `character-factory.ts`'s `BuildOptions.detail` selects
+`'high' | 'low'`; nothing calls it with `'low'` yet — that's Level 5's spawner (Phase G),
+not attempted here. Visual comparison: `docs/screenshots/lod-comparison.png` (male and
+female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/knees/shoulders.
+
+## NEW — Tataka (female mesh) is not actually covered above the waist
+
+Found while taking the LOD comparison screenshot above: the female base mesh's baked-in
+bikini top/bottom (the "Superhero" costume) is fully exposed above the dhoti — the Phase A
+garment only wraps waist-to-calf, and Tataka's spec has `sash: false`. This is the same
+"cannot ship" modesty problem Phase A was supposed to close, still open for the one female
+character. Not fixed here — out of Phase B's scope (asset decimation, not garments) and
+Tataka has no scene yet (she's Level 3, Phase D). Whoever builds Phase D should extend
+`render/garments.ts` with a torso wrap for the female mesh, or turn `sash: true` on for
+Tataka with a wider drape, before L3 ships.
 
 ## Pass 3
 

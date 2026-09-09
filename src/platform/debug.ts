@@ -7,4 +7,6 @@ const debugParam = params.get('debug')
 export const DEBUG = {
   overlay: import.meta.env.DEV || debugParam !== null,
   bow: debugParam === 'bow',
+  /** Pass 3 Phase B: male/female × high/low LOD comparison scene, see scenes/LodDebug.tsx. */
+  lod: debugParam === 'lod',
 } as const

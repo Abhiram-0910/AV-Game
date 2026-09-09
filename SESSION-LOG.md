@@ -2,6 +2,55 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-09 — Claude Code (Sonnet 5, overnight loop) — pass 3 phase B: skinned decimation
+
+Branch `feat/pass-3-overnight`, on top of `c74542e` (phase A). Resolves the Level 5 blocker
+recorded in `TODO.md` / `ARCHITECTURE.md`.
+
+**Built**
+- `tools/decimate-skinned.py`: Blender headless. Unlike `tools/decimate.py` (static meshes,
+  joins everything into one object), this touches only the largest mesh primitive — the body —
+  and leaves the eyes/eyebrows primitives and the 65-joint armature alone. Decimate modifier
+  moved to the front of the stack and applied (armature modifier is never applied, so skin
+  binding survives); `vertex_group_limit_total(limit=4)` afterward enforces the hard WebGL
+  4-weights-per-vertex limit (it fired: "131 vertex weights limited" on the male mesh).
+- `tools/build-assets.mjs`: `buildSkinnedLod()` runs the script against the already-built
+  `characters/male.glb` / `female.glb` (not raw/, so no texture re-staging needed), asserts the
+  triangle ceiling and that the joint count is still 65, and writes `maleLow` / `femaleLow`
+  into the manifest. Ran `npm run assets:build` in full (14s) — output: `male-low.glb` 4,702
+  tris, `female-low.glb` 4,697 tris (target was body-triangle count, ~2.9k/2.5k, tuned so
+  12 × either total stays under 60k with margin: 56,424).
+- `src/data/scenery.ts`: `maleLow` / `femaleLow` asset ids.
+- `src/render/character-factory.ts`: `BuildOptions.detail?: 'high' | 'low'` (default `'high'`)
+  resolves which body asset a character loads. Nothing calls it with `'low'` yet — no caller
+  needs it until Level 5's spawner (Phase G) picks distant/enemy detail level; the plumbing is
+  what Phase B asked for, not the spawn-time policy.
+- `src/scenes/LodDebug.tsx` + `DEBUG.lod` (`?debug=lod`): four characters side by side — Rama
+  and Tataka, each high and low detail, playing `WALK` — for the required on-screen comparison.
+  Not part of any real level; only reachable behind the debug flag, same pattern as `?debug=bow`.
+- `tests/unit/content.test.ts`: extended the existing manifest test with the 12×low-tris ≤ 60k
+  assertion (the joint-count and per-asset triangle ceiling are asserted inside the build script
+  itself — the test only checks the shipped manifest, matching how `male`/`female`/`palace` are
+  already checked here).
+
+**Verified**
+- `docs/screenshots/lod-comparison.png` (`?debug=lod`, mid-walk-cycle): high vs low read as
+  the same character at a normal viewing distance — no spikes, no collapsed geometry, no visible
+  seam at hips/knees/shoulders on either mesh.
+- 73 unit tests green, `typecheck` and `lint` clean.
+- Full L1 e2e passes: 112,516 triangles / 37 draw calls / 4 skinned (peak 4) — unaffected, since
+  L1 only ever requests `'high'` detail (the default).
+
+**Found, not fixed (out of Phase B's scope)**
+- The `?debug=lod` screenshot exposed that Tataka (the female mesh) is not actually covered
+  above the waist: the base mesh's baked-in bikini is fully visible, the Phase A dhoti only
+  wraps waist-to-calf, and her spec has `sash: false`. Same "cannot ship" problem Phase A
+  closed for the male mesh, still open for the one female character — Tataka has no scene yet
+  (Level 3, Phase D), so this doesn't block anything shipped so far. Recorded in `TODO.md` for
+  whoever builds Phase D.
+
+**Next**: Phase C (Level 2, Vishwamitra's training) per `OVERNIGHT.md`.
+
 ## 2026-09-09 — Claude Code (Sonnet 5, overnight loop) — pass 3 phase A: modesty and costume
 
 Branch `feat/pass-3-overnight` from `feat/vertical-slice`. Commit `c74542e`. Followed

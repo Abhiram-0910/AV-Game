@@ -6,7 +6,7 @@ import { type Bone, BufferGeometry, FloatType, Group, Matrix4, Mesh, type Object
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BALANCE } from '@data/balance'
-import { CHARACTER_SPECS, type CharacterId, type Hairstyle, type PropKind } from '@data/characters'
+import { CHARACTER_SPECS, type CharacterId, type Hairstyle, type MeshKind, type PropKind } from '@data/characters'
 import { type AssetId, SKELETON } from '@data/scenery'
 import { createAnimationController, type AnimationController } from '@systems/animation/animation-controller'
 import { acquireSkinnedSlot, releaseSkinnedSlot } from '@systems/spawner/skinned-budget'
@@ -31,6 +31,8 @@ export interface BuildOptions {
   tier: ResolvedTier
   /** Attach the spec's props (bow, quiver). Off in levels without the bow. */
   props: boolean
+  /** ~5k-tri body for Level 5's 12-concurrent budget. Player and speaking NPCs stay 'high'. */
+  detail?: 'high' | 'low'
 }
 
 const HAIR_ASSET: Record<Hairstyle, AssetId> = {
@@ -39,6 +41,10 @@ const HAIR_ASSET: Record<Hairstyle, AssetId> = {
   simpleParted: 'hairSimpleParted',
   buns: 'hairBuns',
   buzzed: 'hairBuzzed',
+}
+const MESH_ASSET: Record<'high' | 'low', Record<MeshKind, AssetId>> = {
+  high: { male: 'male', female: 'female' },
+  low: { male: 'maleLow', female: 'femaleLow' },
 }
 const KEEP_ATTRIBUTES = ['position', 'normal', 'uv', 'skinIndex', 'skinWeight']
 
@@ -117,7 +123,7 @@ async function attachProps(id: CharacterId, bones: Map<string, Bone>, tier: Reso
 export async function buildCharacter(id: CharacterId, opts: BuildOptions): Promise<BuiltCharacter> {
   const spec = CHARACTER_SPECS[id]
   const [gltf, clips, hair] = await Promise.all([
-    loadGltf(spec.mesh),
+    loadGltf(MESH_ASSET[opts.detail ?? 'high'][spec.mesh]),
     loadClips(),
     spec.hairstyle ? loadGltf(HAIR_ASSET[spec.hairstyle]) : null,
   ])

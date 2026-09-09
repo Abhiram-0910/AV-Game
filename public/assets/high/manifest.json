@@ -68,5 +68,15 @@
     "file": "props/arrow.glb",
     "tris": 224,
     "bytes": 16836
+  },
+  "maleLow": {
+    "file": "characters/male-low.glb",
+    "tris": 4702,
+    "bytes": 6007544
+  },
+  "femaleLow": {
+    "file": "characters/female-low.glb",
+    "tris": 4697,
+    "bytes": 6024504
   }
 }

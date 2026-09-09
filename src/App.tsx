@@ -12,6 +12,7 @@ import { PerfOverlay, PerfProbe } from '@render/perf-overlay'
 import { perfStats } from '@render/perf-stats'
 import { isSoftwareRenderer, resolveTier } from '@render/quality-tier'
 import { L1Court } from '@scenes/L1Court'
+import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
 import { useGame } from '@ui/use-game'
 import { world, worldStore } from '@systems/world'
@@ -45,6 +46,7 @@ async function boot(state: RootState, setTier: (t: ResolvedTier) => void): Promi
 function Level({ tier }: { tier: ResolvedTier }) {
   const level = useGame((s) => s.level)
   const bow = levelDef(level).bow || DEBUG.bow
+  if (DEBUG.lod) return <LodDebug tier={tier} />
   // ponytail: only L1 exists in pass 2; every other level shows its loading screen.
   return level === 'l1' ? <L1Court tier={tier} bow={bow} /> : null
 }
@@ -67,7 +69,7 @@ export function App() {
         {DEBUG.overlay && <PerfProbe />}
       </Canvas>
       <div className="overlay">
-        {tier && <Flow />}
+        {tier && !DEBUG.lod && <Flow />}
         {DEBUG.overlay && <PerfOverlay />}
       </div>
     </>

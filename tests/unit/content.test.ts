@@ -142,6 +142,8 @@ describe('built assets', () => {
     }
     expect(manifest.palace.tris).toBeLessThanOrEqual(50_000)
     for (const id of ['male', 'female']) expect(manifest[id].tris).toBeLessThan(16_000)
+    // Level 5's 12-concurrent budget (pass 3 Phase B blocker): 12 low-detail bodies must fit the 60k skinned ceiling.
+    for (const id of ['maleLow', 'femaleLow']) expect(manifest[id].tris * 12).toBeLessThanOrEqual(60_000)
   })
 })
 

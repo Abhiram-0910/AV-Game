@@ -5,6 +5,8 @@
 export type AssetId =
   | 'male'
   | 'female'
+  | 'maleLow'
+  | 'femaleLow'
   | 'hairLong'
   | 'hairBeard'
   | 'hairSimpleParted'
@@ -22,6 +24,9 @@ export type AssetId =
 export const ASSET_FILES: Readonly<Record<AssetId, string>> = {
   male: 'characters/male.glb',
   female: 'characters/female.glb',
+  /** ~5k-tri LOD for Level 5's 12-concurrent budget (pass 3 Phase B); same skeleton, no weight artefacts. */
+  maleLow: 'characters/male-low.glb',
+  femaleLow: 'characters/female-low.glb',
   hairLong: 'hair/long.glb',
   hairBeard: 'hair/beard.glb',
   hairSimpleParted: 'hair/simple-parted.glb',

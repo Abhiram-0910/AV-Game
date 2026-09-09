@@ -23,6 +23,18 @@ const PALACE_MAX_TRIS = 50_000
 const PALACE_RATIO = '0.12'
 const CHARACTER_TEX = ['--width', '1024', '--height', '1024']
 const HAIR_TEX = ['--width', '512', '--height', '512']
+/**
+ * Pass 3 Phase B: skinned-mesh LOD for Level 5 (12 concurrent characters). Target is the
+ * BODY primitive's triangle count only — eyes/eyebrows are untouched, ~1.7-2.2k tris each —
+ * chosen so male/female total lands under 4.8k, keeping 12 concurrent under the 60k skinned
+ * budget with margin. See tools/decimate-skinned.py.
+ */
+const SKINNED_LOD = {
+  male: { high: 'characters/male.glb', out: 'characters/male-low.glb', targetBodyTris: 2950 },
+  female: { high: 'characters/female.glb', out: 'characters/female-low.glb', targetBodyTris: 2450 },
+}
+const SKINNED_LOD_MAX_TRIS = 5500
+const SKINNED_LOD_JOINTS = 65
 
 const CHAR = 'staged/characters'
 const character = (name) => ({
@@ -70,6 +82,12 @@ function glbTriangles(path) {
   return Math.round(tris)
 }
 
+function glbJointCount(path) {
+  const buf = readFileSync(path)
+  const json = JSON.parse(buf.subarray(20, 20 + buf.readUInt32LE(12)).toString('utf8'))
+  return json.skins?.[0]?.joints.length ?? 0
+}
+
 function gltf(args) {
   execFileSync(CLI, args, { stdio: ['ignore', 'ignore', 'inherit'] })
 }
@@ -77,6 +95,21 @@ function gltf(args) {
 function blenderDecimate(src, out, ratio) {
   const script = join(ROOT, 'tools/decimate.py')
   execFileSync('blender', ['-b', '--python', script, '--', src, out, ratio], { stdio: ['ignore', 'ignore', 'inherit'] })
+}
+
+/** Decimates only the body primitive of an already-built character GLB; armature and joint count are untouched. */
+function buildSkinnedLod(id, lod) {
+  const src = join(OUT, lod.high)
+  const out = join(OUT, lod.out)
+  const script = join(ROOT, 'tools/decimate-skinned.py')
+  execFileSync('blender', ['-b', '--python', script, '--', src, out, String(lod.targetBodyTris)], { stdio: ['ignore', 'ignore', 'inherit'] })
+  const tris = glbTriangles(out)
+  const joints = glbJointCount(out)
+  if (tris > SKINNED_LOD_MAX_TRIS) throw new Error(`${id}Low: ${tris} triangles exceeds ${SKINNED_LOD_MAX_TRIS}`)
+  if (joints !== SKINNED_LOD_JOINTS) throw new Error(`${id}Low: ${joints} joints, expected ${SKINNED_LOD_JOINTS}`)
+  const bytes = statSync(out).size
+  console.log(`${(id + 'Low').padEnd(18)} ${String(tris).padStart(8)} tris ${String((bytes / 1024) | 0).padStart(7)} KB  ${lod.out}`)
+  return { file: lod.out, tris, bytes }
 }
 
 /**
@@ -139,6 +172,7 @@ mkdirSync(TMP, { recursive: true })
 mkdirSync(OUT, { recursive: true })
 const manifest = {}
 for (const [id, job] of Object.entries(JOBS)) manifest[id] = build(id, job)
+for (const [id, lod] of Object.entries(SKINNED_LOD)) manifest[`${id}Low`] = buildSkinnedLod(id, lod)
 writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
 const total = Object.values(manifest).reduce((n, m) => n + m.bytes, 0)
 console.log(`manifest.json written — ${Object.keys(manifest).length} assets, ${(total / 1048576).toFixed(1)} MB`)
