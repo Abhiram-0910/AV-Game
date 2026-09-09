@@ -8,6 +8,7 @@ import { CODEX } from '@data/codex'
 import { DIALOGUE, UI } from '@data/dialogue'
 import { LEVELS, LEVEL_ORDER } from '@data/levels'
 import { QUIZ_GATES } from '@data/quiz'
+import { ASSET_FILES } from '@data/scenery'
 
 const RAW_ANIMS = 'raw/staged/anims'
 
@@ -72,6 +73,26 @@ describe('levels', () => {
     }
   })
 
+  it('L2 and L4 target lists match their hitTargets count; L4 is five different shots', () => {
+    for (const l of LEVELS) {
+      const hit = l.objectives.find((o) => o.kind === 'hitTargets')
+      if (hit?.kind === 'hitTargets') expect(l.targets, l.id).toHaveLength(hit.count)
+      if (l.targets.length > 0) expect(l.bow, `${l.id} has targets but no bow`).toBe(true)
+    }
+    const l4 = LEVELS[3]
+    const kinds = l4.targets.map((t) => t.kind)
+    expect(new Set(kinds).size).toBe(5)
+    expect(kinds.filter((k) => k === 'astraOnly')).toHaveLength(1)
+    expect(l4.objectives.some((o) => o.kind === 'chargeAstra')).toBe(true)
+    expect(LEVELS[0].bow).toBe(false)
+  })
+
+  it('L1 casts four skinned characters and every level stays inside the skinned budget', () => {
+    expect(LEVELS[0].persistentSkinned).not.toContain('lakshmana')
+    expect(LEVELS[1].persistentSkinned).toContain('lakshmana')
+    for (const l of LEVELS) expect(l.persistentSkinned.length).toBeLessThanOrEqual(BALANCE.spawn.MAX_SKINNED)
+  })
+
   it('ideal play time lands under the 15-minute session at 2x', () => {
     const total = LEVELS.reduce((n, l) => n + l.targetSeconds, 0)
     expect(total * 2).toBeLessThanOrEqual(15 * 60)
@@ -91,20 +112,46 @@ describe('quiz and codex', () => {
     }
   })
 
-  it('one codex card per level and the Maricha card says flung, not killed', () => {
+  it('one codex card per level and the Maricha card says flung, not killed, and stays in Bala Kanda', () => {
     expect(CODEX.map((c) => c.unlockLevel)).toEqual(LEVEL_ORDER)
     const maricha = CODEX.find((c) => c.id === 'maricha-subahu')!
-    expect(maricha.paragraphs.join(' ')).toMatch(/flung .* alive/)
+    const text = maricha.paragraphs.join(' ')
+    expect(text).toMatch(/flung .* alive/)
+    expect(text).not.toMatch(/golden deer|Sita/)
+  })
+
+  it('Vasishtha argues the given word; Tataka plainly falls and the forest is freed', () => {
+    const vasishtha = DIALOGUE['l1.vasishtha.counsel'].lines.join(' ')
+    expect(vasishtha).toMatch(/your word/)
+    expect(vasishtha).toMatch(/bound by/)
+    expect(vasishtha).not.toMatch(/glory/)
+    const tataka = DIALOGUE['l3.outro'].lines[0]
+    expect(tataka).toMatch(/Tataka fell/)
+    expect(tataka).toMatch(/did not rise/)
+    expect(tataka).toMatch(/forest was free/)
+  })
+})
+
+describe('built assets', () => {
+  const MANIFEST = 'public/assets/high/manifest.json'
+  it.skipIf(!existsSync(MANIFEST))('manifest covers every ASSET_FILES entry and the palace is under its ceiling', () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Record<string, { file: string; tris: number }>
+    for (const [id, file] of Object.entries(ASSET_FILES)) {
+      expect(manifest[id]?.file, id).toBe(file)
+      expect(existsSync(`public/assets/high/${file}`), file).toBe(true)
+    }
+    expect(manifest.palace.tris).toBeLessThanOrEqual(50_000)
+    for (const id of ['male', 'female']) expect(manifest[id].tris).toBeLessThan(16_000)
   })
 })
 
 describe('balance and strings', () => {
-  it('every balance number is finite and non-negative', () => {
-    const walk = (v: unknown, path: string) => {
-      if (typeof v === 'number') expect(v >= 0 && Number.isFinite(v), path).toBe(true)
-      else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`)
+  it('every balance number is finite; scalars are non-negative (offset vectors may be signed)', () => {
+    const walk = (v: unknown, path: string, signed: boolean) => {
+      if (typeof v === 'number') expect(Number.isFinite(v) && (signed || v >= 0), path).toBe(true)
+      else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`, Array.isArray(v))
     }
-    walk(BALANCE, 'BALANCE')
+    walk(BALANCE, 'BALANCE', false)
   })
 
   it('UI strings are non-empty except the narrator name', () => {

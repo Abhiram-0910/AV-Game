@@ -10,7 +10,7 @@ and Linux desktop builds with identical behaviour.
 |---|---|---|
 | Renderer | three.js 0.186 (WebGL2) | Native GLB, runs on integrated GPUs, no WebGPU dependency |
 | Scene layer | React Three Fiber 9.7 + drei 10.7 | Entire game is TypeScript text files — agent-authorable, no editor |
-| Language/Build | TypeScript strict + Vite 7 | Fast HMR, trivial multi-target config |
+| Language/Build | TypeScript strict + Vite 8 | Fast HMR, trivial multi-target config |
 | React | 19.2.0, pinned exactly | R3F 9.7 declares `peer react ">=19 <19.3"` |
 | State | Zustand 5 | Single store, selector subscriptions, no re-render cascades |
 | Physics | None — custom kinematic + raycast | Ballistics and capsule overlaps are ~200 lines; a physics engine buys nothing here |
@@ -50,6 +50,12 @@ raw/         gitignored — source zips, unitypackage, staged character/animatio
 **The boundary that must not break:** `core/` and `data/` may not import `three` or
 `@react-three/*`. Enforced by an ESLint `no-restricted-imports` rule.
 
+**Characters (pass 2):** `render/character-factory.ts` is the only way a humanoid is built.
+The source mesh is three skinned primitives (body, eyes, eyebrows); the factory merges them
+into **one `SkinnedMesh`** with three material groups so the 12-instance budget counts
+characters, not primitives. Hairstyles are 100 % weighted to `Head`, so they attach as plain
+meshes on that bone. Both animation GLBs load once and the clip array is shared.
+
 ## Data flow
 
 Boot detects a quality tier (`WEBGL_debug_renderer_info` + a 60-frame benchmark), stores
@@ -86,8 +92,8 @@ session will VRAM-starve an integrated GPU without it.
 - **Electron over Tauri** — ~120MB per platform buys identical Chromium/ANGLE rendering
   on Windows and Linux. Ubuntu 24.04 defaults to Wayland, where Electron's native WebGL
   init frequently yields a black canvas; `--ozone-platform=x11` is mandatory.
-- **All user-visible strings keyed in `data/dialogue.ts`** — English only ships, but
-  Hindi/Telugu becomes a translation job rather than archaeology.
+- **All user-visible strings live in `src/data/`** (`dialogue.ts`, `quiz.ts`, `codex.ts`) —
+  English only ships, but Hindi/Telugu becomes a translation job rather than archaeology.
 - **Quality tiers are one build** — a runtime `QualityTier` plus two asset directories.
 - **No backend, no accounts, no telemetry** — children's data is a liability with no
   offsetting benefit, and the game must work with the network unplugged.
@@ -107,8 +113,9 @@ vertex — a hard WebGL shader limit; exceeding it silently truncates the buffer
   `Superhero_Female_FullBody` (15.1k tris), CC0, plus 8 hairstyle meshes rigged to the
   head bone. Rama, Lakshmana, Vishwamitra and both rakshasas are the male mesh
   differentiated by texture, scale, hair and props. Tataka is the female mesh scaled up.
-- **Animation (settled).** Universal Animation Library Standard, 43 clips on the matching
-  skeleton, loaded once and shared. Covers idle, walk, jog, sprint, sword attack/idle,
+- **Animation (settled).** Universal Animation Library Standard, 86 clips across two GLBs
+  (`UAL1_Standard.glb`, `UAL2_Standard.glb`; 85 unique, `A_TPose` in both) on the matching
+  skeleton, loaded once, merged by clip name, and shared. Covers idle, walk, jog, sprint, sword attack/idle,
   spell enter/idle/shoot (→ astras), hit chest/head, death, sitting idle/talking
   (→ Dasharatha enthroned), idle-talking (→ every dialogue NPC), interact, and A_TPose as
   the rig reference. Use the in-place export, not `_RM`.
@@ -143,8 +150,14 @@ vertex — a hard WebGL shader limit; exceeding it silently truncates the buffer
 - [ ] Level unload disposal is manual — a leak here shows up only after ~10 minutes.
 - [ ] Blob shadows instead of real shadows on low tier; acceptable, but noticeable.
 - [ ] Archery animation unresolved (see above).
-- [ ] Character source textures are 2–4k PNGs; must be atlased and KTX2-compressed before
-      they go anywhere near `public/assets/`.
+- [ ] Character source textures are 2–4k PNGs; resized to 1024 by the pipeline, not yet
+      atlased or KTX2-compressed.
+- [ ] `@types/three` lags `three` by one minor (0.185.4 against 0.186.0). `three` ships no
+      typings of its own and DefinitelyTyped had not published 0.186 as of 2026-09-09; the
+      0.185 declarations typecheck against every 0.186 API we use. Bump when it appears.
+- [ ] `public/assets/low/` is unbuilt; `render/manifest.ts` serves the high tier to both.
+- [ ] Skinned decimation is a **blocker for Level 5** (12 characters × 14.3k ≈ 172k skinned
+      triangles against a 60k budget). See `TODO.md`.
 
 ---
 

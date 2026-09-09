@@ -57,7 +57,7 @@ export const CODEX: readonly CodexCard[] = [
     paragraphs: [
       'Maricha, son of Tataka, and Subahu were the two rakshasas who spoiled Vishwamitra\'s yajna year after year, urged on by Ravana.',
       'On the sixth night of the ritual they came with a horde. Rama struck Maricha with the Manava astra and flung him a hundred yojanas into the ocean, alive. He killed Subahu with the Agneya astra and scattered the rest with the Vayavya.',
-      'Maricha lived, and years later he would take the form of a golden deer to lure Rama away from Sita. Sparing an enemy has consequences; that is part of the story too.',
+      'Maricha lived. He was carried alive across a hundred yojanas and fell into the ocean, far from the yajna. Rama chose the weapon that throws over the weapon that kills, and the fire burned clean to the end of the sixth night.',
     ],
   },
 ]

@@ -38,6 +38,16 @@ export const UI = {
   'hud.pickup': 'Press E to pick up arrows',
   'hud.charging': 'Hold to charge the astra',
   'hud.targetsHit': 'Targets hit',
+  'hud.controls': 'W S walk · A D turn · Shift jog · E talk',
+  'hud.bowControls': 'Hold the mouse button to draw, release to shoot',
+  'dialogue.advance': 'Space: next',
+  'dialogue.skip': 'Esc: skip',
+  'debug.triangles': 'Triangles',
+  'debug.calls': 'Draw calls',
+  'debug.skinned': 'Skinned',
+  'debug.peak': 'peak',
+  'debug.renderer': 'Renderer',
+  'debug.software': 'software renderer',
   'loading.level': 'Loading',
   'loading.tip.aim': 'Hold the mouse button to draw the bow. A fuller draw flies farther.',
   'loading.tip.astra': 'An astra takes time to call. Find a safe moment first.',
@@ -110,9 +120,9 @@ export const DIALOGUE = {
   'l1.vasishtha.counsel': {
     speaker: 'vasishtha',
     lines: [
-      'O King, you gave your word, and a king of the Ikshvaku line keeps his word.',
-      'Vishwamitra could destroy these rakshasas himself. He asks for Rama so that the glory may be Rama\'s.',
-      'With Vishwamitra beside him, your son is safer than in this palace. Let him go.',
+      'O King, before this sage asked for anything, you said: "Whatever you ask, I will give." That was your word, and you gave it freely.',
+      'A king of the Ikshvaku line is bound by his own given word. If you take it back now, you keep your son and lose your dharma (your duty and your truth).',
+      'And Vishwamitra knows every astra there is. With him beside your son, Rama is safer than in this palace. Let him go.',
     ],
   },
   'l1.dasharatha.consents': {
@@ -186,7 +196,7 @@ export const DIALOGUE = {
   'l3.outro': {
     speaker: 'narrator',
     lines: [
-      'Rama\'s arrow found its mark. Tataka fell, and Agastya\'s curse lifted from the land.',
+      'Rama\'s arrow struck true. Tataka fell, and she did not rise again. Agastya\'s curse lifted, and the forest was free.',
       'The devas (gods) watching from above praised the prince, and said to Vishwamitra: give him the astras.',
     ],
   },

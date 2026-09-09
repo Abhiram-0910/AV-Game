@@ -22,7 +22,9 @@ the gotchas that are not derivable from the tree.
   `tsconfig.app.json` `paths`. TS 6 deprecates `baseUrl`; paths are tsconfig-relative.
 - **`vite-plugin-static-copy` writes to `dist/vendor/`**, not `public/`, and serves the same
   URLs in dev. Loaders must use `/vendor/draco/` and `/vendor/basis/`.
-- **`@types/three` (0.185) lags `three` (0.186)** by one minor. Bump both together in pass 2.
+- **`@types/three` (0.185.4) lags `three` (0.186)** by one minor. `three` ships no typings and
+  DefinitelyTyped had no 0.186 on 2026-09-09; the 0.185 declarations cover every API we use.
+  Bump when it appears, never remove.
 - **The zustand store is vanilla** (`zustand/vanilla`). Wrap with `useStore(gameStore, sel)`
   in React; never import React into `src/core`.
 - **Tests live in `tests/unit/`**, included in `tsconfig.app.json`. The GLB clip test reads
@@ -30,4 +32,24 @@ the gotchas that are not derivable from the tree.
 - **`rtk` wraps npm/npx.** `npx vitest` may print "parser: All parsing tiers failed" and
   leave a stale `.vitest/json/output.json`. Run `./node_modules/.bin/vitest run` directly
   when you need the real result.
+- **`public/assets/high/` is committed.** `raw/` exists only on Abhi's machine; a clone or a
+  Cloudflare Pages build has nothing to rebuild from. Regenerate with `npm run assets:build`
+  (needs `raw/`, gltf-transform, and Blender on PATH for the palace), then commit the output.
+- **One `SkinnedMesh` per character.** The source gltf has three skinned primitives; the
+  factory merges them with material groups. Never count primitives against the 12 budget,
+  and never add a `SkinnedMesh` outside `render/character-factory.ts`.
+- **Hair is a plain `Mesh` on the `Head` bone** (100 % weighted to Head, baked into head
+  space). The head bone is capitalised `Head`; every other joint is lower snake case.
+- **Scene mount effects run after child effects.** `resetWorld` must not clear the
+  registries entities fill on mount (`world.npcs`, `ground`, `hittable`); they clean up
+  themselves on unmount.
+- **A `useFrame` with priority > 0 turns off R3F's automatic render.** Use ≤ 0.
+- **`?debug` shows the perf overlay on a production build** (the e2e reads it);
+  `?debug=bow` arms the bow in any level. `window.__bk` exposes the stores read-only for
+  tests under the same flag.
+- **`playwright-cli` is not global.** Use `./node_modules/.bin/playwright cli --browser=chromium …`
+  (the default `chrome` channel is not installed; rtk also mangles `npx playwright`).
+- **Headless Chromium on this WSL renders through SwiftShader.** Expect ~5–10 fps and a
+  4-minute e2e; that is the environment, not a regression.
+- **Quiz auto-passes** in `ui/Flow.tsx` until pass 3 builds the quiz UI.
 - **No AI attribution trailers in commits**, ever (user rule, overrides tool defaults).

@@ -7,7 +7,7 @@ import type { GateId } from '@data/quiz'
 import { FAIL_EVENT, transition, type LevelEvent, type Phase } from './level-machine'
 import { allDone, applyObjectiveEvent, freshProgress, type ObjectiveEvent, type ObjectiveProgress } from './objectives'
 import { checkAnswer, codexUnlockedBy, gateAfter, isLastLevel, levelDef, nextLevel, scoreQuiz } from './progression'
-import { DEFAULT_SAVE, type SaveV1, type Settings } from './save'
+import { DEFAULT_SAVE, type BenchmarkTier, type Save, type Settings } from './save'
 
 export interface QuizState {
   gate: GateId | null
@@ -30,6 +30,7 @@ export interface GameState {
   quiz: QuizState
   quizScores: Partial<Record<GateId, number>>
   settings: Settings
+  benchmarkTier: BenchmarkTier
 }
 
 export interface GameActions {
@@ -45,14 +46,15 @@ export interface GameActions {
   fail(condition: FailCondition): void
   answerQuiz(option: number): { correct: boolean; explanation: string } | null
   setSettings(patch: Partial<Settings>): void
-  hydrate(save: SaveV1): void
-  snapshot(): SaveV1
+  setBenchmarkTier(tier: BenchmarkTier): void
+  hydrate(save: Save): void
+  snapshot(): Save
   reset(): void
 }
 
 export type GameStore = GameState & GameActions
 
-function levelStart(id: LevelId): Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings'> {
+function levelStart(id: LevelId): Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier'> {
   return {
     level: id,
     phase: 'loading',
@@ -73,6 +75,7 @@ const initial = (): GameState => ({
   codex: [],
   quizScores: {},
   settings: { ...DEFAULT_SAVE.settings },
+  benchmarkTier: DEFAULT_SAVE.benchmarkTier,
 })
 
 type Set = StoreApi<GameStore>['setState']
@@ -164,18 +167,29 @@ function persistenceActions(set: Set, get: Get) {
   return {
     setSettings: (patch: Partial<Settings>) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 
-    hydrate: (save: SaveV1) =>
+    setBenchmarkTier: (benchmarkTier: BenchmarkTier) => set({ benchmarkTier }),
+
+    hydrate: (save: Save) =>
       set({
         ...levelStart(save.level),
         completed: [...save.completed],
         codex: [...save.codex],
         quizScores: { ...save.quiz },
         settings: { ...save.settings },
+        benchmarkTier: save.benchmarkTier,
       }),
 
-    snapshot: (): SaveV1 => {
+    snapshot: (): Save => {
       const s = get()
-      return { version: 1, level: s.level, completed: [...s.completed], codex: [...s.codex], quiz: { ...s.quizScores }, settings: { ...s.settings } }
+      return {
+        version: 2,
+        level: s.level,
+        completed: [...s.completed],
+        codex: [...s.codex],
+        quiz: { ...s.quizScores },
+        settings: { ...s.settings },
+        benchmarkTier: s.benchmarkTier,
+      }
     },
 
     reset: () => set(initial()),

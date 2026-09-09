@@ -16,6 +16,21 @@ export type Objective =
 
 export type FailCondition = 'none' | 'healthZero' | 'yajnaZero' | 'arrowsOut' | 'timeOut'
 
+/**
+ * Archery targets. Each kind asks for a different shot so a range is never a shooting gallery:
+ * static — stands still at mid range;  lateral — slides side to side (amplitude m, period ticks);
+ * longRange — far enough that the arrow drops noticeably;  occluded — small and half hidden
+ * behind cover;  astraOnly — plain arrows bounce off, only a charged astra brings it down.
+ */
+export type TargetKind = 'static' | 'lateral' | 'longRange' | 'occluded' | 'astraOnly'
+
+export type TargetDef =
+  | { kind: 'static'; pos: Vec3 }
+  | { kind: 'lateral'; pos: Vec3; amplitude: number; periodTicks: number }
+  | { kind: 'longRange'; pos: Vec3 }
+  | { kind: 'occluded'; pos: Vec3; scale: number; coverPos: Vec3 }
+  | { kind: 'astraOnly'; pos: Vec3; scale: number }
+
 export interface Wave {
   /** Tick (from play start) at which this wave begins spawning. */
   startTick: number
@@ -35,7 +50,11 @@ export interface LevelDef {
   /** Names of persistent SkinnedMesh characters (counts toward the 12 budget). */
   persistentSkinned: readonly NpcId[]
   playerSpawn: { pos: Vec3; yaw: number }
+  /** Whether Rama carries and can draw the bow in this level. */
+  bow: boolean
   waypoints: Readonly<Record<string, Vec3>>
+  /** Archery targets, empty where there is nothing to shoot at. */
+  targets: readonly TargetDef[]
   objectives: readonly Objective[]
   fail: readonly FailCondition[]
   /** Static (non-wave) enemies present from play start. */
@@ -54,9 +73,13 @@ export const LEVELS: readonly LevelDef[] = [
     titleKey: 'l1.title',
     introKey: 'l1.intro',
     outroKey: 'l1.outro',
-    persistentSkinned: ['rama', 'lakshmana', 'vishwamitra', 'dasharatha', 'vasishtha'],
+    // Lakshmana has no line in the court; the brothers leave together at the Sarayu (L2).
+    // Four bodies keep the court under the 120k frame budget beside the palace and props.
+    persistentSkinned: ['rama', 'vishwamitra', 'dasharatha', 'vasishtha'],
     playerSpawn: { pos: [0, 0, 14], yaw: Math.PI },
+    bow: false,
     waypoints: { throne: [0, 0, 2], vishwamitra: [3, 0, 4], vasishtha: [-3, 0, 4] },
+    targets: [],
     objectives: [
       { kind: 'reach', waypoint: 'throne' },
       { kind: 'talk', npc: 'vishwamitra', dialogueKey: 'l1.vishwamitra.request' },
@@ -78,7 +101,13 @@ export const LEVELS: readonly LevelDef[] = [
     outroKey: 'l2.outro',
     persistentSkinned: ['rama', 'lakshmana', 'vishwamitra'],
     playerSpawn: { pos: [0, 0, 0], yaw: 0 },
+    bow: true,
     waypoints: { riverbank: [0, 0, -18], range: [12, 0, -30] },
+    targets: [
+      { kind: 'static', pos: [8, 0, -42] },
+      { kind: 'static', pos: [12, 0, -44] },
+      { kind: 'static', pos: [16, 0, -42] },
+    ],
     objectives: [
       { kind: 'reach', waypoint: 'riverbank' },
       { kind: 'talk', npc: 'vishwamitra', dialogueKey: 'l2.vishwamitra.mantras' },
@@ -100,7 +129,9 @@ export const LEVELS: readonly LevelDef[] = [
     outroKey: 'l3.outro',
     persistentSkinned: ['rama', 'lakshmana', 'vishwamitra'],
     playerSpawn: { pos: [0, 0, 20], yaw: Math.PI },
+    bow: true,
     waypoints: { forestEdge: [0, 0, 6], clearing: [0, 0, -10] },
+    targets: [],
     objectives: [
       { kind: 'reach', waypoint: 'forestEdge' },
       { kind: 'talk', npc: 'vishwamitra', dialogueKey: 'l3.vishwamitra.duty' },
@@ -121,7 +152,16 @@ export const LEVELS: readonly LevelDef[] = [
     outroKey: 'l4.outro',
     persistentSkinned: ['rama', 'lakshmana', 'vishwamitra'],
     playerSpawn: { pos: [0, 0, 0], yaw: 0 },
+    bow: true,
     waypoints: { firingLine: [0, 0, -4] },
+    // Five different shots, one each: the trial is the variety, not the count.
+    targets: [
+      { kind: 'static', pos: [-4, 0, -20] },
+      { kind: 'lateral', pos: [4, 0, -22], amplitude: 4, periodTicks: 240 },
+      { kind: 'longRange', pos: [0, 0, -48] },
+      { kind: 'occluded', pos: [-9, 0, -28], scale: 0.6, coverPos: [-9, 0, -25] },
+      { kind: 'astraOnly', pos: [10, 0, -34], scale: 2.5 },
+    ],
     objectives: [
       { kind: 'talk', npc: 'vishwamitra', dialogueKey: 'l4.vishwamitra.astras' },
       { kind: 'reach', waypoint: 'firingLine' },
@@ -143,7 +183,9 @@ export const LEVELS: readonly LevelDef[] = [
     // Priests around the altar are static meshes, not SkinnedMesh — they do not count.
     persistentSkinned: ['rama', 'lakshmana', 'vishwamitra'],
     playerSpawn: { pos: [0, 0, 6], yaw: Math.PI },
+    bow: true,
     waypoints: { altar: [0, 0, 0], north: [0, 0, -30], east: [30, 0, 0], west: [-30, 0, 0] },
+    targets: [],
     objectives: [
       { kind: 'survive', ticks: 5400 },
       { kind: 'defeat', enemy: 'subahu', count: 1 },

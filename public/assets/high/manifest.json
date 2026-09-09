@@ -1,0 +1,72 @@
+{
+  "male": {
+    "file": "characters/male.glb",
+    "tris": 14318,
+    "bytes": 6332668
+  },
+  "female": {
+    "file": "characters/female.glb",
+    "tris": 15060,
+    "bytes": 6376832
+  },
+  "hairLong": {
+    "file": "hair/long.glb",
+    "tris": 2906,
+    "bytes": 1150888
+  },
+  "hairBeard": {
+    "file": "hair/beard.glb",
+    "tris": 1034,
+    "bytes": 831872
+  },
+  "hairSimpleParted": {
+    "file": "hair/simple-parted.glb",
+    "tris": 1301,
+    "bytes": 841848
+  },
+  "hairBuns": {
+    "file": "hair/buns.glb",
+    "tris": 3284,
+    "bytes": 1175040
+  },
+  "hairBuzzed": {
+    "file": "hair/buzzed.glb",
+    "tris": 830,
+    "bytes": 823888
+  },
+  "ual1": {
+    "file": "anims/ual1.glb",
+    "tris": 13744,
+    "bytes": 7618436
+  },
+  "ual2": {
+    "file": "anims/ual2.glb",
+    "tris": 13744,
+    "bytes": 8091444
+  },
+  "palace": {
+    "file": "env/palace.glb",
+    "tris": 39732,
+    "bytes": 2059700
+  },
+  "royalRoom": {
+    "file": "env/royal-room.glb",
+    "tris": 14390,
+    "bytes": 1370936
+  },
+  "target": {
+    "file": "props/target.glb",
+    "tris": 352,
+    "bytes": 21324
+  },
+  "bow": {
+    "file": "props/bow.glb",
+    "tris": 660,
+    "bytes": 39108
+  },
+  "arrow": {
+    "file": "props/arrow.glb",
+    "tris": 224,
+    "bytes": 16836
+  }
+}
