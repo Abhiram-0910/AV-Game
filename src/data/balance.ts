@@ -126,6 +126,18 @@ export const BALANCE = {
     QUIVER_ROT: [0.3, 0, 0.5],
   },
 
+  garments: {
+    /** Procedural dhoti: waist radius, hem flare multiplier, and side count (metres, tris scale with this). */
+    DHOTI_WAIST_RADIUS: 0.19,
+    DHOTI_HEM_FLARE: 1.25,
+    DHOTI_RADIAL_SEGMENTS: 16,
+    /** Angavastram sash: width and thickness in metres, and how far off the spine's
+     * centerline it's pushed so it drapes on the chest surface instead of inside the torso. */
+    SASH_WIDTH: 0.12,
+    SASH_THICKNESS: 0.03,
+    SASH_SURFACE_OFFSET: 0.16,
+  },
+
   interaction: {
     /** Metres from a waypoint that counts as reaching it. */
     REACH_RADIUS: 2.0,

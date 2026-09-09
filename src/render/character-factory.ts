@@ -1,7 +1,8 @@
 // The only way a humanoid is built. One SkinnedMesh per character (the three source
-// primitives merge with material groups), hair as a plain mesh on the Head bone, props on
-// hands, tint + uniform scale from CHARACTER_SPECS. Never new geometry per character.
-import { type Bone, BufferGeometry, Group, Matrix4, Mesh, type Object3D, SkinnedMesh, type Material } from 'three'
+// primitives plus the procedural garments merge with material groups), hair as a plain mesh
+// on the Head bone, props on hands, tint + uniform scale from CHARACTER_SPECS. Never new body
+// geometry per character — garments are generated, not authored, from render/garments.ts.
+import { type Bone, BufferGeometry, FloatType, Group, Matrix4, Mesh, type Object3D, SkinnedMesh, type Material } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BALANCE } from '@data/balance'
@@ -10,6 +11,7 @@ import { type AssetId, SKELETON } from '@data/scenery'
 import { createAnimationController, type AnimationController } from '@systems/animation/animation-controller'
 import { acquireSkinnedSlot, releaseSkinnedSlot } from '@systems/spawner/skinned-budget'
 import { disposeTree } from './dispose'
+import { buildGarments, type SkinIndexCtor } from './garments'
 import { assertSkeleton, loadClips, loadGltf } from './loaders'
 import { type ResolvedTier } from './manifest'
 import { applyTierMaterials, tierMaterial } from './materials'
@@ -50,7 +52,15 @@ function skinnedMeshes(root: Object3D): SkinnedMesh[] {
 
 function stripped(geometry: BufferGeometry): BufferGeometry {
   const g = geometry.clone()
-  for (const name of Object.keys(g.attributes)) if (!KEEP_ATTRIBUTES.includes(name)) g.deleteAttribute(name)
+  for (const name of Object.keys(g.attributes)) {
+    if (!KEEP_ATTRIBUTES.includes(name)) {
+      g.deleteAttribute(name)
+      continue
+    }
+    // GLTFLoader's interleaved attributes carry no gpuType; procedurally-built ones (garments)
+    // default to FloatType. mergeGeometries refuses to merge attributes whose gpuType disagrees.
+    ;(g.attributes[name] as { gpuType?: number }).gpuType = FloatType
+  }
   g.morphAttributes = {}
   return g
 }
@@ -113,7 +123,9 @@ export async function buildCharacter(id: CharacterId, opts: BuildOptions): Promi
   ])
   const rig = cloneSkeleton(gltf.scene)
   const parts = skinnedMeshes(rig)
-  const skinned = mergeSkinned(parts, opts.tier, spec.tint)
+  const skinIndexCtor = parts[0].geometry.attributes.skinIndex.array.constructor as SkinIndexCtor
+  const garments = buildGarments(id, rig, parts[0].skeleton, parts[0].bindMatrix, skinIndexCtor)
+  const skinned = mergeSkinned([...parts, ...garments], opts.tier, spec.tint)
   assertSkeleton(skinned, id)
   parts[0].parent!.add(skinned)
   parts.forEach((p) => p.removeFromParent())

@@ -43,6 +43,10 @@ export const SKELETON = {
   LEFT_HAND: 'hand_l',
   RIGHT_HAND: 'hand_r',
   SPINE_TOP: 'spine_03',
+  PELVIS: 'pelvis',
+  THIGH_L: 'thigh_l',
+  THIGH_R: 'thigh_r',
+  CLAVICLE_L: 'clavicle_l',
 } as const
 
 type Vec3 = readonly [number, number, number]
