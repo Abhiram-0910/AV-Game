@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
 import { grounded, launchArrow, shouldFailArrowsOut, stepArrow } from '@systems/archery/ballistics'
 import { NO_DRAW, drawFraction, stepDraw } from '@systems/archery/draw'
+import { updateMovingTargets } from '@systems/archery/step'
+import { world } from '@systems/world'
 
 const dt = 1 / 60
 
@@ -32,6 +34,30 @@ describe('ballistics', () => {
     }
     expect(peak).toBeGreaterThan(1.4)
     expect(grounded(a) || !a.alive).toBe(true)
+  })
+})
+
+describe("lateral targets (L4) move on the fixed tick, not render frame rate", () => {
+  it('oscillates around baseX with the given amplitude and period, deterministically from tick', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const target: any = { position: { x: 0 }, userData: { lateral: { baseX: 4, amplitude: 4, periodTicks: 240 } } }
+    world.hittable = [target]
+    updateMovingTargets(0)
+    expect(target.position.x).toBeCloseTo(4, 5) // sin(0) = 0
+    updateMovingTargets(60) // a quarter period: sin(pi/2) = 1
+    expect(target.position.x).toBeCloseTo(8, 5)
+    updateMovingTargets(180) // three-quarter period: sin(3pi/2) = -1
+    expect(target.position.x).toBeCloseTo(0, 5)
+    world.hittable = []
+  })
+
+  it('leaves non-lateral hittable objects untouched', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const target: any = { position: { x: 5 }, userData: {} }
+    world.hittable = [target]
+    updateMovingTargets(9999)
+    expect(target.position.x).toBe(5)
+    world.hittable = []
   })
 })
 

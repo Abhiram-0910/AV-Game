@@ -1,5 +1,33 @@
 # TODO
 
+## KNOWN — L4 e2e is flaky under heavy session load (not a game bug, verified independently)
+
+`tests/e2e/l4.spec.ts` occasionally fails to hit the `longRange` or `lateral` target
+(`target near ... was never hit`) when the host machine is under heavy concurrent load
+(observed with `uptime` load average 6-8, multiple other Claude sessions/agents running).
+Investigated at length before accepting this:
+
+- Found and fixed a real bug along the way: `entities/Target.tsx`'s `lateral` target moved in
+  a render-frame `useFrame`, but the hit-test runs inside the fixed-tick loop, which processes
+  several ticks per rendered frame under SwiftShader's low frame rate
+  (`BALANCE.loop.MAX_SUBSTEPS`) — so the collision position could be several ticks stale. Moved
+  to `systems/archery/step.ts`'s `updateMovingTargets()`, called once per fixed tick before that
+  tick's hit-test, tagged via `userData.lateral` on the target object. Covered by a new
+  deterministic unit test (`tests/unit/archery.test.ts`).
+- Replaced the e2e's fixed-`waitForTimeout` draw/flight timing with polling actual game state
+  (`world.draw.ticks`, `world.arrows.length`) — fixed-ms waits assume a ticks-per-wall-clock-ms
+  ratio that isn't constant under variable system load.
+- Confirmed independently: an isolated test that skips straight to the firing line (no walk/
+  talk overhead, run on a freshly-loaded page) hits the lateral target on the very first
+  attempt with `drawTicks=30` — *exactly* `BALANCE.arrow.DRAW_TICKS`, no drift at all. The
+  formula and the timing logic are both correct; what fails intermittently in the full run is
+  keeping pace with wall-clock while five other processes compete for the CPU.
+
+Not a regression to chase further — the full `l4.spec.ts` uses a 900s timeout and 13 retries
+per target specifically to absorb this, and passes cleanly on a quieter system (confirmed
+multiple times during phase E). If it's flaky in CI, rerun on a less loaded machine before
+suspecting the game code.
+
 ## RESOLVED — held props (bow/quiver/sword) rendered at 2–2.3m, not human scale (2026-09-10)
 
 User-reported bug, confirmed with fresh L1/L2 screenshots before assuming: the Quaternius

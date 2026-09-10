@@ -154,4 +154,24 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     light: { sky: '#5a6a72', ground: '#1f2a1a', sun: [-4, 8, -3], sunIntensity: 1.3, ambientIntensity: 0.55 },
     background: '#141a16',
   },
+  l4: {
+    // The trial range: open field, targets from the firing line out to -48. Trees/rocks are
+    // scattered off to the sides, well clear of every target's line of fire.
+    statics: [
+      { asset: 'tree', pos: [-13, 0, -10], yaw: 0.4, scale: 1, ground: false },
+      { asset: 'tree', pos: [13, 0, -14], yaw: 1.2, scale: 1.05, ground: false },
+      { asset: 'tree', pos: [-12, 0, -40], yaw: 2.0, scale: 0.95, ground: false },
+      { asset: 'rock', pos: [7, 0, -6], yaw: 0.6, scale: 1.4, ground: false },
+      // Cover for the 'occluded' target (levels.ts L4 target[3].coverPos) — sits between the
+      // firing line and that target so it's genuinely half-hidden from the approach.
+      { asset: 'rock', pos: [-9, 0, -25], yaw: 0.2, scale: 2.2, ground: false },
+    ],
+    npcs: [
+      { npc: 'lakshmana', pos: [-1.5, 0, 1.5], yaw: -Math.PI / 6, idle: 'IDLE' },
+      { npc: 'vishwamitra', pos: [1.5, 0, 1.5], yaw: Math.PI / 6, idle: 'ARMS_FOLDED' },
+    ],
+    bounds: { minX: -14, maxX: 14, minZ: -54, maxZ: 6 },
+    light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
+    background: '#7fb3d9',
+  },
 }

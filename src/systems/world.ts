@@ -56,6 +56,8 @@ export interface WorldSim {
   arrows: ArrowState[]
   /** Tick until which Rama plays the one-shot sword slash instead of the locomotion clip. */
   swordSlashUntilTick: number
+  /** Hold-to-charge state for the astra cast, same shape as the bow's draw. */
+  astraCharge: DrawState
   npcs: NpcPoint[]
   ground: Object3D[]
   hittable: Object3D[]
@@ -79,6 +81,7 @@ export const world: WorldSim = {
   aimDir: [0, 0, -1],
   arrows: [],
   swordSlashUntilTick: 0,
+  astraCharge: NO_DRAW,
   npcs: [],
   ground: [],
   hittable: [],
@@ -100,6 +103,7 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.aimBlend = 0
   world.arrows = []
   world.swordSlashUntilTick = 0
+  world.astraCharge = NO_DRAW
   world.alpha = 0
   world.tick = 0
   worldStore.setState({ prompt: null, dialogue: null })

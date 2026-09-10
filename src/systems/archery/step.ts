@@ -1,5 +1,5 @@
 // Archery on the fixed tick: draw, release, flight, hit, and the arrows-out rule.
-import { Vector3 } from 'three'
+import { type Object3D, Vector3 } from 'three'
 import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
@@ -13,6 +13,20 @@ import { world } from '../world'
 const AIM = BALANCE.archeryAim
 const hitTest = createHitTester()
 const dir = new Vector3()
+
+/** A 'lateral' target (entities/Target.tsx tags it in userData) is moved here, once per fixed
+ * tick, right before this tick's hit-test — not in a render-frame useFrame. Under SwiftShader's
+ * low frame rate the fixed loop can process several ticks per rendered frame
+ * (BALANCE.loop.MAX_SUBSTEPS), so a render-frame-driven position would still be stale for the
+ * hit-test on those ticks; the target's collision position must track world.tick exactly. */
+export function updateMovingTargets(tick: number): void {
+  for (const o of world.hittable as (Object3D & { userData: { lateral?: { baseX: number; amplitude: number; periodTicks: number } } })[]) {
+    const lateral = o.userData.lateral
+    if (!lateral) continue
+    const phase = (tick / lateral.periodTicks) * Math.PI * 2
+    o.position.x = lateral.baseX + Math.sin(phase) * lateral.amplitude
+  }
+}
 
 function updateAimDir(): void {
   const m = platform.input.mouse()
@@ -43,6 +57,7 @@ function targetsRemaining(): number {
 }
 
 export function stepArchery(dt: number): void {
+  updateMovingTargets(world.tick)
   updateAimDir()
   const { state, released } = stepDraw(world.draw, platform.input.mouse().down)
   world.draw = state
@@ -63,6 +78,8 @@ export function stepArchery(dt: number): void {
           world.hittable = world.hittable.filter((o) => o !== root)
           gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
         }
+      } else if (root?.userData.requiresAstra) {
+        // A plain arrow bounces off — the target stays hittable for a fired astra instead.
       } else if (root) {
         // A struck target stops being hittable so the same one can't be counted twice.
         world.hittable = world.hittable.filter((o) => o !== root)

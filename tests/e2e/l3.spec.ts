@@ -18,6 +18,10 @@ declare global {
         player: { x: number; z: number; yaw: number }
         hittable: readonly unknown[]
         enemies: readonly { x: number; z: number; health: number; state: string }[]
+        tick: number
+        arrows: readonly unknown[]
+        draw: { drawing: boolean; ticks: number }
+        astraCharge: { drawing: boolean; ticks: number }
       }
     }
   }

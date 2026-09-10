@@ -7,6 +7,7 @@ import { gameStore } from '@core/game-state'
 import { currentObjectiveIndex } from '@core/objectives'
 import { levelDef } from '@core/progression'
 import { stepEnemy } from '@systems/ai/enemy-ai'
+import { stepAstra } from '@systems/astra/step'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
 import { IDLE_INPUT, type MoveInput, stepLocomotion } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
@@ -17,6 +18,7 @@ import { platform } from '@platform/index'
 
 const KEY_E = 'KeyE'
 const KEY_SWORD = 'KeyF'
+const KEY_ASTRA = 'KeyQ'
 
 function readMove(): MoveInput {
   const { input } = platform
@@ -74,6 +76,7 @@ export function SimulationDriver({ bow }: { bow: boolean }) {
         if (bow) {
           stepArchery(loop.dt)
           stepSword(tick)
+          stepAstra(platform.input.isDown(KEY_ASTRA), tick)
         }
       } else {
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })

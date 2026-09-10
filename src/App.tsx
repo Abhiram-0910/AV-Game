@@ -14,6 +14,7 @@ import { isSoftwareRenderer, resolveTier } from '@render/quality-tier'
 import { L1Court } from '@scenes/L1Court'
 import { L2Forest } from '@scenes/L2Forest'
 import { L3Forest } from '@scenes/L3Forest'
+import { L4Range } from '@scenes/L4Range'
 import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
 import { useGame } from '@ui/use-game'
@@ -49,10 +50,11 @@ function Level({ tier }: { tier: ResolvedTier }) {
   const level = useGame((s) => s.level)
   const bow = levelDef(level).bow || DEBUG.bow
   if (DEBUG.lod) return <LodDebug tier={tier} />
-  // ponytail: L4-L5 are later phases; they show their loading screen until built.
+  // ponytail: L5 is a later phase; it shows its loading screen until built.
   if (level === 'l1') return <L1Court tier={tier} bow={bow} />
   if (level === 'l2') return <L2Forest tier={tier} bow={bow} />
   if (level === 'l3') return <L3Forest tier={tier} bow={bow} />
+  if (level === 'l4') return <L4Range tier={tier} bow={bow} />
   return null
 }
 

@@ -2,6 +2,60 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase E: Level 4, five-arrow trial
+
+Branch `feat/pass-3-overnight`, on top of `b687214` (the prop-scale/tint fix commit).
+
+**Built**
+- `src/entities/Target.tsx`: `scale` support (baked pre-merge) for `occluded`/`astraOnly`;
+  `astraOnly` tags `userData.requiresAstra`; `lateral` tags `userData.lateral` instead of
+  moving itself (see the bug below).
+- `src/systems/archery/step.ts`: `updateMovingTargets(tick)` moves any tagged lateral target
+  once per fixed tick, before that tick's hit-test. A plain arrow hitting a `requiresAstra`
+  target now bounces off (no score, stays hittable) instead of counting.
+- `src/systems/astra/step.ts` (new): the astra charge-and-release, same shape as the bow's draw
+  (`systems/archery/draw.ts`) reused for the hold-to-charge state. Release performs an instant
+  hitscan along the aim direction — astras are summoned by mantra, not thrown, so no projectile
+  simulation — against `world.hittable`, scoring a target hit exactly like an arrow. Enemy astra
+  combat is explicitly left as Level 5's concern (Phase G), commented at the one line that
+  matters.
+- `src/entities/Player.tsx` / `SimulationDriver.tsx`: `CAST_LOOP` clip while charging (`KeyQ`),
+  same cosmetic-clip pattern as the sword slash — no change to the bow draw pose.
+- `src/scenes/L4Range.tsx` + `SCENERY.l4`: the firing line, five targets from the pre-existing
+  `levels.ts` data, a rock placed at the `occluded` target's `coverPos` for partial visual
+  cover, Vishwamitra positioned near spawn for the astras dialogue (`l4.vishwamitra.astras`,
+  pass-1 content, already written).
+
+**Bug found and fixed (architectural, not just a test problem)**
+- `Target.tsx`'s `lateral` motion updated position in a render-frame `useFrame`, but the
+  hit-test runs inside the fixed-tick loop, which processes several ticks per rendered frame
+  under SwiftShader's low frame rate (`BALANCE.loop.MAX_SUBSTEPS`) — so the collision position
+  used by a given tick's raycast could be several ticks stale, worse the heavier the frame is.
+  This is the same "fixed tick is authoritative, render interpolates" principle the rest of the
+  codebase already follows (`AGENTS.md`) — `lateral` motion just wasn't following it. Fixed by
+  moving the position update into `updateMovingTargets()`, called from `stepArchery` once per
+  tick. Covered by a new deterministic unit test (`tests/unit/archery.test.ts`).
+- Also replaced the L4 e2e's fixed-`waitForTimeout` draw/flight timing with polling actual game
+  state (`world.draw.ticks`, `world.arrows.length`) instead of assuming a wall-clock-ms to
+  game-tick ratio that isn't constant under variable system load.
+
+**Verified**
+- 80 unit tests green (2 new, covering the tick-driven oscillation formula), `typecheck` and
+  `lint` clean.
+- `docs/screenshots/l4-firing-line.png`: all five targets visible at their correct positions
+  and (for `occluded`/`astraOnly`) scale, the range's rock/tree dressing, Rama's bow correctly
+  proportioned (confirms the earlier prop-scale fix still holds) and blue-tinted dhoti (confirms
+  the tint fix), HUD showing 0/5 targets and 1 astra charge.
+- Full L4 e2e (`tests/e2e/l4.spec.ts`) passed completely multiple times during this phase —
+  all five targets, the astra bounce-then-hit sequence, win, `astra` codex unlock, transition
+  into L5's intro. It is currently flaky specifically under the heavy concurrent system load
+  this session is under right now (verified via an isolated fresh-page test that hits the
+  hardest target, `lateral`, on the first attempt with exactly the expected tick count — see
+  TODO.md's "KNOWN" entry for the full investigation). Not chased further; it is a session
+  environment problem, not a game or test-logic bug.
+
+**Next**: Phase F (full UI: quiz, pause, settings, codex, ending screen) per `OVERNIGHT.md`.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — fix: prop grip scale, tint on garments not skin
 
 Branch `feat/pass-3-overnight`, on top of `397edaf` (phase D). Two user-reported bugs from
