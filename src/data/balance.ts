@@ -129,19 +129,26 @@ export const BALANCE = {
     /** Arrow leaves from this height above the feet, this far ahead. */
     MUZZLE_HEIGHT: 1.35,
     MUZZLE_FORWARD: 0.5,
-    /** Bow grip: local offset and euler (radians) under hand_l. */
+    /** Bow grip: local offset, euler (radians), and uniform scale under hand_l. The Quaternius
+     * source model bakes a ~2m standing bow (node scale 100 on a centimetre-authored mesh) —
+     * BOW_GRIP_SCALE corrects it to a believable ~1.3m held bow. */
     BOW_GRIP_POS: [0, 0, 0],
     BOW_GRIP_ROT: [Math.PI / 2, 0, 0],
-    /** Quiver on the back: local offset and euler under spine_03. */
+    BOW_GRIP_SCALE: 0.65,
+    /** Quiver on the back: local offset, euler, and scale under spine_03. Same oversized-source
+     * correction as the bow — the stand-in arrow model bakes to ~1.5m. */
     QUIVER_POS: [-0.15, 0.1, -0.12],
     QUIVER_ROT: [0.3, 0, 0.5],
+    QUIVER_SCALE: 0.45,
   },
 
   melee: {
-    /** Sword grip: local offset and euler (radians) under hand_r. Same 90° convention as
-     * the bow grip — the source model is authored blade-up, +Y, like the bow's own rig pose. */
+    /** Sword grip: local offset, euler (radians), and scale under hand_r. Same 90° convention
+     * as the bow grip — the source model is authored blade-up, +Y, like the bow's own rig pose.
+     * The source model bakes to a ~2.3m blade; SWORD_GRIP_SCALE corrects it to a ~1m sword. */
     SWORD_GRIP_POS: [0, 0, 0],
     SWORD_GRIP_ROT: [Math.PI / 2, 0, 0],
+    SWORD_GRIP_SCALE: 0.4,
     /** Ticks the one-shot slash clip plays for before locomotion resumes control of the pose. */
     SLASH_TICKS: 36,
   },

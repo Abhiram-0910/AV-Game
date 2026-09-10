@@ -1,5 +1,54 @@
 # TODO
 
+## RESOLVED — held props (bow/quiver/sword) rendered at 2–2.3m, not human scale (2026-09-10)
+
+User-reported bug, confirmed with fresh L1/L2 screenshots before assuming: the Quaternius
+bow/arrow/sword source models each bake a node-level `scale: [100,100,100]` (authored in
+centimetres, exporter-compensated) that resolves to real sizes of ~2.0m (bow), ~1.5m (the
+arrow model standing in for a quiver), and ~2.3m (sword) — human-scale environment props, not
+hand-held-scale. `attachProp()` in `character-factory.ts` never corrected for this. Fixed with
+a `scale` field on each prop's grip transform, held as data in `balance.ts`
+(`BOW_GRIP_SCALE: 0.65`, `QUIVER_SCALE: 0.45`, `SWORD_GRIP_SCALE: 0.4`) alongside the existing
+position/rotation fields, applied in `attachProp()` via `holder.scale.setScalar()`. Verified
+with `docs/screenshots/bugfix-props-scale.png` (all three props on Rama, correctly
+proportioned) and fresh `l1-court.png` / `l2-range.png`.
+
+Turned out the L1 court screenshot's "giant pillar" and "oversized mace" the user also flagged
+are **not** this bug — L1 has `bow: false`, so Rama carries no props there at all. Confirmed by
+regenerating a fresh L1 screenshot: the objects are still there with zero character props in
+the scene, so they're baked into the palace's own decimated static mesh (`palace.glb`, a single
+merged Blender-decimated mesh — likely a decimation spike artifact on the original Sketchfab
+model's chandelier/banner-pole geometry). Logged under "Visual pass" below, not fixed — it's an
+environment asset defect, not a prop-attachment one, and out of this session's scope.
+
+## RESOLVED — CharacterSpec.tint painted skin, not cloth (2026-09-10)
+
+User-reported bug: Vishwamitra rendered fully orange and Vasishtha chalk-white, head to toe —
+`tint` (never a plausible skin tone in the data: Rama's is light blue) was being multiplied
+into the **body** material in `mergeSkinned()`, a leftover from before Phase A's garments
+existed and skin was the only way to tell characters apart. Fixed by splitting the material
+assignment: `mergeSkinned()` now takes body parts and garment parts separately and only
+multiplies `tint` into the garment materials (dhoti, choli, sash). Skin, face, and eyes render
+at their untouched base texture for every character; hair is unaffected either way (it was
+already on its own `hairTint`, never `tint`). Verified with
+`docs/screenshots/bugfix-tint-sages.png` and fresh `l1-court.png` / `l2-range.png` — both sages
+now show natural skin with their garment carrying the distinct colour.
+
+## Visual pass (deferred — a dedicated pass happens after all five levels are playable)
+
+- **Palace giant pillar/mace artifact.** A very tall, very thin vertical shape (gold) and a
+  separate rod-with-bulb shape (beige) stand fixed in the L1 throne room regardless of camera
+  angle — visible in `l1-court.png`. Confirmed not a character-prop bug (L1 equips no props).
+  `palace.glb` is a single merged mesh after Blender decimation (pass 2), so there's no
+  separable sub-object to fix via a transform; likely a decimation spike on the original
+  Sketchfab model's thin geometry (a chandelier chain, banner pole, or similar). Would need
+  re-decimating with different settings or manual cleanup in Blender.
+- **A small floating/hanging figure** appears between two throne-room columns in some L1
+  camera angles (seen while chasing the tint bug, `sage-check-vasishtha.png`, not committed).
+  Not investigated — possibly an NPC clipping through geometry or a stray prop instance.
+- The angavastram sash's exact drape/visibility across all characters is still only spot-
+  checked (see the phase A entry below) — a `?debug=cast` view remains unbuilt.
+
 ## RESOLVED — Tataka not covered above the waist (pass 3 phase D, 2026-09-10)
 
 `render/garments.ts` now builds a choli (torso wrap, pelvis→clavicle height, skinned to

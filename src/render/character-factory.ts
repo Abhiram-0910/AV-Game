@@ -71,14 +71,20 @@ function stripped(geometry: BufferGeometry): BufferGeometry {
   return g
 }
 
-/** Merge the source primitives into one SkinnedMesh with one material group per primitive. */
-function mergeSkinned(parts: SkinnedMesh[], tier: ResolvedTier, tint: string): SkinnedMesh {
-  const body = parts.reduce((a, b) => (a.geometry.index!.count > b.geometry.index!.count ? a : b))
-  const geometries = parts.map((p) => stripped(p.geometry))
+/**
+ * Merge the source primitives into one SkinnedMesh with one material group per primitive.
+ * `tint` (CharacterSpec.tint) multiplies into the garment materials only — dhoti, choli, sash,
+ * and any future crown. Skin, face, eyes stay on their own base texture, untinted; body-painted
+ * sages was a bug (see TODO.md, pass 3 phase D/E fix), not the intended look.
+ */
+function mergeSkinned(bodyParts: SkinnedMesh[], garmentParts: SkinnedMesh[], tier: ResolvedTier, tint: string): SkinnedMesh {
+  const allParts = [...bodyParts, ...garmentParts]
+  const body = bodyParts.reduce((a, b) => (a.geometry.index!.count > b.geometry.index!.count ? a : b))
+  const geometries = allParts.map((p) => stripped(p.geometry))
   const merged = mergeGeometries(geometries, true)
   geometries.forEach((g) => g.dispose())
   if (!merged) throw new Error('character primitives could not be merged')
-  const materials = parts.map((p) => tierMaterial(p.material as Material, tier, p === body ? { tint } : {}))
+  const materials = allParts.map((p) => tierMaterial(p.material as Material, tier, garmentParts.includes(p) ? { tint } : {}))
   const mesh = new SkinnedMesh(merged, materials)
   mesh.name = body.name
   mesh.frustumCulled = false
@@ -99,10 +105,19 @@ function attachHair(source: SkinnedMesh, head: Bone, tier: ResolvedTier, tint: s
   return mesh
 }
 
-function attachProp(prop: Object3D, bone: Bone, pos: readonly number[], rot: readonly number[], tier: ResolvedTier): Group {
+/** Grip transform: local offset, euler rotation (radians), and uniform scale — the source
+ * prop models bake unrelated real-world scales (see balance.ts), never a human hand's. */
+interface GripTransform {
+  readonly pos: readonly number[]
+  readonly rot: readonly number[]
+  readonly scale: number
+}
+
+function attachProp(prop: Object3D, bone: Bone, grip: GripTransform, tier: ResolvedTier): Group {
   const holder = new Group()
-  holder.position.set(pos[0], pos[1], pos[2])
-  holder.rotation.set(rot[0], rot[1], rot[2])
+  holder.position.set(grip.pos[0], grip.pos[1], grip.pos[2])
+  holder.rotation.set(grip.rot[0], grip.rot[1], grip.rot[2])
+  holder.scale.setScalar(grip.scale)
   applyTierMaterials(prop, tier)
   holder.add(prop)
   bone.add(holder)
@@ -113,10 +128,10 @@ async function attachProps(id: CharacterId, bones: Map<string, Bone>, tier: Reso
   const aim = BALANCE.archeryAim
   const out = new Map<PropKind, Group>()
   for (const kind of CHARACTER_SPECS[id].props) {
-    if (kind === 'bow') out.set(kind, attachProp(cloneSkeleton((await loadGltf('bow')).scene), bones.get(SKELETON.LEFT_HAND)!, aim.BOW_GRIP_POS, aim.BOW_GRIP_ROT, tier))
+    if (kind === 'bow') out.set(kind, attachProp(cloneSkeleton((await loadGltf('bow')).scene), bones.get(SKELETON.LEFT_HAND)!, { pos: aim.BOW_GRIP_POS, rot: aim.BOW_GRIP_ROT, scale: aim.BOW_GRIP_SCALE }, tier))
     // ponytail: no quiver mesh in the pack; the arrow model stands in on the back.
-    if (kind === 'quiver') out.set(kind, attachProp(cloneSkeleton((await loadGltf('arrow')).scene), bones.get(SKELETON.SPINE_TOP)!, aim.QUIVER_POS, aim.QUIVER_ROT, tier))
-    if (kind === 'sword') out.set(kind, attachProp(cloneSkeleton((await loadGltf('sword')).scene), bones.get(SKELETON.RIGHT_HAND)!, BALANCE.melee.SWORD_GRIP_POS, BALANCE.melee.SWORD_GRIP_ROT, tier))
+    if (kind === 'quiver') out.set(kind, attachProp(cloneSkeleton((await loadGltf('arrow')).scene), bones.get(SKELETON.SPINE_TOP)!, { pos: aim.QUIVER_POS, rot: aim.QUIVER_ROT, scale: aim.QUIVER_SCALE }, tier))
+    if (kind === 'sword') out.set(kind, attachProp(cloneSkeleton((await loadGltf('sword')).scene), bones.get(SKELETON.RIGHT_HAND)!, { pos: BALANCE.melee.SWORD_GRIP_POS, rot: BALANCE.melee.SWORD_GRIP_ROT, scale: BALANCE.melee.SWORD_GRIP_SCALE }, tier))
   }
   return out
 }
@@ -132,7 +147,7 @@ export async function buildCharacter(id: CharacterId, opts: BuildOptions): Promi
   const parts = skinnedMeshes(rig)
   const skinIndexCtor = parts[0].geometry.attributes.skinIndex.array.constructor as SkinIndexCtor
   const garments = buildGarments(id, rig, parts[0].skeleton, parts[0].bindMatrix, skinIndexCtor)
-  const skinned = mergeSkinned([...parts, ...garments], opts.tier, spec.tint)
+  const skinned = mergeSkinned(parts, garments, opts.tier, spec.tint)
   assertSkeleton(skinned, id)
   parts[0].parent!.add(skinned)
   parts.forEach((p) => p.removeFromParent())

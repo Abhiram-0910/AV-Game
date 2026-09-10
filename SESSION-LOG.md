@@ -2,6 +2,53 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — fix: prop grip scale, tint on garments not skin
+
+Branch `feat/pass-3-overnight`, on top of `397edaf` (phase D). Two user-reported bugs from
+reviewing `docs/screenshots/*`, fixed before starting Phase E as instructed.
+
+**Bug 1 — props at the wrong scale.** Confirmed first with fresh L1/L2 screenshots rather than
+trusting the committed ones. The Quaternius bow/arrow/sword GLBs each bake a node-level
+`scale: [100,100,100]` (centimetre-authored, exporter-compensated) that resolves to ~2.0m
+(bow), ~1.5m (the arrow standing in for a quiver), and ~2.3m (sword) — correctly-sized
+*environment* props, never corrected for being hand-held. `character-factory.ts`'s
+`attachProp()` had no scale parameter at all. Fixed: a `GripTransform` (`pos`, `rot`, `scale`)
+per prop, the scale values held in `balance.ts` (`BOW_GRIP_SCALE: 0.65`, `QUIVER_SCALE: 0.45`,
+`SWORD_GRIP_SCALE: 0.4`), applied via `holder.scale.setScalar()` in `attachProp()`.
+
+The L1 court screenshot's "giant pillar" and "oversized mace" turned out to be a **different,
+pre-existing** bug: L1 equips no props at all (`bow: false`), confirmed by a fresh screenshot
+showing them still present with zero character props in the scene. They're baked into
+`palace.glb`'s own geometry (a single merged mesh after pass-2 Blender decimation — no longer
+a separable sub-object), most likely a decimation spike on the original Sketchfab model. Not
+fixed — logged under "Visual pass" in TODO.md, out of scope (environment asset defect, not a
+prop-attachment one, and the user asked for a dedicated visual pass later, not opportunistic
+fixes now).
+
+**Bug 2 — tint painted skin instead of cloth.** `CharacterSpec.tint` (never a plausible skin
+tone — Rama's is light blue) was being multiplied into the body material in `mergeSkinned()`,
+left over from before Phase A's garments existed, when tinting the body was the only way to
+tell characters apart. Fixed by splitting `mergeSkinned()`'s parameters into body parts and
+garment parts, multiplying `tint` into garment materials only (dhoti, choli, sash). Skin,
+face, and eyes keep their base texture for every character; hair was already independent
+(`hairTint`, never `tint`), unaffected either way.
+
+**Verified**
+- 78 unit tests green, `typecheck` and `lint` clean (no test exercises `mergeSkinned`'s
+  material split directly — it needs a real WebGL-loaded body mesh — so this was verified
+  visually, per the user's explicit ask).
+- `docs/screenshots/bugfix-props-scale.png`: Rama with all three props (bow, quiver, sword)
+  at believable human scale, one clean shot showing all of them together.
+- `docs/screenshots/bugfix-tint-sages.png` plus fresh `l1-court.png` / `l2-range.png` (full
+  real e2e runs, not just debug screenshots): Vishwamitra and Vasishtha both show natural skin
+  with their garment carrying the distinct colour.
+- Full L1 and L2 e2e both re-run and pass after both fixes (L2 solo — running both L1 and L2
+  concurrently this time starved L2 of CPU under SwiftShader and it hit the 900s timeout at
+  15.5 minutes; alone it passed in 14.0 minutes, slower than the ~5.5–8.7 min seen earlier in
+  this session, environmental load rather than a regression — L1 passed either way).
+
+**Next**: Phase E (Level 4, five-arrow challenge) per `OVERNIGHT.md`.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase D: combat, enemy AI, Level 3 Tataka
 
 Branch `feat/pass-3-overnight`, on top of `5ce4ff8` (phase C). Also closes the Tataka modesty
