@@ -4,8 +4,20 @@ import { UI } from '@data/dialogue'
 import type { Objective } from '@data/levels'
 import { currentObjectiveIndex, type ObjectiveProgress } from '@core/objectives'
 import { levelDef } from '@core/progression'
+import type { BossHealth } from '@systems/world'
 import { fmt } from './format'
 import { useGame, useWorld } from './use-game'
+
+function BossBar({ boss }: { boss: BossHealth }) {
+  return (
+    <div className="hud-boss" data-testid="hud-boss">
+      <span className="hud-label">{UI[`name.${boss.kind}`]}</span>
+      <div className="bar" role="meter" aria-valuenow={boss.health} aria-valuemin={0} aria-valuemax={boss.max}>
+        <div className="bar-fill" style={{ width: `${(boss.health / boss.max) * 100}%` }} />
+      </div>
+    </div>
+  )
+}
 
 function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefined): string {
   if (!o || !p) return ''
@@ -32,6 +44,7 @@ export function Hud({ bow }: { bow: boolean }) {
   const level = useGame((s) => s.level)
   const progress = useGame((s) => s.objectives)
   const prompt = useWorld((s) => s.prompt)
+  const boss = useWorld((s) => s.boss)
   const i = currentObjectiveIndex(progress)
   const objective = objectiveText(levelDef(level).objectives[i], progress[i])
   return (
@@ -56,6 +69,7 @@ export function Hud({ bow }: { bow: boolean }) {
           </div>
         )}
       </div>
+      {boss && <BossBar boss={boss} />}
       <div className="hud-objective" data-testid="hud-objective">
         <span className="hud-label">{UI['hud.objective']}</span> {objective}
       </div>

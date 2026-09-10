@@ -6,6 +6,7 @@ import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { currentObjectiveIndex } from '@core/objectives'
 import { levelDef } from '@core/progression'
+import { stepEnemy } from '@systems/ai/enemy-ai'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
 import { IDLE_INPUT, type MoveInput, stepLocomotion } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
@@ -47,6 +48,13 @@ function stepSword(tick: number): void {
   }
 }
 
+function stepEnemies(tick: number, dt: number): void {
+  for (const e of world.enemies) {
+    stepEnemy(e, world.player, tick, dt)
+    if (e.didAttack) gameStore.getState().damagePlayer(BALANCE.enemies[e.kind].DAMAGE, tick)
+  }
+}
+
 export function SimulationDriver({ bow }: { bow: boolean }) {
   const loop = useMemo(() => createFixedLoop(), [])
   const groundY = useMemo(() => createGroundProbe(() => world.ground), [])
@@ -62,6 +70,7 @@ export function SimulationDriver({ bow }: { bow: boolean }) {
         const query = { bounds: sceneBounds(bounds), obstacles: world.npcs.map((n) => ({ x: n.x, z: n.z, radius: BALANCE.locomotion.NPC_RADIUS })), groundY }
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
         stepInteraction()
+        stepEnemies(tick, loop.dt)
         if (bow) {
           stepArchery(loop.dt)
           stepSword(tick)

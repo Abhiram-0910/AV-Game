@@ -43,20 +43,22 @@ function assertWeightsSumToOne(parts: ReturnType<typeof buildGarments>) {
 describe('procedural garments', () => {
   const ids = Object.keys(CHARACTER_SPECS) as CharacterId[]
 
-  it('every character gets a fully-weighted dhoti, and a sash only when specced', () => {
+  it('every character gets a fully-weighted dhoti, a choli when female, and a sash only when specced', () => {
     const { root, skeleton } = rig()
     for (const id of ids) {
+      const spec = CHARACTER_SPECS[id]
       const parts = buildGarments(id, root, skeleton, new Matrix4(), Uint8Array)
-      expect(parts.length).toBe(CHARACTER_SPECS[id].sash ? 2 : 1)
+      expect(parts.length).toBe(1 + (spec.mesh === 'female' ? 1 : 0) + (spec.sash ? 1 : 0))
       assertWeightsSumToOne(parts)
     }
   })
 
-  it('stays far under the tri budget (dhoti 400, sash 200)', () => {
+  it('stays far under the tri budget (dhoti 400, choli 200, sash 200)', () => {
     const { root, skeleton } = rig()
-    const parts = buildGarments('rama', root, skeleton, new Matrix4(), Uint8Array)
-    const [dhoti, sash] = parts
+    const [dhoti, sash] = buildGarments('rama', root, skeleton, new Matrix4(), Uint8Array)
     expect(dhoti.geometry.index!.count / 3).toBeLessThan(400)
     expect(sash!.geometry.index!.count / 3).toBeLessThan(200)
+    const [, choli] = buildGarments('tataka', root, skeleton, new Matrix4(), Uint8Array)
+    expect(choli!.geometry.index!.count / 3).toBeLessThan(200)
   })
 })

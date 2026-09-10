@@ -55,7 +55,12 @@ export const BALANCE = {
 
   enemies: {
     rakshasa: { HEALTH: 30, SPEED: 3.0, DAMAGE: 10, ATTACK_COOLDOWN: 60, REACH: 1.6, YAJNA_DAMAGE: 5 },
-    tataka: { HEALTH: 150, SPEED: 2.4, DAMAGE: 15, ATTACK_COOLDOWN: 90, REACH: 2.4, YAJNA_DAMAGE: 0 },
+    // ATTACK_COOLDOWN raised and DAMAGE lowered from the pass-1 draft (90 / 15): playtesting the
+    // L3 fight (pass 3 phase D) found the original numbers let her kill a 100-health player in
+    // under 7 hits, faster than a bow-only player could land the 10 arrow hits her 150 health
+    // needs. 180 (~3s between attacks) and 10 damage (10 hits to kill the player) give an actual
+    // margin for a level meant to teach the mechanic, not punish a slow shot.
+    tataka: { HEALTH: 150, SPEED: 2.4, DAMAGE: 10, ATTACK_COOLDOWN: 180, REACH: 2.4, YAJNA_DAMAGE: 0 },
     subahu: { HEALTH: 120, SPEED: 3.2, DAMAGE: 15, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
     maricha: { HEALTH: 90, SPEED: 3.6, DAMAGE: 12, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
   },
@@ -68,6 +73,12 @@ export const BALANCE = {
     /** Boulder thrown by Tataka. */
     BOULDER_DAMAGE: 15,
     BOULDER_SPEED: 14,
+    /** Distance at which an idle enemy notices the player and starts chasing. */
+    AGGRO_RADIUS: 16,
+    /** Ticks an enemy telegraphs an attack before it lands, once in reach. */
+    ATTACK_WINDUP_TICKS: 18,
+    /** Ticks an enemy is knocked out of its current action by a landed hit. */
+    STAGGER_TICKS: 20,
   },
 
   spawn: {
@@ -145,6 +156,10 @@ export const BALANCE = {
     SASH_WIDTH: 0.12,
     SASH_THICKNESS: 0.03,
     SASH_SURFACE_OFFSET: 0.16,
+    /** Choli (torso wrap): covers the female base mesh from the waist to the collarbone —
+     * its baked-in top is otherwise fully exposed above the dhoti (see TODO.md, pass 3 phase B). */
+    CHOLI_RADIUS: 0.24,
+    CHOLI_RADIAL_SEGMENTS: 16,
   },
 
   interaction: {

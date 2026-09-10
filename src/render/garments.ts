@@ -87,6 +87,30 @@ function buildSash(skeleton: Skeleton, skinIndexCtor: SkinIndexCtor, clavicleWor
 }
 
 /**
+ * Torso wrap from the waist to the collarbone, skinned pelvis→spine_03 by height like the
+ * dhoti blends pelvis→thigh. The female base mesh's baked-in top is otherwise fully exposed
+ * above the dhoti (see TODO.md, pass 3 phase B) — every female character gets this, same as
+ * every character gets a dhoti. Reaches the clavicle height (not just spine_03's own, lower
+ * height) because the bra it's covering sits above the sternum; still skinned to spine_03 —
+ * a torso garment has no business rigged to an arm bone.
+ */
+function buildCholi(skeleton: Skeleton, skinIndexCtor: SkinIndexCtor, pelvisWorld: Vector3, collarWorld: Vector3, color: string): SkinnedMesh {
+  const g = BALANCE.garments
+  const idxPelvis = skeleton.bones.indexOf(requireBone(skeleton, SKELETON.PELVIS))
+  const idxSpine = skeleton.bones.indexOf(requireBone(skeleton, SKELETON.SPINE_TOP))
+  const botY = pelvisWorld.y
+  const topY = collarWorld.y
+  const height = topY - botY
+  const geometry = new CylinderGeometry(g.CHOLI_RADIUS, g.CHOLI_RADIUS, height, g.CHOLI_RADIAL_SEGMENTS, 1, true)
+  geometry.translate(pelvisWorld.x, (topY + botY) / 2, pelvisWorld.z)
+  setSkin(geometry, skinIndexCtor, (v) => {
+    const t = Math.min(1, Math.max(0, (v.y - botY) / height))
+    return [[idxPelvis, 1 - t], [idxSpine, t]]
+  })
+  return garmentMesh('choli', geometry, color)
+}
+
+/**
  * Extra skinned parts for a character: always a dhoti, a sash when the spec calls for one.
  * `rig` must already be in its bind pose with world matrices updated (fresh clone, before any
  * clip has played) and `bindMatrix` is the body mesh's bindMatrix — geometry is authored in
@@ -99,6 +123,10 @@ export function buildGarments(id: CharacterId, rig: Object3D, skeleton: Skeleton
   const thighL = requireBone(skeleton, SKELETON.THIGH_L).getWorldPosition(new Vector3())
   const thighR = requireBone(skeleton, SKELETON.THIGH_R).getWorldPosition(new Vector3())
   const parts = [buildDhoti(skeleton, skinIndexCtor, pelvis, thighL, thighR, spec.garmentColor, spec.garmentLength)]
+  if (spec.mesh === 'female') {
+    const clavicle = requireBone(skeleton, SKELETON.CLAVICLE_L).getWorldPosition(new Vector3())
+    parts.push(buildCholi(skeleton, skinIndexCtor, pelvis, clavicle, spec.garmentColor))
+  }
   if (spec.sash) {
     const clavicle = requireBone(skeleton, SKELETON.CLAVICLE_L).getWorldPosition(new Vector3())
     const spineTop = requireBone(skeleton, SKELETON.SPINE_TOP).getWorldPosition(new Vector3())

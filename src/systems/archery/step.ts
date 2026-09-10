@@ -4,6 +4,7 @@ import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
+import { applyArrowHit } from '../ai/enemy-ai'
 import { grounded, launchArrow, shouldFailArrowsOut, stepArrow } from './ballistics'
 import { drawFraction, stepDraw } from './draw'
 import { createHitTester, resolveHitRoot } from './hit-test'
@@ -52,10 +53,21 @@ export function stepArchery(dt: number): void {
     const moved = stepArrow(a, dt)
     const hit = hitTest(a, moved, world.hittable)
     if (hit) {
-      // A struck target stops being hittable so the same one can't be counted twice.
       const root = resolveHitRoot(hit.object, world.hittable)
-      if (root) world.hittable = world.hittable.filter((o) => o !== root)
-      gameStore.getState().progress({ kind: 'hitTargets' })
+      const enemy = root && world.enemies.find((e) => e.root === root)
+      if (enemy) {
+        // Enemies take repeated hits — only remove from hittable once actually defeated.
+        const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
+        applyArrowHit(enemy, world.tick, distance)
+        if (enemy.state === 'dead') {
+          world.hittable = world.hittable.filter((o) => o !== root)
+          gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
+        }
+      } else if (root) {
+        // A struck target stops being hittable so the same one can't be counted twice.
+        world.hittable = world.hittable.filter((o) => o !== root)
+        gameStore.getState().progress({ kind: 'hitTargets' })
+      }
     } else if (moved.alive && !grounded(moved)) next.push(moved)
   }
   world.arrows = next

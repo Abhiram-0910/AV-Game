@@ -133,4 +133,25 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
   },
+  l3: {
+    // Dense, dark forest — "no birds sang" (l3.intro). Denser tree cover than L2's riverbank,
+    // thinning near the clearing at z -10 so Tataka's fight has open ground.
+    statics: [
+      { asset: 'tree', pos: [-4, 0, 2], yaw: 0.2, scale: 1.05, ground: false },
+      { asset: 'tree', pos: [5, 0, 0], yaw: 1.4, scale: 0.95, ground: false },
+      { asset: 'tree', pos: [-7, 0, -8], yaw: 2.1, scale: 1.1, ground: false },
+      { asset: 'tree', pos: [8, 0, -10], yaw: 0.7, scale: 1, ground: false },
+      { asset: 'tree', pos: [-8, 0, -20], yaw: 1.9, scale: 1.0, ground: false },
+      { asset: 'tree', pos: [8, 0, -22], yaw: 0.5, scale: 1.05, ground: false },
+      { asset: 'rock', pos: [3, 0, -16], yaw: 0.3, scale: 1.5, ground: false },
+      { asset: 'rock', pos: [-3, 0, -26], yaw: 1.6, scale: 1.7, ground: false },
+    ],
+    npcs: [
+      { npc: 'lakshmana', pos: [-1.5, 0, 5], yaw: Math.PI / 6, idle: 'IDLE' },
+      { npc: 'vishwamitra', pos: [1.5, 0, 5], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
+    ],
+    bounds: { minX: -12, maxX: 12, minZ: -32, maxZ: 22 },
+    light: { sky: '#5a6a72', ground: '#1f2a1a', sun: [-4, 8, -3], sunIntensity: 1.3, ambientIntensity: 0.55 },
+    background: '#141a16',
+  },
 }

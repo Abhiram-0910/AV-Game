@@ -2,6 +2,115 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase D: combat, enemy AI, Level 3 Tataka
+
+Branch `feat/pass-3-overnight`, on top of `5ce4ff8` (phase C). Also closes the Tataka modesty
+blocker recorded in `TODO.md` since pass 3 phase B, as a ship blocker for this phase rather
+than a follow-up, per instruction.
+
+**Built**
+- `src/systems/ai/enemy-ai.ts`: pure FSM (`idle → chase → attack → stagger/dead`) on the fixed
+  tick. `stepEnemy()` moves toward the player, faces them, and telegraphs an attack
+  (`ATTACK_WINDUP_TICKS`) once in `REACH`; `applyArrowHit()` routes through the existing
+  `core/combat-rules.resolveHit` (built pass 1, never previously wired to anything) to apply
+  arrow damage and transition to stagger or dead. `EnemyRuntime` carries a `root: Object3D`
+  purely so archery's hit-test can match a raycast hit back to a runtime by identity — the FSM
+  math itself never touches it.
+- `src/systems/world.ts`: `enemies: EnemyRuntime[]` (registered/unregistered by `Enemy.tsx`,
+  excluded from `resetWorld` for the same reason `npcs`/`ground`/`hittable` already are — mount
+  order) and a `boss: BossHealth | null` reactive slice for the HUD bar.
+- `src/systems/archery/step.ts`: a struck `world.hittable` object is now looked up against
+  `world.enemies` by root identity; an enemy takes repeated `applyArrowHit` calls and only
+  leaves `hittable` once actually dead (a static `Target` still leaves on the first hit, per
+  Phase C). Defeat dispatches `progress({kind:'defeat', enemy: ...})`, reusing the objective
+  system exactly as `hitTargets` already did.
+- `src/entities/Enemy.tsx`: one generic component for every `EnemyKind` — builds via the
+  existing `character-factory.buildCharacter` (no per-creature component; a future rakshasa is
+  the same component with a different `kind`), plays the FSM state's clip, dissolves
+  (opacity fade) over `DESPAWN_TICKS` on death — the AGENTS.md "defeated enemies dissolve"
+  content rule — non-gory outcome.
+- `src/scenes/L3Forest.tsx`: the forest edge (talk with Vishwamitra) and the clearing (Tataka).
+  The hesitation beat — Vishwamitra's case for duty, then Rama's resolve — is the existing
+  pass-1 dialogue content (`l3.vishwamitra.duty`, `l3.rama.resolve`), auto-chained by a small
+  `useNarrativeBeat` hook (opens a dialogue key once an objective/condition flips true; no
+  gating objective needed since dismissing an unlisted key is a harmless no-op for
+  `progress()`). `l3.tataka.appears` auto-fires the same way once the clearing is reached.
+- `src/ui/Hud.tsx` + `ui.css`: boss health bar (`BossBar`), gated on `world.boss`, shown only
+  once `clearingDone` (not from level load — she isn't narratively revealed yet) and hidden the
+  instant she dies. Only pushes to the store when health actually changes, not every frame —
+  `world.enemies` is hot-path mutable state, and `useWorld` re-renders the whole HUD tree on any
+  new object reference.
+- `src/render/garments.ts`: `buildCholi()`, the Tataka modesty fix. A torso wrap from the pelvis
+  to the **clavicle** (not spine_03 — see bugs below), skinned pelvis→spine_03 by height, same
+  pattern as the dhoti's pelvis→thigh blend. Added automatically for `spec.mesh === 'female'` in
+  `buildGarments()` — no new `CharacterSpec` field, since Tataka is the only female character
+  and the constraint is mesh-inherent, not a per-character style choice.
+
+**Bugs found and fixed (all three only showed up once actually played, not from a static read)**
+- **Enemy never respected `ATTACK_COOLDOWN`.** The first FSM draft returned from `attack` to
+  `chase` and re-entered `attack` on the very next tick if still in reach — landing a hit every
+  `ATTACK_WINDUP_TICKS` (0.3s) instead of the `enemies.tataka.ATTACK_COOLDOWN` (1.5s) already
+  authored in pass 1's `balance.ts` but never actually read anywhere. Fixed by adding
+  `EnemyRuntime.attackCooldownUntil`, set on every landed-or-missed attack, gating the
+  chase→attack transition. Caught by playing the real fight in the L3 e2e, not by static review.
+- **Even with the cooldown fixed, the fight still killed the player before he could land Tataka's
+  10 required hits.** `enemies.tataka.DAMAGE` (15, pass 1 draft) let her kill a 100-health player
+  in under 7 hits, faster than a bow-only fight could land the 10 arrow hits her 150 health
+  needs. Raised `ATTACK_COOLDOWN` 90→180 and lowered `DAMAGE` 15→10 (both in `balance.ts`, with
+  the reason recorded there) after three actual playthroughs of the e2e fight — the first two
+  still ended in the player dying (traced via a `console.log` per shot the e2e now keeps, since
+  a dead player silently freezes the whole simulation — `SimulationDriver` only steps
+  archery/enemies in the `'play'` phase — and the failure originally looked like the enemy or
+  the aim being broken, not a health race).
+- **The choli wasn't actually covering anything.** `buildCholi()`'s first version spanned
+  pelvis→spine_03, which is real torso height (0.36m on the unscaled rig, verified by logging
+  the bone world positions) but ends well below the collarbone — the exposed area was the bra,
+  which sits *above* spine_03. Confirmed by screenshotting `?debug=lod` (which already includes
+  Tataka high/low side by side) before and after: the first version was invisible at a normal
+  radius and, blown up for diagnosis, clearly sat at hip height, nowhere near the chest. Fixed
+  by extending the geometry to the **clavicle**'s height instead — still skinned to spine_03
+  (a torso garment has no business rigged to an arm bone), just taller.
+
+**Decisions**
+- One generic `Enemy.tsx`, not a per-creature `Tataka.tsx`/`Rakshasa.tsx` as ARCHITECTURE.md's
+  original structure sketch implied — the AI wiring and character-factory build are identical
+  per `EnemyKind`; only the data (`CHARACTER_SPECS`, `BALANCE.enemies`) differs. Saves
+  duplicating this file for every future enemy in Phases E/G.
+- No enemy position interpolation (no prev/alpha blend like `world.player` has) — renders at the
+  current tick position directly. A visible simplification for a single slow-moving boss, not
+  worth the complexity here; revisit if L4/L5's faster enemies show visible jitter.
+- Astra unlock (OVERNIGHT.md's Phase D line) needed no code: `astraCharges` has been live since
+  pass 1/2 (`Hud.tsx` already showed it in L2's screenshot) and no L3 objective requires firing
+  one — "unlock" is the `l3.outro` narrative beat, already written, not a new gate.
+- Did not wire `l3.vishwamitra.dusk` (a "hurry up" nudge if the fight drags on) — not required
+  by OVERNIGHT.md's Phase D text (only the hesitation beat was), and adding a timing trigger for
+  it would need a new tuning constant for marginal value. The dialogue content exists, unused;
+  noted in TODO.md rather than built speculatively.
+
+**Verified**
+- 78 unit tests green (5 new in `enemy-ai.test.ts`, covering aggro range, chase→attack, the
+  cooldown gate, and arrow hits staggering vs. killing), `typecheck` and `lint` clean.
+- Full L3 e2e passes end to end (~55s–1m): forest edge, the hesitation chain, the clearing,
+  Tataka's appearance, a real 10-arrow fight against the live AI (10/10 hits, player survives,
+  logged per shot), win, `tataka` codex unlock, transition into L4's intro.
+- `docs/screenshots/l3-clearing.png`: the boss bar, dark forest lighting, Rama with bow and
+  sword both visible, no floating or clipped geometry.
+- Garment fix verified visually via `?debug=lod` (Tataka high/low side by side, full torso
+  coverage, no exposed base-mesh texture) in addition to the extended `garments.test.ts` (now
+  checks the choli's weight sums and its own tri budget, not just the dhoti/sash).
+
+**Least confident**
+- The fight's balance (`ATTACK_COOLDOWN` 180, `DAMAGE` 10) was tuned against the e2e's own
+  shooting cadence, which is deliberately cautious (full draws, generous flight-time waits) —
+  slower than a keyboard-and-mouse player who leads shots and keeps drawing. A real player
+  should find this easier than the e2e's own margin (10/10 hits, no damage taken in the final
+  run) suggests, not harder — but it hasn't been played by an actual human yet.
+- Enemy chase movement has no obstacle avoidance or ground snapping (she moves in a straight
+  line at a fixed y=0) — fine for L3's flat clearing, would need work before an enemy has to
+  navigate around scenery.
+
+**Next**: Phase E (Level 4, five-arrow challenge) per `OVERNIGHT.md`.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase C: Level 2, Vishwamitra's training
 
 Branch `feat/pass-3-overnight`, on top of `7b8b77f` (phase B). Continued from a WIP commit

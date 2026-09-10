@@ -1,5 +1,22 @@
 # TODO
 
+## RESOLVED — Tataka not covered above the waist (pass 3 phase D, 2026-09-10)
+
+`render/garments.ts` now builds a choli (torso wrap, pelvis→clavicle height, skinned to
+spine_03) for every `mesh: 'female'` character automatically — no new `CharacterSpec` field,
+since Tataka is the only female character and the constraint is mesh-inherent. First version
+spanned pelvis→spine_03 (real torso height) but that ends below the collarbone, well short of
+the exposed area; fixed by reaching the clavicle's height instead. Verified visually via
+`?debug=lod` (Tataka high/low side by side) and in `tests/unit/garments.test.ts`.
+
+## RESOLVED — enemy combat balance from the pass-1 draft was lethal before it was winnable (pass 3 phase D, 2026-09-10)
+
+The L3 e2e's fight against Tataka killed the player before he could land the 10 arrow hits her
+150 health needs, twice, even after fixing an `ATTACK_COOLDOWN` FSM bug (see below). Raised
+`enemies.tataka.ATTACK_COOLDOWN` 90→180 and lowered `DAMAGE` 15→10 in `balance.ts` (reason
+recorded there). Only Tataka's numbers were touched — `rakshasa`/`subahu`/`maricha` are
+untested until Phases E/G and were left at their pass-1 draft values.
+
 ## RESOLVED — L2 e2e aimed the mouse without turning the body first (pass 3 phase C, 2026-09-10)
 
 `tests/e2e/l2.spec.ts`'s `shootTarget` missed all 3 targets on every pitch trim. Not a game
@@ -22,17 +39,6 @@ script itself (throws otherwise). `character-factory.ts`'s `BuildOptions.detail`
 not attempted here. Visual comparison: `docs/screenshots/lod-comparison.png` (male and
 female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/knees/shoulders.
 
-## NEW — Tataka (female mesh) is not actually covered above the waist
-
-Found while taking the LOD comparison screenshot above: the female base mesh's baked-in
-bikini top/bottom (the "Superhero" costume) is fully exposed above the dhoti — the Phase A
-garment only wraps waist-to-calf, and Tataka's spec has `sash: false`. This is the same
-"cannot ship" modesty problem Phase A was supposed to close, still open for the one female
-character. Not fixed here — out of Phase B's scope (asset decimation, not garments) and
-Tataka has no scene yet (she's Level 3, Phase D). Whoever builds Phase D should extend
-`render/garments.ts` with a torso wrap for the female mesh, or turn `sash: true` on for
-Tataka with a wider drape, before L3 ships.
-
 ## Pass 3
 
 - Electron: `electron/main.ts` + `preload.ts`, `"main"` in package.json, electron-builder
@@ -40,9 +46,13 @@ Tataka with a wider drape, before L3 ships.
   fullscreen adapters behind the existing `Platform` interface.
 - Menus, codex (Story Scroll) UI, quiz UI. Until the quiz UI exists `ui/Flow.tsx`
   auto-passes each gate (`QuizAutoPass`, records no score).
-- Level 2 shipped (pass 3 phase C). Levels 3–5 scenes and the enemy AI (`systems/ai/`) remain.
-  Spawner pieces exist: the skinned budget registry and the pure wave scheduler are built and
-  tested, nothing spawns yet.
+- Levels 2 and 3 shipped (pass 3 phases C, D). Enemy AI (`systems/ai/enemy-ai.ts`) and the
+  generic `entities/Enemy.tsx` exist and are wired for single static spawns (`LevelDef.enemies`);
+  nothing has used the wave scheduler yet — that's L4/L5's spawner (Phases E/G). The skinned
+  budget registry and the pure wave scheduler are built and tested, nothing spawns from them yet.
+- `l3.vishwamitra.dusk` ("hurry up, Rama") is written but unused — not required by OVERNIGHT.md's
+  Phase D text, only the hesitation beat was. Would need a new tick-elapsed-since-aggro trigger
+  in `L3Forest.tsx` and a tuning constant for the threshold; low value for the cost, deferred.
 - Crown for Rama and Dasharatha, jata/topknot hair for the rishis (pass 3 phase A mentioned
   both; only the dhoti/sash modesty fix shipped). No new hairstyle asset needed for jata — the
   rishis already use the existing `beard` hairstyle. A crown would be new prop geometry parented

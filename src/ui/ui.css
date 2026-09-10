@@ -119,6 +119,19 @@
   letter-spacing: 0.12em;
   color: var(--ink-dim);
 }
+.hud-boss {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.hud-boss .bar-fill {
+  background: linear-gradient(90deg, #7a1f1f, #c9432c);
+}
 .hud-objective {
   position: absolute;
   top: 20px;
