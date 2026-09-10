@@ -51,5 +51,10 @@ the gotchas that are not derivable from the tree.
   (the default `chrome` channel is not installed; rtk also mangles `npx playwright`).
 - **Headless Chromium on this WSL renders through SwiftShader.** Expect ~5–10 fps and a
   4-minute e2e; that is the environment, not a regression.
-- **Quiz auto-passes** in `ui/Flow.tsx` until pass 3 builds the quiz UI.
+- **`playwright.config.ts`'s `webServer` runs `npm run preview`, never `npm run build`.**
+  `reuseExistingServer` (default outside CI) means a stale `dist/` — or an already-running
+  preview server from an earlier session — silently serves old code to every e2e run with no
+  error; the symptom is a level that never finishes loading (0 Skinned meshes, phase stuck at
+  `'loading'`) even though the source is correct. Run `npm run build` before `playwright test`
+  whenever `src/` changed since the last build.
 - **No AI attribution trailers in commits**, ever (user rule, overrides tool defaults).

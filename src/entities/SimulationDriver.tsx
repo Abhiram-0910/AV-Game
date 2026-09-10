@@ -11,7 +11,7 @@ import { stepAstra } from '@systems/astra/step'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
 import { IDLE_INPUT, type MoveInput, stepLocomotion } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
-import { reachedWaypoint, talkTarget } from '@systems/interaction/interact'
+import { nearestPickupIndex, reachedWaypoint, talkTarget } from '@systems/interaction/interact'
 import { stepArchery } from '@systems/archery/step'
 import { world, worldStore } from '@systems/world'
 import { platform } from '@platform/index'
@@ -37,9 +37,18 @@ function stepInteraction(): void {
     s.progress({ kind: 'reach', waypoint: current.waypoint })
   }
   const npc = talkTarget(current, world.npcs, x, z)
-  worldStore.getState().setPrompt(npc?.id ?? null)
-  if (npc && current?.kind === 'talk' && platform.input.pressed(KEY_E)) {
-    worldStore.getState().openDialogue(current.dialogueKey as never)
+  if (npc) {
+    worldStore.getState().setPrompt(npc.id)
+    if (current?.kind === 'talk' && platform.input.pressed(KEY_E)) {
+      worldStore.getState().openDialogue(current.dialogueKey as never)
+    }
+    return
+  }
+  const pickup = nearestPickupIndex(world.arrowPickups, x, z)
+  worldStore.getState().setPrompt(pickup >= 0 ? 'pickup' : null)
+  if (pickup >= 0 && platform.input.pressed(KEY_E)) {
+    world.arrowPickups.splice(pickup, 1)
+    s.pickupArrows()
   }
 }
 
@@ -50,14 +59,18 @@ function stepSword(tick: number): void {
   }
 }
 
-function stepEnemies(tick: number, dt: number): void {
+/** `objective` is Level 5's altar — "rakshasas go for the altar, not for you" (AGENTS.md).
+ * Every other level has none, so enemies fall back to the plain player-chase from Phase D. */
+function stepEnemies(tick: number, dt: number, objective?: { x: number; z: number }): void {
   for (const e of world.enemies) {
-    stepEnemy(e, world.player, tick, dt)
-    if (e.didAttack) gameStore.getState().damagePlayer(BALANCE.enemies[e.kind].DAMAGE, tick)
+    stepEnemy(e, world.player, tick, dt, objective)
+    const stats = BALANCE.enemies[e.kind]
+    if (e.didAttack) gameStore.getState().damagePlayer(stats.DAMAGE, tick)
+    if (e.attackedObjective) gameStore.getState().damageYajna(stats.YAJNA_DAMAGE, tick)
   }
 }
 
-export function SimulationDriver({ bow }: { bow: boolean }) {
+export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick: number) => void }) {
   const loop = useMemo(() => createFixedLoop(), [])
   const groundY = useMemo(() => createGroundProbe(() => world.ground), [])
   useEffect(() => () => loop.reset(), [loop])
@@ -66,14 +79,18 @@ export function SimulationDriver({ bow }: { bow: boolean }) {
     const { phase, level } = gameStore.getState()
     const { dialogue, paused } = worldStore.getState()
     const talking = dialogue !== null
-    const bounds = levelDef(level).id
+    const def = levelDef(level)
+    const bounds = def.id
+    const altar = def.waypoints.altar
+    const objective = altar ? { x: altar[0], z: altar[2] } : undefined
     world.alpha = loop.advance(delta, (tick) => {
       world.tick = tick
       if (phase === 'play' && !talking && !paused) {
         const query = { bounds: sceneBounds(bounds), obstacles: world.npcs.map((n) => ({ x: n.x, z: n.z, radius: BALANCE.locomotion.NPC_RADIUS })), groundY }
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
         stepInteraction()
-        stepEnemies(tick, loop.dt)
+        stepEnemies(tick, loop.dt, objective)
+        onTick?.(tick)
         if (bow) {
           stepArchery(loop.dt)
           stepSword(tick)

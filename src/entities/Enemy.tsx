@@ -39,37 +39,70 @@ function updateBossAndDissolve(runtime: EnemyRuntime, built: BuiltCharacter, kin
   }
 }
 
-export function Enemy({ kind, pos, tier, boss = false }: { kind: EnemyKind; pos: Vec3; tier: ResolvedTier; boss?: boolean }) {
+/** Mount-time setup: registers the AI runtime and hittable root, and their teardown. Pulled
+ * out of the component body only to stay under the 50-line function cap; behaviour unchanged. */
+function mountEnemy(
+  kind: EnemyKind,
+  pos: Vec3,
+  tier: ResolvedTier,
+  detail: 'high' | 'low',
+  spawnId: string | null,
+  setBuilt: (b: BuiltCharacter) => void,
+): () => void {
+  let live = true
+  let instance: BuiltCharacter | null = null
+  const runtime = spawnEnemy(kind, pos, spawnId)
+  world.enemies.push(runtime)
+  buildCharacter(kind, { tier, props: true, detail }).then((b) => {
+    if (!live) return b.dispose()
+    instance = b
+    runtime.root = b.root
+    world.hittable.push(b.root)
+    setBuilt(b)
+    worldStore.getState().markLoaded()
+  })
+  return () => {
+    live = false
+    world.enemies = world.enemies.filter((e) => e !== runtime)
+    if (instance) world.hittable = world.hittable.filter((o) => o !== instance!.root)
+    // Matched by kind, not the `boss` prop's value at mount — `boss` can flip true after a
+    // scripted reveal (see L3Forest.tsx) without this effect re-running, so that closure
+    // would otherwise be stale.
+    if (worldStore.getState().boss?.kind === kind) worldStore.getState().setBoss(null)
+    instance?.dispose()
+  }
+}
+
+export function Enemy({
+  kind,
+  pos,
+  tier,
+  boss = false,
+  detail = 'high',
+  spawnId = null,
+}: {
+  kind: EnemyKind
+  pos: Vec3
+  tier: ResolvedTier
+  boss?: boolean
+  /** Level 5's wave rakshasas use 'low' (Phase B's decimated body) to stay inside the global
+   * 12-SkinnedMesh budget across several concurrent enemies; named single-spawn bosses stay
+   * 'high'. */
+  detail?: 'high' | 'low'
+  /** Correlates this instance back to a wave-scheduler spawn request (see WaveSpawner.tsx);
+   * unmatched (null) for every level that just places enemies statically from LevelDef.enemies. */
+  spawnId?: string | null
+}) {
   const [built, setBuilt] = useState<BuiltCharacter | null>(null)
   const wrapper = useRef<Group>(null)
   const lastHealthRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    let live = true
-    let instance: BuiltCharacter | null = null
-    const runtime = spawnEnemy(kind, pos)
-    world.enemies.push(runtime)
-    buildCharacter(kind, { tier, props: true }).then((b) => {
-      if (!live) return b.dispose()
-      instance = b
-      runtime.root = b.root
-      world.hittable.push(b.root)
-      setBuilt(b)
-      worldStore.getState().markLoaded()
-    })
-    return () => {
-      live = false
-      world.enemies = world.enemies.filter((e) => e !== runtime)
-      if (instance) world.hittable = world.hittable.filter((o) => o !== instance!.root)
-      // Matched by kind, not the `boss` prop's value at mount — `boss` can flip true after a
-      // scripted reveal (see L3Forest.tsx) without this effect re-running, so that closure
-      // would otherwise be stale.
-      if (worldStore.getState().boss?.kind === kind) worldStore.getState().setBoss(null)
-      instance?.dispose()
-    }
+  useEffect(
     // `boss` deliberately excluded: toggling it must not tear down and rebuild the character
     // mid-fight (see useFrame below for the reactive read).
-  }, [kind, pos, tier])
+    () => mountEnemy(kind, pos, tier, detail, spawnId, setBuilt),
+    [kind, pos, tier, detail, spawnId],
+  )
 
   useFrame((_, delta) => {
     if (!built || !wrapper.current) return

@@ -17,7 +17,8 @@ declare global {
       world: {
         player: { x: number; z: number; yaw: number }
         hittable: readonly unknown[]
-        enemies: readonly { x: number; z: number; health: number; state: string }[]
+        arrowPickups: readonly { x: number; z: number }[]
+        enemies: readonly { x: number; z: number; health: number; state: string; kind: string }[]
         tick: number
         arrows: readonly unknown[]
         draw: { drawing: boolean; ticks: number }

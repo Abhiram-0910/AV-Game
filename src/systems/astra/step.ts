@@ -4,6 +4,7 @@
 import { type Object3D, Raycaster, Vector3 } from 'three'
 import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
+import { resolveHit } from '@core/combat-rules'
 import { NO_DRAW } from '../archery/draw'
 import { resolveHitRoot } from '../archery/hit-test'
 import { world } from '../world'
@@ -11,6 +12,23 @@ import { world } from '../world'
 const ray = new Raycaster()
 const origin = new Vector3()
 const dir = new Vector3()
+
+/** The Manava astra flings, it never kills — that's the story Vishwamitra chose it for
+ * Maricha (see codex.ts's 'astra' card). Any other enemy the astra hits takes real damage
+ * (Agneya-strength — see BALANCE.astra.DAMAGE), the same "fired at whoever's aimed at" hitscan. */
+function hitEnemy(enemy: (typeof world.enemies)[number], root: Object3D): void {
+  const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
+  const kind = enemy.kind === 'maricha' ? 'astra:manava' : 'astra:agneya'
+  const result = resolveHit(enemy, kind, 'player', world.tick, distance)
+  enemy.health = result.target.health
+  enemy.invulnUntil = result.target.invulnUntil
+  const defeated = result.outcome === 'defeated' || result.outcome === 'flung'
+  if (!defeated) return
+  enemy.state = 'dead'
+  enemy.stateUntil = world.tick + BALANCE.spawn.DESPAWN_TICKS
+  world.hittable = world.hittable.filter((o) => o !== root)
+  gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
+}
 
 function fireHitscan(): void {
   origin.set(world.player.x, BALANCE.archeryAim.MUZZLE_HEIGHT, world.player.z)
@@ -20,8 +38,12 @@ function fireHitscan(): void {
   const hit = ray.intersectObjects(world.hittable as Object3D[], true)[0]
   if (!hit) return
   const root = resolveHitRoot(hit.object, world.hittable)
-  // Enemy astra combat is Level 5's concern (Phase G) — L4 has no enemies to hit here.
-  if (!root || world.enemies.some((e) => e.root === root)) return
+  if (!root) return
+  const enemy = world.enemies.find((e) => e.root === root)
+  if (enemy) {
+    hitEnemy(enemy, root)
+    return
+  }
   world.hittable = world.hittable.filter((o) => o !== root)
   gameStore.getState().progress({ kind: 'hitTargets' })
 }

@@ -14,7 +14,8 @@ import { SAVE_VERSION } from '../../src/core/save'
 
 declare global {
   interface Window {
-    __bk: { world: { player: { x: number; z: number; yaw: number }; hittable: readonly unknown[]; enemies: readonly { x: number; z: number; health: number; state: string }[]; tick: number; arrows: readonly unknown[]; draw: { drawing: boolean; ticks: number }; astraCharge: { drawing: boolean; ticks: number } } }
+    __bk: { world: { player: { x: number; z: number; yaw: number }; hittable: readonly unknown[]
+        arrowPickups: readonly { x: number; z: number }[]; enemies: readonly { x: number; z: number; health: number; state: string; kind: string }[]; tick: number; arrows: readonly unknown[]; draw: { drawing: boolean; ticks: number }; astraCharge: { drawing: boolean; ticks: number } } }
   }
 }
 

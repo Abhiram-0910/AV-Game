@@ -70,7 +70,10 @@ export function stepArchery(dt: number): void {
     if (hit) {
       const root = resolveHitRoot(hit.object, world.hittable)
       const enemy = root && world.enemies.find((e) => e.root === root)
-      if (enemy) {
+      if (enemy?.kind === 'maricha') {
+        // Maricha is never killed by an arrow — the text is explicit that only the Manava
+        // astra touches him (see systems/astra/step.ts). A plain arrow just bounces off.
+      } else if (enemy) {
         // Enemies take repeated hits — only remove from hittable once actually defeated.
         const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
         applyArrowHit(enemy, world.tick, distance)
@@ -85,7 +88,14 @@ export function stepArchery(dt: number): void {
         world.hittable = world.hittable.filter((o) => o !== root)
         gameStore.getState().progress({ kind: 'hitTargets' })
       }
-    } else if (moved.alive && !grounded(moved)) next.push(moved)
+    } else if (moved.alive && !grounded(moved)) {
+      next.push(moved)
+    } else if (moved.alive) {
+      // A miss embeds in the ground and can be walked back to (see stepInteraction) — capped
+      // so a long fight's list of piles doesn't grow without bound.
+      world.arrowPickups.push({ x: moved.x, z: moved.z })
+      if (world.arrowPickups.length > BALANCE.interaction.MAX_ARROW_PICKUPS) world.arrowPickups.shift()
+    }
   }
   world.arrows = next
   const s = gameStore.getState()

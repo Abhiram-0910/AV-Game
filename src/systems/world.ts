@@ -19,7 +19,8 @@ export interface BossHealth {
 }
 
 export interface WorldUi {
-  prompt: NpcId | null
+  /** 'pickup' when standing over a spent-arrow pile, an NpcId while in talk range, else null. */
+  prompt: NpcId | 'pickup' | null
   /** Speech currently on screen from a talk interaction. */
   dialogue: DialogueKey | null
   /** Asset promises resolved vs. expected for the current scene. */
@@ -30,7 +31,7 @@ export interface WorldUi {
   /** User-toggled pause (Escape during play), not part of the level phase machine — it stops
    * the fixed tick without touching win/fail/quiz flow. */
   paused: boolean
-  setPrompt(p: NpcId | null): void
+  setPrompt(p: NpcId | 'pickup' | null): void
   openDialogue(key: DialogueKey | null): void
   expect(n: number): void
   markLoaded(): void
@@ -60,6 +61,9 @@ export interface WorldSim {
   aimBlend: number
   aimDir: [number, number, number]
   arrows: ArrowState[]
+  /** Spent-arrow landing spots a player can walk up to and press E to recover (Level 5's long
+   * fight is the only level whose arrow economy needs this; see stepInteraction). */
+  arrowPickups: { x: number; z: number }[]
   /** Tick until which Rama plays the one-shot sword slash instead of the locomotion clip. */
   swordSlashUntilTick: number
   /** Hold-to-charge state for the astra cast, same shape as the bow's draw. */
@@ -86,6 +90,7 @@ export const world: WorldSim = {
   aimBlend: 0,
   aimDir: [0, 0, -1],
   arrows: [],
+  arrowPickups: [],
   swordSlashUntilTick: 0,
   astraCharge: NO_DRAW,
   npcs: [],
@@ -108,6 +113,7 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.draw = NO_DRAW
   world.aimBlend = 0
   world.arrows = []
+  world.arrowPickups = []
   world.swordSlashUntilTick = 0
   world.astraCharge = NO_DRAW
   world.alpha = 0

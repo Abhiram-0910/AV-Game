@@ -196,8 +196,13 @@ export const LEVELS: readonly LevelDef[] = [
     // 3 persistent + maxAlive must stay ≤ 12. Waves overlap only at their tails, and the
     // spawner treats maxAlive as a global cap across concurrent waves (see content test).
     waves: [
-      { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 120, maxAlive: 4 },
-      { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 90, maxAlive: 6 },
+      // maxAlive 3 (was 4): a player's first concurrent-enemy fight, straight from spawn —
+      // pass 3 phase G playtesting found 4-at-once here gave no room to learn the mechanic.
+      // spawnIntervalTicks widened on the first two waves (120→150, 90→120) for the same
+      // reason: a bow-only kill takes two arrows per rakshasa, and the original cadence
+      // outpaced how fast a well-aimed player can drop one and reload for the next.
+      { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 150, maxAlive: 3 },
+      { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 6 },
       { startTick: 3000, kind: 'rakshasa', count: 8, spawnIntervalTicks: 75, maxAlive: 6 },
       { startTick: 4500, kind: 'rakshasa', count: 4, spawnIntervalTicks: 90, maxAlive: 4 },
       { startTick: 4500, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },

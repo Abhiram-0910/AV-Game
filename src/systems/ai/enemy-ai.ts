@@ -21,10 +21,15 @@ export interface EnemyRuntime extends Combatant {
   attackCooldownUntil: number
   /** Set true for exactly the tick an attack connects; the driver reads and clears it. */
   didAttack: boolean
+  /** Set true for exactly the tick a landed attack hit the objective (Level 5's altar) instead
+   * of the player — "rakshasas go for the altar, not for you" (AGENTS.md). */
+  attackedObjective: boolean
+  /** Correlates this runtime back to a wave-scheduler spawn request (Level 5); unused elsewhere. */
+  spawnId: string | null
   root: Object3D | null
 }
 
-export function spawnEnemy(kind: EnemyKind, pos: readonly [number, number, number]): EnemyRuntime {
+export function spawnEnemy(kind: EnemyKind, pos: readonly [number, number, number], spawnId: string | null = null): EnemyRuntime {
   return {
     kind,
     health: BALANCE.enemies[kind].HEALTH,
@@ -36,6 +41,8 @@ export function spawnEnemy(kind: EnemyKind, pos: readonly [number, number, numbe
     stateUntil: 0,
     attackCooldownUntil: 0,
     didAttack: false,
+    attackedObjective: false,
+    spawnId,
     root: null,
   }
 }
@@ -55,28 +62,43 @@ export function applyArrowHit(e: EnemyRuntime, tick: number, distance: number): 
   }
 }
 
-/** One fixed tick of movement and state. Mutates `e` in place; sets `e.didAttack` on the tick a hit lands. */
-export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tick: number, dt: number): void {
+/**
+ * One fixed tick of movement and state. Mutates `e` in place; sets `e.didAttack` /
+ * `e.attackedObjective` on the tick a hit lands. Without `objective` this is Phase D's
+ * player-only chase (Tataka). With one (Level 5's altar), the enemy paths toward the
+ * objective by default, but attacks the player instead whenever the player is the one
+ * actually in reach — "stand between them and the fire".
+ */
+export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tick: number, dt: number, objective?: { x: number; z: number }): void {
   e.didAttack = false
+  e.attackedObjective = false
   if (e.state === 'dead') return
   const stats = BALANCE.enemies[e.kind]
-  const dx = player.x - e.x
-  const dz = player.z - e.z
-  const distance = Math.hypot(dx, dz)
-  const facing = Math.atan2(dx, dz)
+  const dxPlayer = player.x - e.x
+  const dzPlayer = player.z - e.z
+  const distPlayer = Math.hypot(dxPlayer, dzPlayer)
+  const goal = objective ?? player
+  const dxGoal = goal.x - e.x
+  const dzGoal = goal.z - e.z
+  const distGoal = Math.hypot(dxGoal, dzGoal)
+  const targetIsPlayer = !objective || distPlayer <= stats.REACH
+  const dist = targetIsPlayer ? distPlayer : distGoal
+  const facing = Math.atan2(targetIsPlayer ? dxPlayer : dxGoal, targetIsPlayer ? dzPlayer : dzGoal)
 
   if (e.state === 'stagger') {
     if (tick >= e.stateUntil) e.state = 'chase'
     return
   }
   if (e.state === 'idle') {
-    if (distance <= BALANCE.combat.AGGRO_RADIUS) e.state = 'chase'
+    if (objective || distPlayer <= BALANCE.combat.AGGRO_RADIUS) e.state = 'chase'
     return
   }
   if (e.state === 'attack') {
     e.yaw = facing
     if (tick >= e.stateUntil) {
-      e.didAttack = distance <= stats.REACH
+      const inReach = dist <= stats.REACH
+      e.didAttack = inReach && targetIsPlayer
+      e.attackedObjective = inReach && !targetIsPlayer
       e.attackCooldownUntil = tick + stats.ATTACK_COOLDOWN
       e.state = 'chase'
     }
@@ -84,7 +106,7 @@ export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tic
   }
   // chase
   e.yaw += angleDelta(e.yaw, facing) * Math.min(1, dt * 8)
-  if (distance <= stats.REACH) {
+  if (dist <= stats.REACH) {
     if (tick >= e.attackCooldownUntil) {
       e.state = 'attack'
       e.stateUntil = tick + BALANCE.combat.ATTACK_WINDUP_TICKS
@@ -92,7 +114,7 @@ export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tic
     // else: in reach but on cooldown — hold ground, keep facing (set above).
   } else {
     const step = stats.SPEED * dt
-    e.x += (dx / distance) * step
-    e.z += (dz / distance) * step
+    e.x += (dxGoal / distGoal) * step
+    e.z += (dzGoal / distGoal) * step
   }
 }

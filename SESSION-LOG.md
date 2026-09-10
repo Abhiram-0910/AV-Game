@@ -2,6 +2,60 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase G: Level 5, Protect the Yajna
+
+Branch `feat/pass-3-overnight`, on top of `cd8a8d8` (phase F). Level 5's data (`LEVELS[4]`,
+its waves, waypoints, objectives) already existed from pass 1 — this phase is the spawner, the
+scene, the HUD additions, and a real playtest of numbers nobody had ever run.
+
+**Built**
+- `src/systems/ai/enemy-ai.ts`: `stepEnemy` takes an optional `objective` ({x,z}) — with one,
+  an enemy paths toward it instead of the player, but redirects onto the player the moment it's
+  within its own `REACH`, exactly the "rakshasas go for the altar, not for you" rule
+  (`AGENTS.md`). `EnemyRuntime` gained `attackedObjective` and `spawnId` (correlates a runtime
+  back to its wave-scheduler spawn request). Backward compatible without `objective` (Levels
+  1-4's static single spawns are unaffected).
+- `src/entities/wave-spawner.ts` (new): `useWaveSpawner(waves, spots)` hook wiring pass 1's
+  already-tested pure `dueSpawns`/`recordSpawn`/`freshWaveProgress` (`wave-scheduler.ts`) and
+  `liveSkinned()` (`skinned-budget.ts`) into React — the first thing to actually call either.
+  Prunes finished spawns and requests new ones inside a single `setActive` updater so repeated
+  calls within one rendered frame (the fixed loop can run several ticks per frame under
+  SwiftShader, `BALANCE.loop.MAX_SUBSTEPS`) each see the previous call's result, not a stale
+  render — the same render-frame-vs-fixed-tick hazard phase E's lateral targets hit.
+- `src/entities/SimulationDriver.tsx`: new `onTick?: (tick: number) => void` prop, called once
+  per simulated tick — the scene's spawner hook and the `survive` objective's per-tick progress
+  both hang off it. `stepEnemies` now takes the altar as `objective` and applies `damageYajna`
+  on `attackedObjective`.
+- `src/systems/archery/step.ts` / `src/systems/astra/step.ts`: arrows bounce off Maricha (only
+  the Manava astra touches him — `hitEnemy()` in `astra/step.ts` resolves the fling and, for
+  every other enemy, Agneya-strength damage) via the same hitscan path Phase E built.
+- `src/entities/Enemy.tsx`: `detail?: 'high'|'low'` (Phase B's decimated mesh for wave
+  rakshasas — persistent named characters stay `'high'`) and `spawnId` threaded through to
+  `spawnEnemy`/`buildCharacter`. Mount/cleanup pulled into a standalone `mountEnemy()` to stay
+  under the 50-line function cap.
+- `src/scenes/L5Yajna.tsx`, `src/data/scenery.ts`'s `SCENERY.l5` (rocks/trees clear of the
+  north/east/west approach lines), `src/App.tsx`'s `Level` routing.
+- `src/ui/Hud.tsx`: yajna integrity bar (only shown on a level whose `fail` list includes
+  `yajnaZero`) and a `survive` objective's countdown, both using `hud.yajna`/`hud.timeLeft`
+  strings that already existed from pass 1. Split into `TopStats`/`ObjectiveRow` to stay under
+  the function-length cap.
+- Arrow pickup, end to end (`world.arrowPickups`, `nearestPickupIndex()`,
+  `SimulationDriver`'s `stepInteraction`, `gameStore.pickupArrows()`) — see TODO.md's KNOWN
+  entry for why this was necessary, not optional polish.
+- `tests/e2e/l5.spec.ts` (new): a scripted guard bot, real playtest, not a happy-path click-through.
+
+**Balance — see TODO.md's KNOWN entry for the full story.** Played the fight six times end to
+end, found and fixed a real yajna-invulnerability asymmetry (mirrors the player's own,
+previously the yajna had none), wired up the arrow-pickup mechanic that was dead code since
+pass 1, and retuned `rakshasa`/`yajna`/wave-pacing numbers with each round's reasoning recorded
+in `balance.ts`/`levels.ts`. Survival time roughly tripled across the rounds (38s → 126s) but
+`l5.spec.ts` does not yet reach a clean win — left open and documented rather than force-passed.
+
+**Also fixed**: `playwright.config.ts`'s `webServer` only runs `npm run preview`, never
+`npm run build` — a stale `dist/` from before this phase's source changes made the level look
+like it was stuck loading forever (0 Skinned meshes) for a while before the real cause was
+found. Noted in `CLAUDE.md`'s gotchas.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase F: full UI
 
 Branch `feat/pass-3-overnight`, on top of `e42e8bb` (phase E). All the UI copy this phase

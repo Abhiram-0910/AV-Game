@@ -19,3 +19,18 @@ export function talkTarget(current: Objective | undefined, npcs: readonly NpcPoi
   if (!npc) return null
   return Math.hypot(px - npc.x, pz - npc.z) <= BALANCE.interaction.TALK_RADIUS ? npc : null
 }
+
+/** Index of the nearest spent-arrow pile in range, or -1. Nearest (not first) so a player
+ * standing between two piles always gets a consistent, sensible pickup. */
+export function nearestPickupIndex(pickups: readonly { x: number; z: number }[], px: number, pz: number): number {
+  let best = -1
+  let bestDist: number = BALANCE.interaction.PICKUP_RADIUS
+  pickups.forEach((p, i) => {
+    const d = Math.hypot(px - p.x, pz - p.z)
+    if (d <= bestDist) {
+      best = i
+      bestDist = d
+    }
+  })
+  return best
+}

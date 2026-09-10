@@ -24,6 +24,7 @@ export interface GameState {
   astraCharges: number
   astraCooldownUntil: number
   yajnaIntegrity: number
+  yajnaInvulnUntil: number
   objectives: ObjectiveProgress[]
   completed: LevelId[]
   codex: CodexId[]
@@ -38,7 +39,7 @@ export interface GameActions {
   dispatch(event: LevelEvent): void
   progress(e: ObjectiveEvent): void
   damagePlayer(amount: number, tick: number): void
-  damageYajna(amount: number): void
+  damageYajna(amount: number, tick: number): void
   fireArrow(): boolean
   pickupArrows(): void
   useAstra(tick: number): boolean
@@ -64,6 +65,7 @@ function levelStart(id: LevelId): Omit<GameState, 'completed' | 'codex' | 'quizS
     astraCharges: BALANCE.astra.START_CHARGES,
     astraCooldownUntil: 0,
     yajnaIntegrity: BALANCE.yajna.MAX_INTEGRITY,
+    yajnaInvulnUntil: 0,
     objectives: freshProgress(levelDef(id).objectives),
     quiz: { gate: null, index: 0, answers: [] },
   }
@@ -133,11 +135,15 @@ function resourceActions(set: Set, get: Get) {
       if (health === 0) get().fail('healthZero')
     },
 
-    damageYajna: (amount: number) => {
+    // Mirrors damagePlayer's invuln window: without it, several rakshasas landing attacks on
+    // the fire in the same tick each apply YAJNA_DAMAGE independently and drain it in a couple
+    // of seconds regardless of concurrent-attacker count — the player enjoys exactly this
+    // protection already (playerInvulnUntil), the yajna had none (pass 3 phase G playtesting).
+    damageYajna: (amount: number, tick: number) => {
       const s = get()
-      if (s.phase !== 'play') return
+      if (s.phase !== 'play' || tick < s.yajnaInvulnUntil) return
       const yajnaIntegrity = Math.max(0, s.yajnaIntegrity - amount)
-      set({ yajnaIntegrity })
+      set({ yajnaIntegrity, yajnaInvulnUntil: tick + BALANCE.yajna.HIT_INVULN_TICKS })
       if (yajnaIntegrity === 0) get().fail('yajnaZero')
     },
 

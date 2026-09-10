@@ -19,7 +19,11 @@ export const BALANCE = {
     TURN_SPEED_RAD: 3.0,
     MAX_ARROWS: 20,
     START_ARROWS: 12,
-    ARROW_PICKUP: 5,
+    // Raised 5→8 (pass 3 phase G): Level 5 is the only level where a player ever actually
+    // empties the quiver and has to recover spent arrows mid-fight (see
+    // systems/interaction/interact.ts's nearestPickupIndex) — at 5, a pickup trip barely
+    // outpaced the wave spawner; 8 makes the trip worth the time it costs under fire.
+    ARROW_PICKUP: 8,
     /** Ticks the player cannot be hit again after taking damage. */
     INVULN_TICKS: 45,
     /** Health regained per tick while out of combat. */
@@ -54,7 +58,18 @@ export const BALANCE = {
   },
 
   enemies: {
-    rakshasa: { HEALTH: 30, SPEED: 3.0, DAMAGE: 10, ATTACK_COOLDOWN: 60, REACH: 1.6, YAJNA_DAMAGE: 5 },
+    // DAMAGE lowered (10→6) and ATTACK_COOLDOWN raised (60→90) from the pass-1 draft:
+    // playtesting Level 5 (pass 3 phase G) found the player's own hit-invuln (INVULN_TICKS,
+    // shared across every attacker) caps incoming damage at one landed hit per invuln window
+    // regardless of how many rakshasas are in reach — so surrounded at the altar with the
+    // original numbers, a fully passive player died in well under 10 seconds, before a single
+    // wave was even thinned out. The lowered numbers give a real margin without changing how
+    // many arrows a rakshasa takes to kill (HEALTH untouched).
+    // YAJNA_DAMAGE lowered 5→4 alongside yajna.HIT_INVULN_TICKS (see balance.yajna): even
+    // rate-limited to one landing per invuln window, sustained sieges during an arrow-pickup
+    // run (see interact.ts's nearestPickupIndex) drained the fire faster than the wave schedule
+    // gives a realistic kill rate to keep up with.
+    rakshasa: { HEALTH: 30, SPEED: 3.0, DAMAGE: 6, ATTACK_COOLDOWN: 90, REACH: 1.6, YAJNA_DAMAGE: 4 },
     // ATTACK_COOLDOWN raised and DAMAGE lowered from the pass-1 draft (90 / 15): playtesting the
     // L3 fight (pass 3 phase D) found the original numbers let her kill a 100-health player in
     // under 7 hits, faster than a bow-only player could land the 10 arrow hits her 150 health
@@ -90,9 +105,19 @@ export const BALANCE = {
   },
 
   yajna: {
-    MAX_INTEGRITY: 100,
+    // Raised 100→140 (pass 3 phase G): even with HIT_INVULN_TICKS capping the drain rate to one
+    // landed hit per window regardless of concurrent attackers, arrow supply can't keep every
+    // rakshasa off the fire at once — 100 gave less runway than the wave schedule needs to be
+    // survivable at a realistic kill rate.
+    MAX_INTEGRITY: 140,
     /** Level 5 total guard duration (the six days and nights, compressed). */
     GUARD_TICKS: 5400,
+    /** Ticks the fire ignores further hits after one lands — mirrors player.INVULN_TICKS so
+     * several rakshasas reaching it in the same moment don't stack unmitigated damage. Wider
+     * than the player's own 45 (pass 3 phase G): a guard away on an arrow-pickup run (the fight
+     * runs the quiver dry more than once) leaves the fire briefly undefended, and it has no
+     * regen to fall back on the way the player's health does. */
+    HIT_INVULN_TICKS: 60,
   },
 
   targets: {
@@ -174,6 +199,11 @@ export const BALANCE = {
     REACH_RADIUS: 2.0,
     /** Metres from an NPC within which the talk prompt appears. */
     TALK_RADIUS: 2.6,
+    /** Metres from a spent-arrow pile within which the pickup prompt appears. */
+    PICKUP_RADIUS: 2.0,
+    /** Oldest pile is dropped once a level's spent-arrow piles reach this count — Level 5's
+     * long fight would otherwise grow the list for the whole 90+s guard duration. */
+    MAX_ARROW_PICKUPS: 8,
   },
 
   locomotion: {

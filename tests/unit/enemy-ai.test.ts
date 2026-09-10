@@ -46,6 +46,34 @@ describe('enemy AI', () => {
     expect(e.state).toBe('attack')
   })
 
+  it('with an objective (Level 5), paths toward it, not the far-off player', () => {
+    const e = spawnEnemy('rakshasa', [0, 0, 10])
+    e.state = 'chase'
+    const before = e.z
+    stepEnemy(e, { x: 30, z: 30 }, 0, 1 / 60, { x: 0, z: 0 })
+    expect(e.z).toBeLessThan(before) // moved toward the objective, not the distant player
+  })
+
+  it('attacks the player instead of the objective when the player blocks in reach ("stand between them and the fire")', () => {
+    const reach = BALANCE.enemies.rakshasa.REACH
+    const e = spawnEnemy('rakshasa', [0, 0, -(reach - 0.1)])
+    e.state = 'attack'
+    e.stateUntil = 0
+    stepEnemy(e, { x: 0, z: 0 }, 0, 1 / 60, { x: 0, z: -20 }) // player in reach, objective far past them
+    expect(e.didAttack).toBe(true)
+    expect(e.attackedObjective).toBe(false)
+  })
+
+  it('attacks the objective once in its reach and the player is elsewhere', () => {
+    const reach = BALANCE.enemies.rakshasa.REACH
+    const e = spawnEnemy('rakshasa', [0, 0, -(reach - 0.1)])
+    e.state = 'attack'
+    e.stateUntil = 0
+    stepEnemy(e, { x: 30, z: 30 }, 0, 1 / 60, { x: 0, z: 0 }) // objective in reach, player far away
+    expect(e.attackedObjective).toBe(true)
+    expect(e.didAttack).toBe(false)
+  })
+
   it('a non-lethal arrow staggers; a lethal one kills and stops movement', () => {
     const e = spawnEnemy('tataka', [0, 0, -1])
     e.state = 'chase'

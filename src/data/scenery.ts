@@ -174,4 +174,23 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
   },
+  l5: {
+    // Rockfall-strewn clearing around the altar (waypoints.altar, levels.ts); rakshasa waves
+    // approach from the north/east/west waypoints, kept clear of rocks so the paths stay open.
+    statics: [
+      { asset: 'rock', pos: [2, 0, -3], yaw: 0.4, scale: 1.3, ground: false },
+      { asset: 'rock', pos: [-3, 0, 2], yaw: 1.8, scale: 1.1, ground: false },
+      { asset: 'tree', pos: [-18, 0, -14], yaw: 0.5, scale: 1, ground: false },
+      { asset: 'tree', pos: [18, 0, -14], yaw: 2.4, scale: 1.05, ground: false },
+      { asset: 'tree', pos: [-18, 0, 12], yaw: 1.3, scale: 0.95, ground: false },
+      { asset: 'tree', pos: [18, 0, 12], yaw: 2.0, scale: 1, ground: false },
+    ],
+    npcs: [
+      { npc: 'lakshmana', pos: [-1.5, 0, -1.5], yaw: Math.PI / 4, idle: 'IDLE' },
+      { npc: 'vishwamitra', pos: [1.5, 0, -1.5], yaw: -Math.PI / 4, idle: 'ARMS_FOLDED' },
+    ],
+    bounds: { minX: -32, maxX: 32, minZ: -32, maxZ: 10 },
+    light: { sky: '#ffcf8a', ground: '#3a2a1a', sun: [-3, 6, 4], sunIntensity: 1.8, ambientIntensity: 0.7 },
+    background: '#2a1a12',
+  },
 }

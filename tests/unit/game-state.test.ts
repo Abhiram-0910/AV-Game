@@ -78,9 +78,19 @@ describe('game state', () => {
     expect(s().phase).toBe('play')
   })
 
+  it('yajna damage respects its own invulnerability window, mirroring the player', () => {
+    enterPlay('l5')
+    s().damageYajna(20, 0)
+    s().damageYajna(20, 1)
+    expect(s().yajnaIntegrity).toBe(BALANCE.yajna.MAX_INTEGRITY - 20)
+    s().damageYajna(999, BALANCE.yajna.HIT_INVULN_TICKS)
+    expect(s().yajnaIntegrity).toBe(0)
+    expect(s().phase).toBe('fail')
+  })
+
   it('yajna damage fails l5 at zero', () => {
     enterPlay('l5')
-    s().damageYajna(BALANCE.yajna.MAX_INTEGRITY)
+    s().damageYajna(BALANCE.yajna.MAX_INTEGRITY, 0)
     expect(s().phase).toBe('fail')
   })
 

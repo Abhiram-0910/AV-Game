@@ -28,6 +28,17 @@ per target specifically to absorb this, and passes cleanly on a quieter system (
 multiple times during phase E). If it's flaky in CI, rerun on a less loaded machine before
 suspecting the game code.
 
+**Update (pass 3 phase G, 2026-09-10)**: the same symptom now also hit `l2.spec.ts`'s
+`shootTarget` (`target at ... was never hit`) under an even higher load average (5.7/10.1/13.2)
+than previously observed — once running the full suite as `--workers=5` (5 SwiftShader
+Chromium instances competing at once), once rerun `--workers=1` right after. Neither
+`l2.spec.ts` nor `l4.spec.ts`'s targeting code changed in phase G (only their shared
+`declare global` type block gained two fields — type-only, no runtime effect); `l1.spec.ts`
+and `l3.spec.ts` passed clean in the same `--workers=5` run despite the load, which is the
+existing hit-test/timing logic behaving correctly under a heavier version of the same known
+condition, not a new regression. Always pass `--workers=1` for a real signal on this repo's
+e2e suite — the default `--workers=5` self-inflicts exactly the contention this entry is about.
+
 ## RESOLVED — held props (bow/quiver/sword) rendered at 2–2.3m, not human scale (2026-09-10)
 
 User-reported bug, confirmed with fresh L1/L2 screenshots before assuming: the Quaternius
@@ -116,6 +127,60 @@ script itself (throws otherwise). `character-factory.ts`'s `BuildOptions.detail`
 not attempted here. Visual comparison: `docs/screenshots/lod-comparison.png` (male and
 female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/knees/shoulders.
 
+## KNOWN — L5's e2e does not yet win; balance improved substantially but not fully cleared (pass 3 phase G, 2026-09-10)
+
+`tests/e2e/l5.spec.ts` scripts a bow-only guard bot (stand at the altar, snipe the nearest
+enemy, recover spent arrows on foot when the quiver runs dry, save the single Manava astra
+charge for Maricha) and asserts a real win. As committed, it still fails — the bot survives
+longer with each round of tuning below but has not reached `result.win` in six full runs.
+Investigated at length, with real fixes found along the way, before accepting this open:
+
+- **Root-caused why the bot never took damage at guard positions 1-3m from the altar**: a
+  rakshasa's pathing goal is always the altar's exact coordinate (`stepEnemy`'s `objective`),
+  and it only ever redirects onto the player if the player is *currently* within its `REACH`
+  (1.6m) — which never happens from a few metres back, since the enemy stops advancing the
+  moment it's within its own `REACH` of the altar, well short of the player's position. Moved
+  the guard position to right on top of the altar waypoint (`GUARD_POS` in `l5.spec.ts`); the
+  bot then started taking real melee damage, confirming "stand between them and the fire"
+  (`l5.intro`) only works standing *at* the fire, not near it.
+- **Found and fixed a real asymmetry**: the player has a shared hit-invulnerability window
+  (`playerInvulnUntil`) so several attackers landing hits in the same moment don't stack
+  unmitigated damage — the yajna had no equivalent, so a few concurrent rakshasas could drain
+  it from full in well under 15 seconds regardless of `YAJNA_DAMAGE`. Added
+  `yajnaInvulnUntil`/`BALANCE.yajna.HIT_INVULN_TICKS` to `damageYajna()` in `game-state.ts`,
+  mirroring `damagePlayer()` exactly. Covered by a new test in `tests/unit/game-state.test.ts`.
+- **Found and wired up a dead mechanic**: `gameStore.pickupArrows()` and the `hud.pickup`
+  string already existed from pass 1 but nothing ever called the action or showed the prompt —
+  Level 5 is the first level where the quiver can actually run dry mid-fight. Added
+  `world.arrowPickups` (populated when a missed arrow grounds, `systems/archery/step.ts`),
+  `nearestPickupIndex()` (`systems/interaction/interact.ts`, unit-tested), and wired proximity
+  + the `E` key into `SimulationDriver.tsx`'s `stepInteraction()`.
+- Retuned from the pass-1 draft, each recorded with its reasoning in `balance.ts`/`levels.ts`:
+  `rakshasa.DAMAGE` 10→6, `ATTACK_COOLDOWN` 60→90, `YAJNA_DAMAGE` 5→4; `yajna.MAX_INTEGRITY`
+  100→140; `player.ARROW_PICKUP` 5→8; wave 1/2 `spawnIntervalTicks` widened; wave 1 `maxAlive`
+  4→3.
+- Each round measurably extended survival time (38s → 47s → 66s → 66s → 126s across six runs)
+  and the bot now reaches the full skinned-mesh budget (12/12) mid-fight — real, measured
+  progress, not noise — but still eventually loses to `yajnaZero`, not `healthZero`.
+
+**Next to try** (didn't fit the time budget this session): a bot that actively repositions
+toward whichever spawn direction currently has the nearest live threat instead of holding one
+spot (true multi-directional blocking, which the code supports — the bot's script doesn't);
+softening wave 3/4 (`startTick: 3000`/`4500`) the same way waves 1/2 were; or accepting that
+this fight wants a real human player's reflexes and judgement more than a scripted one's, and
+confirming via manual play before touching the numbers further. `l5.spec.ts` deliberately
+asserts a real win rather than being loosened to "make progress" — a green check here should
+mean the level is actually winnable.
+
+## GOTCHA — e2e against a stale build looks exactly like a broken level (2026-09-10)
+
+`playwright.config.ts`'s `webServer` runs `npm run preview`, which serves whatever is already
+in `dist/` — it never runs `npm run build`. Burned real debugging time on `l5.spec.ts`: the
+level appeared to never load at all (loading screen stuck, 0 Skinned meshes forever) because a
+stale `dist/` from before Level 5 existed was still being served. Symptom looks identical to
+a genuine load-gate bug; check `dist/`'s age against the last source change first. Now noted
+in `CLAUDE.md`'s gotchas.
+
 ## Pass 3
 
 - Electron: `electron/main.ts` + `preload.ts`, `"main"` in package.json, electron-builder
@@ -125,11 +190,10 @@ female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/kne
   shipped (pass 3 phase F). Quality tier changed in Settings takes effect on the next load, not
   live — `resolveTier` only runs once at boot; hot-swapping the asset tier mid-session is real
   scope, not attempted.
-- Levels 2, 3, and 4 shipped (pass 3 phases C, D, E). Enemy AI (`systems/ai/enemy-ai.ts`) and
-  the generic `entities/Enemy.tsx` exist and are wired for single static spawns
-  (`LevelDef.enemies`); nothing has used the wave scheduler yet — that's L5's spawner (Phase G).
-  The skinned budget registry and the pure wave scheduler are built and tested, nothing spawns
-  from them yet.
+- Levels 2, 3, 4, and 5 shipped (pass 3 phases C, D, E, G). Level 5's wave spawner
+  (`entities/wave-spawner.ts`) is the first thing to actually use the wave scheduler and the
+  global skinned-mesh budget from pass 1/phase B — see the KNOWN entry above for its balance
+  status.
 - `l3.vishwamitra.dusk` ("hurry up, Rama") is written but unused — not required by OVERNIGHT.md's
   Phase D text, only the hesitation beat was. Would need a new tick-elapsed-since-aggro trigger
   in `L3Forest.tsx` and a tuning constant for the threshold; low value for the cost, deferred.
