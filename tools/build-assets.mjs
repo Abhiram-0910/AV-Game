@@ -66,6 +66,10 @@ const JOBS = {
   target: { ...verbatim('zips/Target by Quaternius - gKYbYR3z0M.glb'), out: 'props/target.glb' },
   bow: { ...verbatim('zips/Wooden Bow by Quaternius - QnpqjLSKFU.glb'), out: 'props/bow.glb' },
   arrow: { ...verbatim('zips/Arrow by Quaternius - Rt48KEPDGt.glb'), out: 'props/arrow.glb' },
+  sword: { ...verbatim('zips/Sword by Quaternius - 9lLmH8Et4K.glb'), out: 'props/sword.glb' },
+  // Pass 3 Phase C: L2's forest along the Sarayu. Verbatim, same as the other Quaternius props.
+  tree: { ...verbatim('zips/Tree by Quaternius - qZtx0AHhcy.glb'), out: 'props/tree.glb' },
+  rock: { ...verbatim('zips/Rock by Quaternius - RtLRqYjfMs.glb'), out: 'props/rock.glb' },
 }
 
 function glbTriangles(path) {

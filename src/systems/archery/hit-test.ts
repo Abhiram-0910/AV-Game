@@ -20,3 +20,11 @@ export function createHitTester() {
     return ray.intersectObjects(targets as Object3D[], true)[0] ?? null
   }
 }
+
+/** The raycast recurses into children; find which registered root the hit mesh belongs to. */
+export function resolveHitRoot(hit: Object3D, roots: readonly Object3D[]): Object3D | undefined {
+  for (let o: Object3D | null = hit; o; o = o.parent) {
+    if (roots.includes(o)) return o
+  }
+  return undefined
+}

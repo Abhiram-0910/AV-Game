@@ -6,7 +6,7 @@ import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
 import { grounded, launchArrow, shouldFailArrowsOut, stepArrow } from './ballistics'
 import { drawFraction, stepDraw } from './draw'
-import { createHitTester } from './hit-test'
+import { createHitTester, resolveHitRoot } from './hit-test'
 import { world } from '../world'
 
 const AIM = BALANCE.archeryAim
@@ -51,8 +51,12 @@ export function stepArchery(dt: number): void {
   for (const a of world.arrows) {
     const moved = stepArrow(a, dt)
     const hit = hitTest(a, moved, world.hittable)
-    if (hit) gameStore.getState().progress({ kind: 'hitTargets' })
-    else if (moved.alive && !grounded(moved)) next.push(moved)
+    if (hit) {
+      // A struck target stops being hittable so the same one can't be counted twice.
+      const root = resolveHitRoot(hit.object, world.hittable)
+      if (root) world.hittable = world.hittable.filter((o) => o !== root)
+      gameStore.getState().progress({ kind: 'hitTargets' })
+    } else if (moved.alive && !grounded(moved)) next.push(moved)
   }
   world.arrows = next
   const s = gameStore.getState()

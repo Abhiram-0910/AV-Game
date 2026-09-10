@@ -42,6 +42,8 @@ export interface WorldSim {
   aimBlend: number
   aimDir: [number, number, number]
   arrows: ArrowState[]
+  /** Tick until which Rama plays the one-shot sword slash instead of the locomotion clip. */
+  swordSlashUntilTick: number
   npcs: NpcPoint[]
   ground: Object3D[]
   hittable: Object3D[]
@@ -62,6 +64,7 @@ export const world: WorldSim = {
   aimBlend: 0,
   aimDir: [0, 0, -1],
   arrows: [],
+  swordSlashUntilTick: 0,
   npcs: [],
   ground: [],
   hittable: [],
@@ -80,6 +83,7 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.draw = NO_DRAW
   world.aimBlend = 0
   world.arrows = []
+  world.swordSlashUntilTick = 0
   world.alpha = 0
   world.tick = 0
   worldStore.setState({ prompt: null, dialogue: null })

@@ -39,7 +39,7 @@ export type CharacterId =
   | 'maricha'
 
 export const CHARACTER_SPECS: Readonly<Record<CharacterId, CharacterSpec>> = {
-  rama: { mesh: 'male', tint: '#8fb4ff', scale: 1.0, hairstyle: 'long', hairTint: '#2a1a12', props: ['bow', 'quiver'], garmentColor: '#e8d8ae', garmentLength: 0.5, sash: true, sashColor: '#c9432c' },
+  rama: { mesh: 'male', tint: '#8fb4ff', scale: 1.0, hairstyle: 'long', hairTint: '#2a1a12', props: ['bow', 'quiver', 'sword'], garmentColor: '#e8d8ae', garmentLength: 0.5, sash: true, sashColor: '#c9432c' },
   lakshmana: { mesh: 'male', tint: '#f0c987', scale: 0.97, hairstyle: 'simpleParted', hairTint: '#2a1a12', props: ['bow', 'quiver'], garmentColor: '#e8dcc0', garmentLength: 0.5, sash: true, sashColor: '#3c6ea5' },
   vishwamitra: { mesh: 'male', tint: '#ffb066', scale: 1.04, hairstyle: 'beard', hairTint: '#d8d0c0', props: [], garmentColor: '#c9793a', garmentLength: 0.75, sash: true, sashColor: '#8a5a2a' },
   dasharatha: { mesh: 'male', tint: '#ffd76a', scale: 1.02, hairstyle: 'beard', hairTint: '#8a8078', props: [], garmentColor: '#d8b23a', garmentLength: 0.7, sash: true, sashColor: '#7a1f1f' },

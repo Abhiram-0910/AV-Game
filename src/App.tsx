@@ -12,6 +12,7 @@ import { PerfOverlay, PerfProbe } from '@render/perf-overlay'
 import { perfStats } from '@render/perf-stats'
 import { isSoftwareRenderer, resolveTier } from '@render/quality-tier'
 import { L1Court } from '@scenes/L1Court'
+import { L2Forest } from '@scenes/L2Forest'
 import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
 import { useGame } from '@ui/use-game'
@@ -47,8 +48,10 @@ function Level({ tier }: { tier: ResolvedTier }) {
   const level = useGame((s) => s.level)
   const bow = levelDef(level).bow || DEBUG.bow
   if (DEBUG.lod) return <LodDebug tier={tier} />
-  // ponytail: only L1 exists in pass 2; every other level shows its loading screen.
-  return level === 'l1' ? <L1Court tier={tier} bow={bow} /> : null
+  // ponytail: L3-L5 are later phases; they show their loading screen until built.
+  if (level === 'l1') return <L1Court tier={tier} bow={bow} />
+  if (level === 'l2') return <L2Forest tier={tier} bow={bow} />
+  return null
 }
 
 export function App() {

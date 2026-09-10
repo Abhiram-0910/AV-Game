@@ -69,6 +69,21 @@
     "tris": 224,
     "bytes": 16836
   },
+  "sword": {
+    "file": "props/sword.glb",
+    "tris": 872,
+    "bytes": 47240
+  },
+  "tree": {
+    "file": "props/tree.glb",
+    "tris": 6265,
+    "bytes": 2540428
+  },
+  "rock": {
+    "file": "props/rock.glb",
+    "tris": 632,
+    "bytes": 30648
+  },
   "maleLow": {
     "file": "characters/male-low.glb",
     "tris": 4702,

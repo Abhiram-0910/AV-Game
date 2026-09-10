@@ -1,5 +1,16 @@
 # TODO
 
+## RESOLVED — L2 e2e aimed the mouse without turning the body first (pass 3 phase C, 2026-09-10)
+
+`tests/e2e/l2.spec.ts`'s `shootTarget` missed all 3 targets on every pitch trim. Not a game
+bug: `archeryAim.MOUSE_YAW_RAD` clamps mouse aim to about +-34 degrees from the body's current
+facing (correct — a real player turns with A/D, then fine-aims with the mouse), but the test
+never turned the body toward the target, and the yaw error after walking to the range talk
+point was ~53 degrees, outside the mouse's reach. Fixed by calling the existing `face()`
+helper before each shot. A prior run hit the identical failure and chased an unrelated
+sword-grip-rotation fix instead — if `l2.spec.ts` starts missing shots again, check this first
+before re-deriving the projectile math.
+
 ## RESOLVED — skinned decimation blocker (pass 3 phase B, 2026-09-09)
 
 `tools/decimate-skinned.py` (Blender headless, armature untouched, decimates only the body
@@ -29,8 +40,9 @@ Tataka with a wider drape, before L3 ships.
   fullscreen adapters behind the existing `Platform` interface.
 - Menus, codex (Story Scroll) UI, quiz UI. Until the quiz UI exists `ui/Flow.tsx`
   auto-passes each gate (`QuizAutoPass`, records no score).
-- Levels 2–5 scenes and the enemy AI (`systems/ai/`). Spawner pieces exist: the skinned
-  budget registry and the pure wave scheduler are built and tested, nothing spawns yet.
+- Level 2 shipped (pass 3 phase C). Levels 3–5 scenes and the enemy AI (`systems/ai/`) remain.
+  Spawner pieces exist: the skinned budget registry and the pure wave scheduler are built and
+  tested, nothing spawns yet.
 - Crown for Rama and Dasharatha, jata/topknot hair for the rishis (pass 3 phase A mentioned
   both; only the dhoti/sash modesty fix shipped). No new hairstyle asset needed for jata — the
   rishis already use the existing `beard` hairstyle. A crown would be new prop geometry parented

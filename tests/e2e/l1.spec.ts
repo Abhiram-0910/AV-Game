@@ -10,7 +10,7 @@ import { SCENERY } from '../../src/data/scenery'
 
 declare global {
   interface Window {
-    __bk: { world: { player: { x: number; z: number; yaw: number } } }
+    __bk: { world: { player: { x: number; z: number; yaw: number }; hittable: readonly unknown[] } }
   }
 }
 

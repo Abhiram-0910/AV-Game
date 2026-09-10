@@ -19,6 +19,9 @@ export type AssetId =
   | 'target'
   | 'bow'
   | 'arrow'
+  | 'sword'
+  | 'tree'
+  | 'rock'
 
 /** File under public/assets/<tier>/ for each id. */
 export const ASSET_FILES: Readonly<Record<AssetId, string>> = {
@@ -39,6 +42,9 @@ export const ASSET_FILES: Readonly<Record<AssetId, string>> = {
   target: 'props/target.glb',
   bow: 'props/bow.glb',
   arrow: 'props/arrow.glb',
+  sword: 'props/sword.glb',
+  tree: 'props/tree.glb',
+  rock: 'props/rock.glb',
 }
 
 /** The 65-joint skeleton every humanoid shares; the loader refuses anything else. */
@@ -102,5 +108,29 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -7, maxX: 7, minZ: -1, maxZ: 15 },
     light: { sky: '#ffe9c4', ground: '#3b2a1a', sun: [4, 10, 6], sunIntensity: 2.2, ambientIntensity: 0.9 },
     background: '#1a120b',
+  },
+  l2: {
+    // Trees and rocks scatter the banks either side of the walk from the camp to the range;
+    // 6 trees and 3 rocks each stay under the ~8-instance InstancedMesh threshold in AGENTS.md.
+    statics: [
+      { asset: 'tree', pos: [-5, 0, -6], yaw: 0.3, scale: 1, ground: false },
+      { asset: 'tree', pos: [-6, 0, -20], yaw: 1.1, scale: 1.1, ground: false },
+      { asset: 'tree', pos: [-4, 0, -34], yaw: 2.0, scale: 0.95, ground: false },
+      { asset: 'tree', pos: [20, 0, -8], yaw: 0.6, scale: 1.05, ground: false },
+      { asset: 'tree', pos: [21, 0, -24], yaw: 2.6, scale: 1, ground: false },
+      { asset: 'tree', pos: [19, 0, -38], yaw: 1.6, scale: 0.9, ground: false },
+      { asset: 'rock', pos: [3, 0, -14], yaw: 0.4, scale: 1.6, ground: false },
+      { asset: 'rock', pos: [15, 0, -36], yaw: 1.8, scale: 1.8, ground: false },
+      { asset: 'rock', pos: [-2, 0, -40], yaw: 0.9, scale: 1.4, ground: false },
+    ],
+    // Vishwamitra starts by the riverbank; Level 2's scene walks him to the range once the
+    // mantras conversation ends (see L2Forest.tsx) — a position change, not a re-placement.
+    npcs: [
+      { npc: 'lakshmana', pos: [-1.5, 0, -18], yaw: Math.PI / 6, idle: 'IDLE' },
+      { npc: 'vishwamitra', pos: [1.5, 0, -18], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
+    ],
+    bounds: { minX: -12, maxX: 22, minZ: -52, maxZ: 6 },
+    light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
+    background: '#7fb3d9',
   },
 }

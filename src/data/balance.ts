@@ -126,6 +126,15 @@ export const BALANCE = {
     QUIVER_ROT: [0.3, 0, 0.5],
   },
 
+  melee: {
+    /** Sword grip: local offset and euler (radians) under hand_r. Same 90° convention as
+     * the bow grip — the source model is authored blade-up, +Y, like the bow's own rig pose. */
+    SWORD_GRIP_POS: [0, 0, 0],
+    SWORD_GRIP_ROT: [Math.PI / 2, 0, 0],
+    /** Ticks the one-shot slash clip plays for before locomotion resumes control of the pose. */
+    SLASH_TICKS: 36,
+  },
+
   garments: {
     /** Procedural dhoti: waist radius, hem flare multiplier, and side count (metres, tris scale with this). */
     DHOTI_WAIST_RADIUS: 0.19,

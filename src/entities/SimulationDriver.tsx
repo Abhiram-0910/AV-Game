@@ -15,6 +15,7 @@ import { world, worldStore } from '@systems/world'
 import { platform } from '@platform/index'
 
 const KEY_E = 'KeyE'
+const KEY_SWORD = 'KeyF'
 
 function readMove(): MoveInput {
   const { input } = platform
@@ -39,6 +40,13 @@ function stepInteraction(): void {
   }
 }
 
+/** Cosmetic secondary action — no target, no damage; the sword doesn't fight until Level 3. */
+function stepSword(tick: number): void {
+  if (platform.input.pressed(KEY_SWORD) && tick >= world.swordSlashUntilTick) {
+    world.swordSlashUntilTick = tick + BALANCE.melee.SLASH_TICKS
+  }
+}
+
 export function SimulationDriver({ bow }: { bow: boolean }) {
   const loop = useMemo(() => createFixedLoop(), [])
   const groundY = useMemo(() => createGroundProbe(() => world.ground), [])
@@ -54,7 +62,10 @@ export function SimulationDriver({ bow }: { bow: boolean }) {
         const query = { bounds: sceneBounds(bounds), obstacles: world.npcs.map((n) => ({ x: n.x, z: n.z, radius: BALANCE.locomotion.NPC_RADIUS })), groundY }
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
         stepInteraction()
-        if (bow) stepArchery(loop.dt)
+        if (bow) {
+          stepArchery(loop.dt)
+          stepSword(tick)
+        }
       } else {
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })
       }

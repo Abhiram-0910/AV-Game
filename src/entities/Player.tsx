@@ -50,7 +50,8 @@ export function Player({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
     const t = world.alpha
     wrapper.current.position.set(p.prevX + (p.x - p.prevX) * t, p.prevY + (p.y - p.prevY) * t, p.prevZ + (p.z - p.prevZ) * t)
     wrapper.current.rotation.y = lerpAngle(p.prevYaw, p.yaw, t) + LOCO.MODEL_YAW_OFFSET
-    built.controller.play(clipFor(p.speed), { speed: p.speed < 0 ? -1 : 1 })
+    if (world.tick < world.swordSlashUntilTick) built.controller.play('SWORD_A', { loop: false })
+    else built.controller.play(clipFor(p.speed), { speed: p.speed < 0 ? -1 : 1 })
     built.controller.update(delta)
     if (aimBones && world.aimBlend > 0) {
       wrapper.current.updateMatrixWorld(true)

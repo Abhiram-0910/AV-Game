@@ -116,6 +116,7 @@ async function attachProps(id: CharacterId, bones: Map<string, Bone>, tier: Reso
     if (kind === 'bow') out.set(kind, attachProp(cloneSkeleton((await loadGltf('bow')).scene), bones.get(SKELETON.LEFT_HAND)!, aim.BOW_GRIP_POS, aim.BOW_GRIP_ROT, tier))
     // ponytail: no quiver mesh in the pack; the arrow model stands in on the back.
     if (kind === 'quiver') out.set(kind, attachProp(cloneSkeleton((await loadGltf('arrow')).scene), bones.get(SKELETON.SPINE_TOP)!, aim.QUIVER_POS, aim.QUIVER_ROT, tier))
+    if (kind === 'sword') out.set(kind, attachProp(cloneSkeleton((await loadGltf('sword')).scene), bones.get(SKELETON.RIGHT_HAND)!, BALANCE.melee.SWORD_GRIP_POS, BALANCE.melee.SWORD_GRIP_ROT, tier))
   }
   return out
 }
