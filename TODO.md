@@ -1,5 +1,40 @@
 # TODO
 
+## KNOWN — Electron shows a blank/crashed window in a GPU-less sandbox; not verified on a real target machine (pass 3 phase H, 2026-09-10)
+
+`electron/main.ts` launches, serves `dist/` over a local static server, and loads correctly —
+confirmed via `electron .` in this session's dev container. But that container (unlike the
+user's own WSL machine, where the web build's SwiftShader path is already documented as
+normal/expected in this file's CLAUDE.md) has no GPU device at all, and this Chromium version
+no longer silently falls back to software WebGL:
+
+```
+[.WebGL] ContextResult::kFatalFailure: WebGL2 blocklisted
+Automatic fallback to software WebGL has been deprecated. Please use the
+--enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content.
+```
+
+Adding `--enable-unsafe-swiftshader` to the launch command made the GPU process initialize and
+start producing the exact SwiftShader driver messages seen throughout this session's Playwright
+runs — confirms the rest of the wiring (window creation, the static server, the preload/IPC save
+bridge, `--ozone-platform=x11`) is correct; the remaining gap is purely GPU availability in this
+one sandbox, not the Electron code. **Not baked into `main.ts`**: forcing unsafe software
+rendering on every machine would silently degrade real hardware-accelerated installs (Windows,
+a real Linux desktop) without them knowing — exactly the failure mode `logGpuInfo()`'s loud
+console warning exists to catch instead.
+
+**If `npm run electron:dev`'s window is blank or the process crashes with the same
+`WebGL2 blocklisted` message** on a machine with no working GPU passthrough: add
+`app.commandLine.appendSwitch('enable-unsafe-swiftshader')` next to the existing
+`ozone-platform` switch in `main.ts`, or pass `--enable-unsafe-swiftshader` to the `electron .`
+invocation in the `electron:dev` script, for local testing only.
+
+**Not yet done**: an actual visual screenshot of the Electron window (every screenshot capture
+tool available crashed the GPU process on a second concurrent launch in this same sandbox) and
+a real test on a Windows machine or a real Linux desktop, which is the only way to confirm
+`--ozone-platform=x11` actually fixes the black-canvas-on-Wayland issue it targets — that issue
+never reproduces in a container with no GPU either way.
+
 ## KNOWN — L4 e2e is flaky under heavy session load (not a game bug, verified independently)
 
 `tests/e2e/l4.spec.ts` occasionally fails to hit the `longRange` or `lateral` target
@@ -123,9 +158,10 @@ primitive, then `vertex_group_limit_total(limit=4)`) produces `characters/male-l
 (4,702 tris) and `female-low.glb` (4,697 tris) — 12 concurrent low-detail bodies is 56,424
 skinned triangles, under the 60k budget. Joint count verified unchanged (65) by the build
 script itself (throws otherwise). `character-factory.ts`'s `BuildOptions.detail` selects
-`'high' | 'low'`; nothing calls it with `'low'` yet — that's Level 5's spawner (Phase G),
-not attempted here. Visual comparison: `docs/screenshots/lod-comparison.png` (male and
-female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/knees/shoulders.
+`'high' | 'low'`; Level 5's wave spawner (phase G) now calls it with `'low'` for every
+rakshasa/subahu/maricha it spawns. Visual comparison: `docs/screenshots/lod-comparison.png`
+(male and female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/knees/
+shoulders.
 
 ## KNOWN — L5's e2e does not yet win; balance improved substantially but not fully cleared (pass 3 phase G, 2026-09-10)
 
@@ -183,9 +219,9 @@ in `CLAUDE.md`'s gotchas.
 
 ## Pass 3
 
-- Electron: `electron/main.ts` + `preload.ts`, `"main"` in package.json, electron-builder
-  config, `--ozone-platform=x11` on Linux, `platform/electron/` save (userData file) and
-  fullscreen adapters behind the existing `Platform` interface.
+- Electron shipped (pass 3 phase H) — see the KNOWN entry above for its verification status.
+  Fullscreen reuses the web adapter unchanged (Electron's renderer supports the DOM Fullscreen
+  API natively); only save needed an Electron-specific implementation.
 - Title screen, settings, pause menu, Story Scroll, real quiz UI, and an ending screen all
   shipped (pass 3 phase F). Quality tier changed in Settings takes effect on the next load, not
   live — `resolveTier` only runs once at boot; hot-swapping the asset tier mid-session is real

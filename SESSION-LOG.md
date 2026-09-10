@@ -2,6 +2,49 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase H: Electron desktop shell
+
+Branch `feat/pass-3-overnight`, on top of `fab15a5` (phase G). `electron`/`electron-builder`/
+`concurrently`/`cross-env`/`wait-on` were already devDependencies and `electron:dev`/
+`package:win`/`package:linux` npm scripts already existed from pass 1 scaffolding, pointing at
+an `electron/` directory that was empty — this phase fills it in.
+
+**Built**
+- `electron/main.ts`: `app.commandLine.appendSwitch('ozone-platform', 'x11')` on Linux, before
+  `app.whenReady()`, per AGENTS.md/ARCHITECTURE.md's Wayland-black-canvas note — no other
+  Chromium flags added. A single `BrowserWindow` (`contextIsolation: true`,
+  `nodeIntegration: false`) loads `VITE_DEV_SERVER_URL` in dev or a tiny local static file
+  server over the packaged `dist/` in production — never `file://`, which would break the app's
+  root-relative asset paths (`/vendor/draco/`, `/vendor/basis/`, see CLAUDE.md). `ipcMain`
+  handlers back a userData-file save (`app.getPath('userData')/save.json`). `logGpuInfo()` logs
+  `app.getGPUInfo('complete')` at startup with a loud `console.warn` if SwiftShader/llvmpipe
+  shows up in it — the actual GPU Chromium selected, not a guess.
+- `electron/preload.ts`: the only bridge across `contextIsolation` —
+  `contextBridge.exposeInMainWorld('electronAPI', {...})` for the three save operations.
+  `loadSave` is a synchronous `ipcRenderer.sendSync` deliberately: it only ever runs once, at
+  boot, matching `SaveAdapter.load()`'s synchronous contract (`platform/platform.ts`).
+- `src/platform/electron/save-electron.ts`: implements `SaveAdapter` purely through
+  `window.electronAPI`, never touching Node/fs directly (the renderer bundle is identical
+  between web and Electron). `src/platform/index.ts` now picks it at runtime
+  (`typeof window !== 'undefined' && !!window.electronAPI`) — the same one-bundle,
+  runtime-detected pattern as the quality-tier split. Audio, input, and fullscreen reuse the
+  web adapters unchanged; Electron's renderer supports those Web APIs natively.
+- `tsconfig.electron.json` (new project reference, `dist-electron/` output — already in
+  `eslint.config.js`'s `globalIgnores`, confirming this was the pass-1-anticipated path) and
+  `package.json`'s `"main"`/`"build"` (electron-builder: nsis for Windows, AppImage for Linux)
+  fields. `npm run build`'s existing `tsc -b` step now also compiles `electron/*.ts` as a
+  side effect of the project-reference graph — no new build script needed.
+
+**Verification**: typecheck/lint/unit tests all clean. Actually launched `electron .` against
+a real build in this session's sandbox (not just inspected the code) — confirmed the window,
+static server, and save IPC bridge all wire up correctly, but the sandbox has no GPU at all and
+this Chromium version no longer silently falls back to software WebGL (a deprecated behavior,
+per Chromium's own error message) — see TODO.md's KNOWN entry for the full finding, why it
+isn't baked into `main.ts` as a permanent flag, and what to do if `electron:dev`'s window comes
+up blank on a machine with no real GPU passthrough. Not yet tested on an actual Windows or
+Linux desktop machine, which is the only real confirmation `--ozone-platform=x11` fixes what it
+targets.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase G: Level 5, Protect the Yajna
 
 Branch `feat/pass-3-overnight`, on top of `cd8a8d8` (phase F). Level 5's data (`LEVELS[4]`,

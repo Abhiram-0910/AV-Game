@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,9 +13,16 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "assets:build": "node tools/build-assets.mjs",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "electron:dev": "tsc -b tsconfig.electron.json && concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "package:win": "npm run build && electron-builder --win",
     "package:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "org.balakanda.app",
+    "productName": "Bala Kanda",
+    "files": ["dist/**/*", "dist-electron/**/*"],
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage", "category": "Game" }
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
