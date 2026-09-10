@@ -5,8 +5,11 @@ import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { worldStore } from '@systems/world'
 import { DialoguePanel } from './DialoguePanel'
+import { EndingScreen } from './EndingScreen'
 import { Hud } from './Hud'
 import { LoadingScreen } from './LoadingScreen'
+import { PauseMenu } from './PauseMenu'
+import { QuizPanel } from './QuizPanel'
 import { ResultPanel } from './ResultPanel'
 import { useGame, useWorld } from './use-game'
 
@@ -23,19 +26,26 @@ function TalkOverlay({ dialogueKey }: { dialogueKey: DialogueKey }) {
   return <DialoguePanel key={dialogueKey} speech={DIALOGUE[dialogueKey]} onDone={onDone} />
 }
 
-function QuizAutoPass() {
-  // ponytail: quiz UI is pass 3; the gate auto-passes and records no score.
+/** Escape opens/closes the pause menu — only while actually playing with no dialogue open, so
+ * it never fights DialoguePanel's own Escape-to-skip handler. */
+function usePauseToggle(active: boolean) {
   useEffect(() => {
-    gameStore.getState().dispatch('QUIZ_DONE')
-  }, [])
-  return null
+    if (!active) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape') worldStore.getState().setPaused(!worldStore.getState().paused)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active])
 }
 
 export function Flow() {
   const phase = useGame((s) => s.phase)
   const level = useGame((s) => s.level)
   const talk = useWorld((s) => s.dialogue)
+  const paused = useWorld((s) => s.paused)
   const def = levelDef(level)
+  usePauseToggle(phase === 'play' && !talk)
   switch (phase) {
     case 'loading':
       return <LoadingScreen />
@@ -46,12 +56,15 @@ export function Flow() {
         <>
           <Hud bow={def.bow} />
           {talk && <TalkOverlay dialogueKey={talk} />}
+          {paused && <PauseMenu />}
         </>
       )
     case 'quiz':
-      return <QuizAutoPass />
+      return <QuizPanel />
     case 'transition':
       return <Narration dialogueKey={def.outroKey} event="NEXT" />
+    case 'complete':
+      return <EndingScreen />
     default:
       return <ResultPanel />
   }

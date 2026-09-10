@@ -1,4 +1,6 @@
 // Level complete (with the codex unlock) or try again. Continue drives the level machine.
+// Phase 'complete' (after the last level) is EndingScreen instead — level-machine.ts gives it
+// no further transition, so a "Continue" button here would be a dead end.
 import { CODEX } from '@data/codex'
 import { UI } from '@data/dialogue'
 import { codexUnlockedBy } from '@core/progression'
@@ -8,7 +10,7 @@ export function ResultPanel() {
   const phase = useGame((s) => s.phase)
   const level = useGame((s) => s.level)
   const dispatch = useGame((s) => s.dispatch)
-  const won = phase === 'win' || phase === 'complete'
+  const won = phase === 'win'
   const card = CODEX.find((c) => c.id === codexUnlockedBy(level))
   return (
     <div className="screen" data-testid="result">

@@ -2,6 +2,79 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase F: full UI
+
+Branch `feat/pass-3-overnight`, on top of `e42e8bb` (phase E). All the UI copy this phase
+needed (`menu.*`, `settings.*`, `pause.*`, `quiz.*`, `codex.*`) already existed in
+`dialogue.ts`/`quiz.ts`/`codex.ts` from pass 1 — this phase is almost entirely new components
+consuming data that was already there, plus two new strings (`result.complete`,
+`result.returnToTitle`) for the ending screen, which had no pass-1 equivalent.
+
+**Built**
+- `src/ui/screen-store.ts`: a small standalone store for `'title' | 'game'` — pure UI
+  navigation, not game domain state, so it doesn't belong in `core/` or the persisted save.
+  `App.tsx` now gates both the 3D `<Level>` and the `<Flow>` overlay on it, so no level asset
+  loads until the player actually starts — the title screen is genuinely first, not an overlay
+  on top of L1 already loading underneath.
+- `src/ui/TitleScreen.tsx`: `Begin` (no save progress) or `Continue`/`New Game` (progress
+  exists, with the pass-1 `menu.confirmNewGame` confirmation), plus Story Scroll and Settings.
+- `src/ui/QuizPanel.tsx`: replaces `QuizAutoPass`. Grading happens locally (compares the picked
+  option against `Question.correct`) and only calls the store's `answerQuiz()` — which advances
+  `quiz.index` or ends the gate — when the player confirms past the feedback. Calling it on
+  pick instead would end the gate (and change `phase` away from `'quiz'`) while the last
+  question's feedback was still meant to be on screen.
+- `src/ui/PauseMenu.tsx`: Escape toggles `worldStore.paused` (new field) during `'play'` with
+  no dialogue open — SimulationDriver's tick gate now also checks `!paused`, so pausing freezes
+  the sim without touching the level phase machine at all. Resume, restart the level
+  (`startLevel()` on the current level id), Story Scroll, Settings, or back to the title.
+- `src/ui/SettingsPanel.tsx`: quality tier override, volume (also calls
+  `platform.audio.setMasterVolume`, even though no sound assets exist yet), subtitles. Reused
+  from both the title screen and the pause menu. The quality tier is a saved preference only —
+  `resolveTier` runs once at boot, so changing it here takes effect on the next load, not live.
+- `src/ui/CodexPanel.tsx`: every Story Scroll card, locked ones shown as `codex.locked` instead
+  of the title. Reused from the title screen (review between sessions) and the pause menu.
+- `src/ui/EndingScreen.tsx`: phase `'complete'` gets its own screen instead of `ResultPanel` —
+  `level-machine.ts` gives `'complete'` no further transition, so `ResultPanel`'s "Continue"
+  button would have been a dead end there. Shows the Story Scroll count and a way back to the
+  title (`screenStore`).
+- `src/ui/ui.css`: `.title-actions`, `.btn-choice` (a selectable variant of `.btn`, same 56px
+  hit target, with a real pressed/disabled state), `.settings`/`.settings-row`, `.codex`/
+  `.codex-list`, `.quiz-prompt`/`.quiz-feedback`/`.quiz-correct`/`.quiz-wrong`. Same 1366×768
+  layout, 16px floor, 48px+ hit targets, dark-scrim-on-gold palette as the existing screens.
+
+**Updated for the new flow (existing e2e specs, all four levels)**
+- The quiz UI replacing auto-pass and the title screen both change what every level's e2e was
+  already exercising: `l1`–`l4`.spec.ts now click through the title screen
+  (`title-start`/`title-continue`) before the loading screen, and answer three real quiz
+  questions (`answerQuiz()` helper, picks option 0 each time — wrong answers still advance,
+  the gate teaches rather than blocks) between the win screen and the outro narration.
+  `l1.spec.ts` also gained a real pause/resume check (Escape opens the menu, player position is
+  verified unchanged while frozen, Resume closes it) — the only level e2e re-run this phase, see
+  "Verified" below for why that's enough.
+
+**Verified**
+- 80 unit tests green (no new ones — the new components are UI wiring around already-tested
+  domain logic; `answerQuiz()`, `setSettings()`, etc. were already covered), `typecheck` and
+  `lint` clean.
+- Every new screen (title, settings, codex — locked and unlocked, quiz question and its
+  correct/wrong feedback, pause, ending) screenshotted at 1366×768 during development to check
+  layout, legibility, and hit-target size by eye; not kept as committed screenshots since they
+  were state-injected for a fast look, not a real playthrough.
+- Full L1 e2e re-run twice: the first run failed on the *last* assertion (L2's loading title,
+  a pre-existing pass-2 check, not new Phase F code) — likely a race where L2's mostly-cached
+  assets loaded faster than two sequential assertions could catch, tightened into one. Second
+  run green end to end, including the new title screen, the real 3-question quiz with feedback,
+  and a pause/resume cycle that leaves the player's position untouched.
+- L2–L4's e2e specs were updated with the identical mechanism (same `TitleScreen`/`QuizPanel`
+  components, same two-line patch) but not independently re-run this phase — L1's full green
+  run is the "once per phase" e2e OVERNIGHT.md asks for, and the changes to L2–L4 are
+  mechanical, not new logic. If one of them fails on the title/quiz portion specifically,
+  suspect the shared components; if it fails elsewhere, it's that level's own gameplay,
+  unaffected by this phase.
+
+**Next**: Phase G (Level 5, protect the yajna — only if Phase B succeeded, which it did) per
+`OVERNIGHT.md`.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase E: Level 4, five-arrow trial
 
 Branch `feat/pass-3-overnight`, on top of `b687214` (the prop-scale/tint fix commit).

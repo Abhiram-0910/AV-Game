@@ -17,7 +17,8 @@ import { L3Forest } from '@scenes/L3Forest'
 import { L4Range } from '@scenes/L4Range'
 import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
-import { useGame } from '@ui/use-game'
+import { TitleScreen } from '@ui/TitleScreen'
+import { useGame, useScreen } from '@ui/use-game'
 import { world, worldStore } from '@systems/world'
 import './ui/ui.css'
 
@@ -60,10 +61,14 @@ function Level({ tier }: { tier: ResolvedTier }) {
 
 export function App() {
   const [tier, setTier] = useState<ResolvedTier | null>(null)
+  const screen = useScreen((s) => s.screen)
   useEffect(() => persistOnChange(), [])
   useEffect(() => {
     if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats } })
   }, [])
+  // The title screen shows before any level mounts, so no level assets load until the player
+  // actually starts (DEBUG.lod bypasses it entirely — that view has no title of its own).
+  const showLevel = tier && (screen === 'game' || DEBUG.lod)
   return (
     <>
       <Canvas
@@ -72,11 +77,11 @@ export function App() {
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onCreated={(state) => void boot(state, setTier)}
       >
-        {tier && <Level tier={tier} />}
+        {showLevel && <Level tier={tier} />}
         {DEBUG.overlay && <PerfProbe />}
       </Canvas>
       <div className="overlay">
-        {tier && !DEBUG.lod && <Flow />}
+        {tier && !DEBUG.lod && (screen === 'game' ? <Flow /> : <TitleScreen />)}
         {DEBUG.overlay && <PerfOverlay />}
       </div>
     </>

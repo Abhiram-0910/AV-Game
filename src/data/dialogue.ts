@@ -64,6 +64,8 @@ export const UI = {
   'result.fail.time': 'The sun set before the trial ended. Try again.',
   'result.retry': 'Retry',
   'result.next': 'Continue',
+  'result.complete': 'Bala Kanda complete',
+  'result.returnToTitle': 'Return to the title',
   'quiz.title': 'Before you go on',
   'quiz.progress': 'Question {n} of {total}',
   'quiz.correct': 'Correct!',

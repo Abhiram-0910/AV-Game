@@ -121,12 +121,15 @@ female, high vs low, mid-walk-cycle) — no weight artefacts visible at hips/kne
 - Electron: `electron/main.ts` + `preload.ts`, `"main"` in package.json, electron-builder
   config, `--ozone-platform=x11` on Linux, `platform/electron/` save (userData file) and
   fullscreen adapters behind the existing `Platform` interface.
-- Menus, codex (Story Scroll) UI, quiz UI. Until the quiz UI exists `ui/Flow.tsx`
-  auto-passes each gate (`QuizAutoPass`, records no score).
-- Levels 2 and 3 shipped (pass 3 phases C, D). Enemy AI (`systems/ai/enemy-ai.ts`) and the
-  generic `entities/Enemy.tsx` exist and are wired for single static spawns (`LevelDef.enemies`);
-  nothing has used the wave scheduler yet — that's L4/L5's spawner (Phases E/G). The skinned
-  budget registry and the pure wave scheduler are built and tested, nothing spawns from them yet.
+- Title screen, settings, pause menu, Story Scroll, real quiz UI, and an ending screen all
+  shipped (pass 3 phase F). Quality tier changed in Settings takes effect on the next load, not
+  live — `resolveTier` only runs once at boot; hot-swapping the asset tier mid-session is real
+  scope, not attempted.
+- Levels 2, 3, and 4 shipped (pass 3 phases C, D, E). Enemy AI (`systems/ai/enemy-ai.ts`) and
+  the generic `entities/Enemy.tsx` exist and are wired for single static spawns
+  (`LevelDef.enemies`); nothing has used the wave scheduler yet — that's L5's spawner (Phase G).
+  The skinned budget registry and the pure wave scheduler are built and tested, nothing spawns
+  from them yet.
 - `l3.vishwamitra.dusk` ("hurry up, Rama") is written but unused — not required by OVERNIGHT.md's
   Phase D text, only the hesitation beat was. Would need a new tick-elapsed-since-aggro trigger
   in `L3Forest.tsx` and a tuning constant for the threshold; low value for the cost, deferred.

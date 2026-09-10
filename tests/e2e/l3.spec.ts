@@ -96,6 +96,16 @@ async function skipSpeech(page: Page, speaker: string) {
   await expect(dialogue).toBeHidden()
 }
 
+/** Picks the first option each question and confirms through the feedback until the gate
+ * closes — wrong answers still advance, the gate teaches rather than blocks (quiz.ts). */
+async function answerQuiz(page: Page) {
+  await expect(page.getByTestId('quiz')).toBeVisible()
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByTestId('quiz-option-0').click()
+    await page.getByTestId('quiz-next').click()
+  }
+}
+
 /** Low-angle solution to the projectile range equation: launch pitch to hit (R, dy) at speed v. */
 function solvePitch(v: number, g: number, r: number, dy: number): number | null {
   if (r <= 0) return null
@@ -141,6 +151,8 @@ async function fightTataka(page: Page) {
 
 test('Level 3 plays end to end: the hesitation, the clearing, Tataka defeated', async ({ page }) => {
   await page.goto('/?debug')
+  await expect(page.getByTestId('title')).toBeVisible({ timeout: 60_000 })
+  await page.getByTestId('title-continue').click()
   await expect(page.getByTestId('loading')).toBeVisible()
   await expect(page.getByTestId('loading-title')).toHaveText(DIALOGUE['l3.title'].lines[0])
 
@@ -183,6 +195,7 @@ test('Level 3 plays end to end: the hesitation, the clearing, Tataka defeated', 
   const card = CODEX.find((c) => c.id === L3.codexCard)!
   await expect(page.getByTestId('codex-unlock')).toContainText(card.title)
   await page.getByTestId('result-continue').click()
+  await answerQuiz(page)
   await expect(page.getByTestId('dialogue-text')).toContainText(DIALOGUE['l3.outro'].lines[0].slice(0, 20))
   await skipSpeech(page, '')
   await expect(page.getByTestId('loading')).toBeVisible()

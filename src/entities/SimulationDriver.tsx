@@ -64,11 +64,12 @@ export function SimulationDriver({ bow }: { bow: boolean }) {
 
   useFrame((_, delta) => {
     const { phase, level } = gameStore.getState()
-    const talking = worldStore.getState().dialogue !== null
+    const { dialogue, paused } = worldStore.getState()
+    const talking = dialogue !== null
     const bounds = levelDef(level).id
     world.alpha = loop.advance(delta, (tick) => {
       world.tick = tick
-      if (phase === 'play' && !talking) {
+      if (phase === 'play' && !talking && !paused) {
         const query = { bounds: sceneBounds(bounds), obstacles: world.npcs.map((n) => ({ x: n.x, z: n.z, radius: BALANCE.locomotion.NPC_RADIUS })), groundY }
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
         stepInteraction()

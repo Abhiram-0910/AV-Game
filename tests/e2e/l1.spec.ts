@@ -85,8 +85,20 @@ async function talkTo(page: Page, npc: (typeof SCENE.npcs)[number]['npc'], dialo
   return dialogueKey
 }
 
+/** Picks the first option each question — wrong answers still advance (see quiz.ts: the gate
+ * teaches, never blocks) — then confirms through the feedback until the gate closes. */
+async function answerQuiz(page: Page) {
+  await expect(page.getByTestId('quiz')).toBeVisible()
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByTestId('quiz-option-0').click()
+    await page.getByTestId('quiz-next').click()
+  }
+}
+
 test('Level 1 plays end to end on real assets', async ({ page }) => {
   await page.goto('/?debug')
+  await expect(page.getByTestId('title')).toBeVisible({ timeout: 60_000 })
+  await page.getByTestId('title-start').click()
   await expect(page.getByTestId('loading')).toBeVisible()
   await expect(page.getByTestId('loading-title')).toHaveText(DIALOGUE['l1.title'].lines[0])
 
@@ -96,6 +108,15 @@ test('Level 1 plays end to end on real assets', async ({ page }) => {
   await skipSpeech(page, '')
   const objective = page.getByTestId('hud-objective')
   await expect(objective).toContainText(UI['objective.reach'])
+
+  // Pause and resume: Escape opens the menu without touching the level phase machine, and the
+  // player's position must not have moved while frozen.
+  const before = await player(page)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pause')).toBeVisible()
+  await page.getByTestId('pause-resume').click()
+  await expect(page.getByTestId('pause')).toBeHidden()
+  expect(await player(page)).toEqual(before)
 
   // Walk to the throne.
   const throne = L1.waypoints.throne
@@ -130,8 +151,11 @@ test('Level 1 plays end to end on real assets', async ({ page }) => {
   await expect(page.getByTestId('codex-unlock')).toContainText(UI['codex.unlocked'])
   await expect(page.getByTestId('codex-unlock')).toContainText(card.title)
   await page.getByTestId('result-continue').click()
+  await answerQuiz(page)
   await expect(page.getByTestId('dialogue-text')).toContainText(DIALOGUE['l1.outro'].lines[0].slice(0, 20))
   await skipSpeech(page, '')
-  await expect(page.getByTestId('loading')).toBeVisible()
-  await expect(page.getByTestId('loading-title')).toHaveText(DIALOGUE['l2.title'].lines[0])
+  // Most of L2's characters/clips are already cached from L1, so its loading screen can be
+  // brief — check the title text directly instead of two sequential assertions, which leaves
+  // a gap a very fast load could slip through entirely.
+  await expect(page.getByTestId('loading-title')).toHaveText(DIALOGUE['l2.title'].lines[0], { timeout: 15_000 })
 })

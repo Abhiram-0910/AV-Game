@@ -27,11 +27,15 @@ export interface WorldUi {
   expected: number
   /** The one enemy the HUD shows a health bar for (set by its Enemy entity while alive). */
   boss: BossHealth | null
+  /** User-toggled pause (Escape during play), not part of the level phase machine — it stops
+   * the fixed tick without touching win/fail/quiz flow. */
+  paused: boolean
   setPrompt(p: NpcId | null): void
   openDialogue(key: DialogueKey | null): void
   expect(n: number): void
   markLoaded(): void
   setBoss(b: BossHealth | null): void
+  setPaused(p: boolean): void
 }
 
 export const worldStore = createStore<WorldUi>()((set) => ({
@@ -40,11 +44,13 @@ export const worldStore = createStore<WorldUi>()((set) => ({
   loaded: 0,
   expected: 0,
   boss: null,
+  paused: false,
   setPrompt: (prompt) => set((s) => (s.prompt === prompt ? s : { prompt })),
   openDialogue: (dialogue) => set({ dialogue }),
   expect: (expected) => set({ expected, loaded: 0 }),
   markLoaded: () => set((s) => ({ loaded: s.loaded + 1 })),
   setBoss: (boss) => set({ boss }),
+  setPaused: (paused) => set({ paused }),
 }))
 
 export interface WorldSim {
@@ -106,5 +112,5 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.astraCharge = NO_DRAW
   world.alpha = 0
   world.tick = 0
-  worldStore.setState({ prompt: null, dialogue: null })
+  worldStore.setState({ prompt: null, dialogue: null, paused: false })
 }

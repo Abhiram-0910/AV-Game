@@ -80,6 +80,16 @@ async function skipSpeech(page: Page, speaker: string) {
   await expect(dialogue).toBeHidden()
 }
 
+/** Picks the first option each question and confirms through the feedback until the gate
+ * closes — wrong answers still advance, the gate teaches rather than blocks (quiz.ts). */
+async function answerQuiz(page: Page) {
+  await expect(page.getByTestId('quiz')).toBeVisible()
+  for (let i = 0; i < 3; i += 1) {
+    await page.getByTestId('quiz-option-0').click()
+    await page.getByTestId('quiz-next').click()
+  }
+}
+
 async function talkTo(page: Page, at: { x: number; z: number }) {
   const prompt = page.getByTestId('hud-prompt')
   await steerTo(page, at, () => prompt.isVisible())
@@ -136,6 +146,8 @@ async function shootTarget(page: Page, target: { x: number; y: number; z: number
 
 test('Level 2 plays end to end: mantras, the bow lesson, three real shots', async ({ page }) => {
   await page.goto('/?debug')
+  await expect(page.getByTestId('title')).toBeVisible({ timeout: 60_000 })
+  await page.getByTestId('title-continue').click()
   await expect(page.getByTestId('loading')).toBeVisible()
   await expect(page.getByTestId('loading-title')).toHaveText(DIALOGUE['l2.title'].lines[0])
 
@@ -166,6 +178,7 @@ test('Level 2 plays end to end: mantras, the bow lesson, three real shots', asyn
   const card = CODEX.find((c) => c.id === L2.codexCard)!
   await expect(page.getByTestId('codex-unlock')).toContainText(card.title)
   await page.getByTestId('result-continue').click()
+  await answerQuiz(page)
   await expect(page.getByTestId('dialogue-text')).toContainText(DIALOGUE['l2.outro'].lines[0].slice(0, 20))
   await skipSpeech(page, '')
   await expect(page.getByTestId('loading')).toBeVisible()
