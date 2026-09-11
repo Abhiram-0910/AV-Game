@@ -90,6 +90,8 @@ export interface LevelScenery {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number }
   background: string
   look: LevelLook
+  /** Enclosed levels: the follow camera never leaves this box, so no wall comes between it and the player. */
+  cameraBounds?: { minX: number; maxX: number; minZ: number; maxZ: number }
 }
 
 /** Per-level art direction: tone mapping, lights, sky, fog, palette. Visual only — no gameplay reads it. */
@@ -123,6 +125,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vasishtha', pos: [-2.4, 0, 3.6], yaw: Math.PI / 4, idle: 'IDLE' },
     ],
     bounds: { minX: -7, maxX: 7, minZ: -1, maxZ: 15 },
+    // Measured by raycasting palace.glb at this placement: inner walls at x -14.7 / 13.6, z -1.8 / 14.96.
+    cameraBounds: { minX: -14.2, maxX: 13.1, minZ: -1.3, maxZ: 14.6 },
     background: '#1a120b',
     look: {
       exposure: 0.8,

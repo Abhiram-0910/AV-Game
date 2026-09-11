@@ -76,7 +76,9 @@ export const LEVELS: readonly LevelDef[] = [
     // Lakshmana has no line in the court; the brothers leave together at the Sarayu (L2).
     // Four bodies keep the court under the 120k frame budget beside the palace and props.
     persistentSkinned: ['rama', 'vishwamitra', 'dasharatha', 'vasishtha'],
-    playerSpawn: { pos: [0, 0, 14], yaw: Math.PI },
+    // The entrance wall's inner face is at z 14.96: spawning at 14 left no room for the follow
+    // camera, which ended up behind the wall. 9.5 keeps it inside the hall (visual pass, 2026-09-11).
+    playerSpawn: { pos: [0, 0, 9.5], yaw: Math.PI },
     bow: false,
     waypoints: { throne: [0, 0, 2], vishwamitra: [3, 0, 4], vasishtha: [-3, 0, 4] },
     targets: [],
