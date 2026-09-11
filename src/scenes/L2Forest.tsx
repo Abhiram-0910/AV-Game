@@ -17,6 +17,7 @@ import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { Target } from '@entities/Target'
 import { SkyGradient } from '@entities/SkyGradient'
+import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { resetWorld, worldStore } from '@systems/world'
@@ -48,6 +49,7 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { light, bounds } = scenery
   return (
     <group name="l2-forest">
+      <Atmosphere scenery={scenery} tier={tier} />
       <SkyGradient topColor="#3b7cb8" horizonColor="#bfe0ff" groundColor="#4a6b34" />
       <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
       <directionalLight position={light.sun} intensity={light.sunIntensity} />

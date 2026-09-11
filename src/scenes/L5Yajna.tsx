@@ -19,6 +19,7 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { useWaveSpawner } from '@entities/wave-spawner'
+import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { resetWorld, world, worldStore } from '@systems/world'
@@ -132,6 +133,7 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { light, bounds } = scenery
   return (
     <group name="l5-yajna">
+      <Atmosphere scenery={scenery} tier={tier} />
       <color attach="background" args={[scenery.background]} />
       <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
       <directionalLight position={light.sun} intensity={light.sunIntensity} />

@@ -88,6 +88,13 @@ export interface LevelScenery {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number }
   light: { sky: string; ground: string; sun: Vec3; sunIntensity: number; ambientIntensity: number }
   background: string
+  look: LevelLook
+}
+
+/** Per-level art direction: tone mapping, lights, sky, fog, palette. Visual only — no gameplay reads it. */
+export interface LevelLook {
+  /** renderer.toneMappingExposure under ACES Filmic. */
+  exposure: number
 }
 
 export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', LevelScenery>>> = {
@@ -108,6 +115,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -7, maxX: 7, minZ: -1, maxZ: 15 },
     light: { sky: '#ffe9c4', ground: '#3b2a1a', sun: [4, 10, 6], sunIntensity: 2.2, ambientIntensity: 0.9 },
     background: '#1a120b',
+    look: { exposure: 0.72 },
   },
   l2: {
     // Trees and rocks scatter the banks either side of the walk from the camp to the range;
@@ -132,6 +140,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -12, maxX: 22, minZ: -52, maxZ: 6 },
     light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
+    look: { exposure: 0.85 },
   },
   l3: {
     // Dense, dark forest — "no birds sang" (l3.intro). Denser tree cover than L2's riverbank,
@@ -153,6 +162,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -12, maxX: 12, minZ: -32, maxZ: 22 },
     light: { sky: '#687b84', ground: '#2b3924', sun: [-4, 8, -3], sunIntensity: 1.8, ambientIntensity: 0.95 },
     background: '#141a16',
+    look: { exposure: 0.9 },
   },
   l4: {
     // The trial range: open field, targets from the firing line out to -48. Trees/rocks are
@@ -173,6 +183,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -14, maxX: 14, minZ: -54, maxZ: 6 },
     light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
+    look: { exposure: 0.85 },
   },
   l5: {
     // Rockfall-strewn clearing around the altar (waypoints.altar, levels.ts); rakshasa waves
@@ -192,5 +203,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -32, maxX: 32, minZ: -32, maxZ: 10 },
     light: { sky: '#ffcf8a', ground: '#3a2a1a', sun: [-3, 6, 4], sunIntensity: 1.8, ambientIntensity: 0.7 },
     background: '#2a1a12',
+    look: { exposure: 0.9 },
   },
 }

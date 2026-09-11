@@ -17,6 +17,7 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { SkyGradient } from '@entities/SkyGradient'
+import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { resetWorld, world, worldStore } from '@systems/world'
@@ -73,6 +74,7 @@ export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { light, bounds } = scenery
   return (
     <group name="l3-forest">
+      <Atmosphere scenery={scenery} tier={tier} />
       <SkyGradient topColor="#1a2528" horizonColor="#455448" groundColor="#243018" />
       <hemisphereLight args={[light.sky, light.ground, BALANCE.lighting.L3_AMBIENT_INTENSITY]} />
       <hemisphereLight args={['#88a0b0', '#2a3820', BALANCE.lighting.L3_FILL_INTENSITY]} />

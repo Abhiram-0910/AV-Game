@@ -12,6 +12,7 @@ import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
+import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { resetWorld, worldStore } from '@systems/world'
@@ -38,6 +39,7 @@ export function L1Court({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { light } = scenery
   return (
     <group name="l1-court">
+      <Atmosphere scenery={scenery} tier={tier} />
       <color attach="background" args={[scenery.background]} />
       <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
       <directionalLight position={light.sun} intensity={light.sunIntensity} />
