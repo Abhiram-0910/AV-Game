@@ -2,6 +2,70 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-11 — Antigravity — Arrow trajectory accuracy, aim alignment, end-to-end Astra invocation & 3D animations
+
+Refining archery ballistics and completing the Astra visual and invocation pipeline:
+
+**Built**
+- Arrow Trajectory & Aim Alignment (`src/systems/archery/ballistics.ts`, `src/systems/archery/step.ts`, `src/entities/ArrowPool.tsx`, `src/entities/TrajectoryArc.tsx`, `src/data/balance.ts`):
+  - In `ballistics.ts`: Decomposed 3D launch velocity from pitch angle: `pitch = asin(dir.y)`, `vHorizontal = speed * cos(pitch)`, `yaw = atan2(dir.x, dir.z)`, `vx = vHorizontal * sin(yaw)`, `vz = vHorizontal * cos(yaw)`, `vy = speed * sin(pitch)`.
+  - In `step.ts` and `TrajectoryArc.tsx`: Release origin uses exact bow socket offset relative to Rama's body and yaw: `[p.x + forwardOffset * sin(yaw), p.y + 1.35, p.z + forwardOffset * cos(yaw)]`.
+  - In `ArrowPool.tsx`: Visual arrow mesh heading orientation aligns each frame to the velocity vector: `rotation.y = atan2(vx, vz)`, `rotation.x = atan2(-vy, hypot(vx, vz))`, preventing orientation flipping. Removed unused variables.
+  - In `balance.ts`: Toned down `AIM_ASSIST_RADIUS` (0.85 -> 0.45m) and `AIM_ASSIST_BIAS` (0.35 -> 0.1) so arrows fly true to reticle crosshair without wild magnetic skewing.
+- End-to-End Astra Invocation (`src/entities/SimulationDriver.tsx`, `src/ui/AstraButton.tsx`, `src/systems/astra/step.ts`):
+  - Extracted `stepAstraCombat(tick)` to keep `SimulationDriver` well under the 50-line limit.
+  - In `AstraButton.tsx`: Clicking triggers `castAstra(world.tick)` directly, while holding down pointer/touch charges `world.astraButtonHeld`.
+  - In `step.ts`: `castAstra` handles cooldown checks, charge consumption, audio (`astra_cast` / `whoosh`), hitscan/cone dispatch, and triggers visual events.
+- 3D Animated Astra VFX (`src/entities/AstraVfx.tsx`, `src/systems/astra/vfx-state.ts`, `src/systems/audio/`):
+  - Rendered fiery beam streak and expanding explosion sphere for Agneyastra (scale 0.5 to 5.0m, decaying opacity over 30 frames).
+  - Rendered 3 concentric spinning gale rings for Manavastra (expanding and sweeping forward over 40 frames).
+  - Pure functional state updates in `useFrame` with automatic eviction of expired VFX nodes; zero ref mutation during render.
+  - Added synthesized `whoosh` sound key for Manavastra gale burst.
+- Typecheck & Test Corrections (`src/systems/astra/vfx-state.ts`, `src/systems/astra/step.ts`, `tests/unit/archery.test.ts`):
+  - In `vfx-state.ts`: Resolved TS2339 and ESLint `no-useless-assignment` by cleanly computing `[tx, ty, tz]` via a direct ternary with `'x' in targetOrDir` property check.
+  - In `step.ts`: Removed unused `_simWorld` parameter from `castAgneyastra` and `castManavastra` to satisfy `@typescript-eslint/no-unused-vars`.
+  - In `archery.test.ts`: Provided `unlockedAstras: ['agneyastra']` and `selectedAstra: 'agneyastra'` in `gameStore.setState` for `castAstra(0)` test, ensuring target `onHit` execution and hittable eviction pass cleanly.
+
+## 2026-09-11 — Antigravity — In-engine level restart, dual astra system & persistence, distinct astra mechanics, astra VFX, and functional sword melee
+
+Implementing combat, persistence, and visual features:
+
+**Built**
+- In-Engine Level Restart (`src/ui/ResultPanel.tsx`, `src/core/game-state.ts`, `src/entities/SimulationDriver.tsx`):
+  - In `ResultPanel.tsx`: Removed `window.location.reload()` / navigation on Retry button; now directly invokes `restartLevel()`.
+  - In `game-state.ts`: Added `restartLevel()` on `gameStore` resetting player HP (`BALANCE.player.MAX_HEALTH`), arrows (`START_ARROWS`), astra charges (`START_CHARGES`), yajna integrity (`MAX_INTEGRITY`), fresh objectives for the level, sets `phase: 'play'`, and triggers `restartHook`.
+  - In `SimulationDriver.tsx`: Connected `registerRestartHook` to reset the fixed loop (`loop.reset()`) and reset the simulation world (`resetWorld()`) to spawn coordinates without a browser reload.
+- Dual Astra System & Persistence (`src/core/save.ts`, `src/core/game-state.ts`, `src/scenes/L4Range.tsx`, `src/scenes/L5Yajna.tsx`, `src/ui/AstraButton.tsx`, `src/ui/ui.css`):
+  - In `save.ts`: Added `AstraId = 'agneyastra' | 'manavastra'`, updated `SaveBody` schema, `DEFAULT_SAVE`, and `parseBody()` to serialize/deserialize `unlockedAstras`.
+  - In `game-state.ts`: Added `unlockedAstras: AstraId[]` and `selectedAstra: AstraId | null` to state; implemented `unlockAstra(id)`, `selectAstra(id)`, and `castAstra(tick)`; preserved astra unlocks across level transitions (`levelStart`) and save hydration/snapshots.
+  - In `L4Range.tsx`: Unlocks Manavastra at start and Agneyastra upon destroying 4 targets.
+  - In `L5Yajna.tsx`: Unlocks both astras if not already unlocked and enables `astraReady`.
+  - In `AstraButton.tsx`: Added dual astra tabs allowing switching between Agneyastra and Manavastra (`[1]` / `[2]`), displaying contextual icons (🔥 / 💨), and invoking `castAstra()`.
+  - In `SimulationDriver.tsx`: Bound keys `Digit1` and `Digit2` for instant astra switching.
+- Distinct Astra Mechanics (`src/data/balance.ts`, `src/systems/astra/step.ts`):
+  - Centralized in `BALANCE.astra`:
+    - `agneyastra`: 120 AOE fire damage in 5.0m explosion radius (`BALANCE.astra.agneyastra.DAMAGE`, `RADIUS`).
+    - `manavastra`: 40 damage with 8.0m frontal cone impulse, 120° cone angle, 7.0m knockback, 90-tick stun, and flings Maricha (`BALANCE.astra.manavastra`).
+  - In `astra/step.ts`: Implemented `castAgneyastra` (hitscan impact point + 5.0m AOE explosion) and `castManavastra` (120° frontal cone impulse, 7m knockback, 90-tick stun, and flings Maricha).
+- Astra VFX (`src/systems/astra/vfx-state.ts`, `src/entities/AstraVfx.tsx`, `src/scenes/L4Range.tsx`, `src/scenes/L5Yajna.tsx`):
+  - Created `vfx-state.ts` for transient astra summon event broadcasting.
+  - Created `AstraVfx.tsx`: renders fiery orange-gold projectile trail beam with expanding spherical fire burst for Agneyastra, and swirling cyan-white expanding spiral gale rings for Manavastra.
+  - Mounted `<AstraVfx />` in `L4Range.tsx` and `L5Yajna.tsx`.
+- Functional Sword Melee (`src/data/balance.ts`, `src/core/combat-rules.ts`, `src/systems/combat-rules.ts`, `src/platform/web/input-web.ts`, `src/entities/SimulationDriver.tsx`, `src/systems/audio/`):
+  - Centralized in `BALANCE.melee`: 35 damage, 2.2m range, 120° cone angle, 1.5m knockback, 36 slash ticks.
+  - Updated `core/combat-rules.ts`: `damageFor('melee', 'player')` returns `BALANCE.melee.DAMAGE`.
+  - Created `src/systems/combat-rules.ts`: implements `checkMeleeHit(player, enemies, tick)` checking 120° frontal cone within 2.2m, dealing 35 damage, applying 1.5m knockback, staggering enemies, and triggering hit feedback.
+  - In `input-web.ts`: Intercepted Right-Click (`e.button === 2`) as `MouseRight` and suppressed context menu via `contextmenu` listener.
+  - In `SimulationDriver.tsx`: Bound sword slash + `checkMeleeHit` to `KEY_SWORD` ('F') and `MouseRight`.
+  - In audio: Added `sword_slash` sound key and procedural synthesizer (bandpass filtered noise burst).
+- Refinements & Fixes (`src/entities/AstraVfx.tsx`, `src/platform/web/input-web.ts`, `src/ui/AstraButton.tsx`, `src/core/save.ts`, `tests/`):
+  - In `AstraVfx.tsx`: Moved `itemsRef.current = items` into `useEffect` to prevent ref mutation during render.
+  - In `input-web.ts`: Extracted `attachListeners` and `removeListeners` outside `createWebInput` to satisfy `max-lines-per-function: 50`.
+  - In `AstraButton.tsx`: Extracted `AstraTabItem` subcomponent to satisfy `max-lines-per-function: 50`.
+  - In `combat-rules.test.ts`: Fixed expected lethal health assertion using `Math.max(0, ...)`.
+  - In `save.ts`: Kept `unlockedAstras` optional and conditionally emitted only when present, preserving exact backward compatibility with v1 and v2 saves; added test in `save.test.ts`.
+  - In `electron/main.ts`: Added `app.commandLine.appendSwitch('headless')` when `process.env.HEADLESS === 'true'` for headless test environments.
+
 ## 2026-09-10 — Antigravity — Level 4 Astra trigger & 5th target destruction, Level 3 Tataka boss health bar
 
 Implementing Level 4 Astra progression and Level 3 Boss Health Bar:

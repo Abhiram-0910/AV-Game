@@ -75,8 +75,8 @@ function getMuzzleOrigin(): [number, number, number] {
   const px = p.prevX + (p.x - p.prevX) * t
   const py = p.prevY + (p.y - p.prevY) * t
   const pz = p.prevZ + (p.z - p.prevZ) * t
-  const [dx, , dz] = world.aimDir
-  return [px + dx * AIM.MUZZLE_FORWARD, py + AIM.MUZZLE_HEIGHT, pz + dz * AIM.MUZZLE_FORWARD]
+  const forwardOffset = AIM.MUZZLE_FORWARD
+  return [px + forwardOffset * Math.sin(p.yaw), py + AIM.MUZZLE_HEIGHT, pz + forwardOffset * Math.cos(p.yaw)]
 }
 
 function useTrajectoryUpdate(

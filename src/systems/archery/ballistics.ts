@@ -13,8 +13,14 @@ export interface ArrowState {
 }
 
 export function launchArrow(origin: readonly [number, number, number], dir: readonly [number, number, number], fraction: number): ArrowState {
-  const v = BALANCE.arrow.SPEED * fraction
-  return { x: origin[0], y: origin[1], z: origin[2], vx: dir[0] * v, vy: dir[1] * v, vz: dir[2] * v, age: 0, alive: true }
+  const speed = BALANCE.arrow.SPEED * fraction
+  const pitch = Math.asin(Math.max(-1, Math.min(1, dir[1])))
+  const vHorizontal = speed * Math.cos(pitch)
+  const yaw = Math.atan2(dir[0], dir[2])
+  const vx = vHorizontal * Math.sin(yaw)
+  const vz = vHorizontal * Math.cos(yaw)
+  const vy = speed * Math.sin(pitch)
+  return { x: origin[0], y: origin[1], z: origin[2], vx, vy, vz, age: 0, alive: true }
 }
 
 export function stepArrow(a: ArrowState, dt: number): ArrowState {

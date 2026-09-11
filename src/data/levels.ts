@@ -203,8 +203,8 @@ export const LEVELS: readonly LevelDef[] = [
       // outpaced how fast a well-aimed player can drop one and reload for the next.
       { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 150, maxAlive: 3 },
       { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 5 },
-      { startTick: 3100, kind: 'rakshasa', count: 7, spawnIntervalTicks: 100, maxAlive: 5 },
-      { startTick: 4600, kind: 'rakshasa', count: 4, spawnIntervalTicks: 110, maxAlive: 3 },
+      { startTick: 3100, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 4 },
+      { startTick: 4600, kind: 'rakshasa', count: 3, spawnIntervalTicks: 130, maxAlive: 3 },
       { startTick: 4600, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
       { startTick: 4680, kind: 'maricha', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
     ],

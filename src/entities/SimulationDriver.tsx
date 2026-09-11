@@ -3,17 +3,18 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { BALANCE } from '@data/balance'
-import { gameStore } from '@core/game-state'
+import { gameStore, registerRestartHook } from '@core/game-state'
 import { currentObjectiveIndex } from '@core/objectives'
 import { levelDef } from '@core/progression'
 import { stepEnemy } from '@systems/ai/enemy-ai'
 import { stepAstra } from '@systems/astra/step'
+import { checkMeleeHit } from '@systems/combat-rules'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
 import { IDLE_INPUT, type MoveInput, stepLocomotion } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
 import { nearestPickupIndex, reachedWaypoint, talkTarget } from '@systems/interaction/interact'
 import { stepArchery } from '@systems/archery/step'
-import { world, worldStore } from '@systems/world'
+import { resetWorld, world, worldStore } from '@systems/world'
 import { platform } from '@platform/index'
 
 const KEY_E = 'KeyE'
@@ -54,9 +55,26 @@ function stepInteraction(): void {
 
 /** Cosmetic secondary action — no target, no damage; the sword doesn't fight until Level 3. */
 function stepSword(tick: number): void {
-  if (platform.input.pressed(KEY_SWORD) && tick >= world.swordSlashUntilTick) {
+  const slash = platform.input.pressed(KEY_SWORD) || platform.input.pressed('MouseRight')
+  if (slash && tick >= world.swordSlashUntilTick) {
     world.swordSlashUntilTick = tick + BALANCE.melee.SLASH_TICKS
+    checkMeleeHit(world.player, world.enemies, tick)
   }
+}
+
+function stepAstraSwitch(): void {
+  if (platform.input.pressed('Digit1')) gameStore.getState().selectAstra('agneyastra')
+  if (platform.input.pressed('Digit2')) gameStore.getState().selectAstra('manavastra')
+}
+
+function stepAstraCombat(tick: number): void {
+  stepAstraSwitch()
+  const astraHeld =
+    platform.input.isDown(KEY_ASTRA) ||
+    platform.input.isDown('Space') ||
+    world.astraButtonHeld ||
+    (world.astraReady && platform.input.isDown(KEY_E) && worldStore.getState().prompt === null)
+  stepAstra(astraHeld, tick)
 }
 
 /** `objective` is Level 5's altar — "rakshasas go for the altar, not for you" (AGENTS.md).
@@ -73,7 +91,15 @@ function stepEnemies(tick: number, dt: number, objective?: { x: number; z: numbe
 export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick: number) => void }) {
   const loop = useMemo(() => createFixedLoop(), [])
   const groundY = useMemo(() => createGroundProbe(() => world.ground), [])
-  useEffect(() => () => loop.reset(), [loop])
+  useEffect(() => {
+    registerRestartHook(() => {
+      loop.reset()
+      const { level } = gameStore.getState()
+      const def = levelDef(level)
+      resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
+    })
+    return () => loop.reset()
+  }, [loop])
 
   useFrame((_, delta) => {
     const { phase, level } = gameStore.getState()
@@ -94,12 +120,7 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
         if (bow) {
           stepArchery(loop.dt)
           stepSword(tick)
-          const astraHeld =
-            platform.input.isDown(KEY_ASTRA) ||
-            platform.input.isDown('Space') ||
-            world.astraButtonHeld ||
-            (world.astraReady && platform.input.isDown(KEY_E) && worldStore.getState().prompt === null)
-          stepAstra(astraHeld, tick)
+          stepAstraCombat(tick)
         }
       } else {
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })
