@@ -112,9 +112,43 @@ export interface LevelLook {
   ground: { base: string; dapple: readonly [string, string] }
 }
 
+type XZ = readonly [number, number]
+
+/** Ayodhya's hall, built from primitives and canvas textures (entities/CourtDressing.tsx). Floor at
+ * y 0.1 (palace.glb raycast). Column shafts in the front row stand at x ±1.17, ±3.5, ±5.85 (z 10.75),
+ * the back row at z ~2; the carpet fits the ~2 m aisle between the inner pair. */
+export const COURT = {
+  palette: {
+    crimson: '#8e1a22',
+    crimsonDeep: '#560d14',
+    gold: '#d9a23a',
+    marble: '#efe7da',
+    vein: '#a8998a',
+    inlay: '#2b1a14',
+    bronze: '#8a5a2c',
+    flame: '#ff7a1a',
+    flameCore: '#ffd07a',
+  },
+  floorY: 0.1,
+  floor: { minX: -7.4, maxX: 7.4, minZ: -1.7, maxZ: 14.9, tileM: 2.4 },
+  carpet: { width: 1.5, fromZ: 1.4, toZ: 14.9, repeatM: 1.5 },
+  /** Two marble steps (width, depth, rise) under the throne, centred at z. */
+  dais: { z: 0.2, steps: [[4.2, 3.0, 0.16], [2.8, 2.0, 0.16]] as const },
+  /** Crimson hanging on the back wall (z -1.8) behind the throne, gold-bordered: width, height, bottom y. */
+  backdrop: { z: -1.72, width: 5.6, height: 5.2, bottomY: 0.5, border: 0.14 },
+  throne: { z: 0.2, seatW: 1.1, seatD: 0.7, seatH: 0.46, backH: 1.7, discY: 2.55, discR: 0.8 },
+  /** Braziers: bronze stand, gold bowl, emissive flame; a warm point light each on high only. */
+  braziers: [[-1.95, 5.6], [1.95, 5.6], [-1.95, 9.2], [1.95, 9.2], [-2.7, 1.0], [2.7, 1.0]] as readonly XZ[],
+  torch: { color: '#ff9a48', intensity: 3, distance: 6, decay: 2, flameEmissive: 6, flickerHz: 7, flickerAmount: 0.18 },
+  /** Banners on column faces toward the entrance: x, z of the column, hung from y 2.2 to 5. */
+  banners: [[-3.5, 2.0], [3.5, 2.0], [-5.85, 2.0], [5.85, 2.0], [-3.5, 10.75], [3.5, 10.75]] as readonly XZ[],
+  /** Gold bands round the inner column shafts (radius, heights). */
+  columnBands: { xs: [-3.5, -1.17, 1.17, 3.5], zs: [2.0, 10.75], radius: 0.2, ys: [1.1, 3.0] },
+} as const
+
 /** High-tier post-processing. Bloom threshold is linear HDR luminance: only emissives above 1 glow.
  * Vignette darkness 1 mixes corners toward black; above 1 it goes negative. */
-export const POST = { BLOOM_STRENGTH: 0.55, BLOOM_RADIUS: 0.45, BLOOM_THRESHOLD: 1.05, VIGNETTE_OFFSET: 0.95, VIGNETTE_DARKNESS: 1.0 } as const
+export const POST = { BLOOM_STRENGTH: 0.4, BLOOM_RADIUS: 0.45, BLOOM_THRESHOLD: 1.4, VIGNETTE_OFFSET: 0.95, VIGNETTE_DARKNESS: 1.0 } as const
 
 /** Low tier has no reflection map; a neutral ambient of envIntensity × this stands in for its irradiance. */
 export const LOW_AMBIENT_FROM_ENV = 3
@@ -127,13 +161,16 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     statics: [
       // Sketchfab palace ships in centimetres and off-centre (x −475..329, z −212..319 before
       // scaling); at 0.04 the hall is ~32 × 21 m and this offset puts it around the court.
-      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#eadcc3', castShadow: false, pbr: { roughness: 0.72, metalness: 0 } },
-      { asset: 'royalRoom', pos: [0, 0, 0], yaw: 0, scale: 1, ground: false },
+      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#e2cdae', castShadow: false, pbr: { roughness: 0.72, metalness: 0 } },
+      // royalRoom removed (visual pass, 2026-09-11): at scale 1 it planted a 7 m sword on the
+      // throne (nodes Object_7-9), a lamp sunk through the floor at x 3.5, and an oversized dais at
+      // x -7. The throne and its dais are built from primitives instead: COURT below, CourtDressing.tsx.
     ],
     // Yaw 0 faces +Z (toward the entering player). The counsellors stand either side of the
     // throne and turn inward; Rama stops before the throne and speaks with each in turn.
     npcs: [
-      { npc: 'dasharatha', pos: [0, 0, 0.6], yaw: 0, idle: 'SIT_TALK' },
+      // Seated on the COURT throne: y is the dais top, so the seat meets the clip's pelvis.
+      { npc: 'dasharatha', pos: [0, 0.42, 0.55], yaw: 0, idle: 'SIT_TALK' },
       { npc: 'vishwamitra', pos: [2.4, 0, 3.6], yaw: -Math.PI / 4, idle: 'ARMS_FOLDED' },
       { npc: 'vasishtha', pos: [-2.4, 0, 3.6], yaw: Math.PI / 4, idle: 'IDLE' },
     ],
@@ -142,7 +179,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     cameraBounds: { minX: -14.2, maxX: 13.1, minZ: -1.3, maxZ: 14.6 },
     background: '#1a120b',
     look: {
-      exposure: 0.8,
+      exposure: 0.72,
       // Late sun through the entrance behind the player: long shadows reach toward the throne.
       key: { color: '#ffc792', intensity: 2.3, dir: [3, 5, 10] },
       fill: { sky: '#7c89a8', ground: '#5c2a1c', intensity: 0.75 },

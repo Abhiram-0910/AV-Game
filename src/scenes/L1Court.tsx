@@ -6,6 +6,7 @@ import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { CourtDressing } from '@entities/CourtDressing'
 import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { FollowCamera } from '@entities/FollowCamera'
 import { NpcCharacter } from '@entities/NpcCharacter'
@@ -39,6 +40,7 @@ export function L1Court({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   return (
     <group name="l1-court">
       <Atmosphere scenery={scenery} tier={tier} />
+      <CourtDressing tier={tier} />
       <color attach="background" args={[scenery.background]} />
       {scenery.statics.map((p) => (
         <StaticProp key={p.asset} placement={p} tier={tier} />
