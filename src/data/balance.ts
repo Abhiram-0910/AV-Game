@@ -51,10 +51,19 @@ export const BALANCE = {
     CHARGE_TICKS: 90,
     COOLDOWN_TICKS: 180,
     DAMAGE: 60,
-    /** Manavastra (used on Maricha) flings instead of damaging. */
     FLING_DISTANCE: 100,
-    /** Vayavyastra scatters every enemy within this radius. */
     SCATTER_RADIUS: 12,
+    agneyastra: {
+      DAMAGE: 120,
+      RADIUS: 5.0,
+    },
+    manavastra: {
+      DAMAGE: 40,
+      CONE_RANGE: 8.0,
+      CONE_ANGLE_DEG: 120,
+      KNOCKBACK_DISTANCE: 7.0,
+      STUN_TICKS: 90,
+    },
   },
 
   enemies: {
@@ -135,9 +144,9 @@ export const BALANCE = {
     /** Draw gauge width in px on the HUD overlay. */
     GAUGE_WIDTH: 64,
     /** Radius in metres for proximity magnetism/assist toward targets/enemies. */
-    AIM_ASSIST_RADIUS: 0.85,
+    AIM_ASSIST_RADIUS: 0.45,
     /** Fraction to bias trajectory landing point toward target center on assist lock (0..1). */
-    AIM_ASSIST_BIAS: 0.35,
+    AIM_ASSIST_BIAS: 0.1,
   },
 
   archeryAim: {
@@ -162,12 +171,14 @@ export const BALANCE = {
   },
 
   melee: {
-    /** Sword grip: local offset, euler (radians), and scale under hand_r. */
     SWORD_GRIP_POS: [0, 0, 0],
     SWORD_GRIP_ROT: [Math.PI / 2, 0, 0],
     SWORD_GRIP_SCALE: 0.4,
-    /** Ticks the one-shot slash clip plays for before locomotion resumes control of the pose. */
     SLASH_TICKS: 36,
+    DAMAGE: 35,
+    RANGE: 2.2,
+    CONE_ANGLE_DEG: 120,
+    KNOCKBACK_DISTANCE: 1.5,
   },
 
   garments: {

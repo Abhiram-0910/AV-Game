@@ -2,50 +2,78 @@
 // lab trackpads and a click-to-capture cursor are a classroom support problem.
 import type { InputAdapter, MouseState } from '../platform'
 
+interface Listeners {
+  onKeyDown: (e: KeyboardEvent) => void
+  onKeyUp: (e: KeyboardEvent) => void
+  onMove: (e: MouseEvent) => void
+  onDown: (e: MouseEvent) => void
+  onUp: (e: MouseEvent) => void
+  onContextMenu: (e: MouseEvent) => void
+  onBlur: () => void
+}
+
+function attachListeners(target: Window, l: Listeners): void {
+  target.addEventListener('keydown', l.onKeyDown)
+  target.addEventListener('keyup', l.onKeyUp)
+  target.addEventListener('mousemove', l.onMove)
+  target.addEventListener('mousedown', l.onDown)
+  target.addEventListener('mouseup', l.onUp)
+  target.addEventListener('contextmenu', l.onContextMenu)
+  target.addEventListener('blur', l.onBlur)
+}
+
+function removeListeners(target: Window, l: Listeners): void {
+  target.removeEventListener('keydown', l.onKeyDown)
+  target.removeEventListener('keyup', l.onKeyUp)
+  target.removeEventListener('mousemove', l.onMove)
+  target.removeEventListener('mousedown', l.onDown)
+  target.removeEventListener('mouseup', l.onUp)
+  target.removeEventListener('contextmenu', l.onContextMenu)
+  target.removeEventListener('blur', l.onBlur)
+}
+
 export function createWebInput(target: Window = window): InputAdapter {
   const down = new Set<string>()
   const pressed = new Set<string>()
   const mouse: MouseState = { x: 0, y: 0, down: false }
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.repeat) return
-    down.add(e.code)
-    pressed.add(e.code)
+  const listeners: Listeners = {
+    onKeyDown: (e) => {
+      if (!e.repeat) {
+        down.add(e.code)
+        pressed.add(e.code)
+      }
+    },
+    onKeyUp: (e) => down.delete(e.code),
+    onMove: (e) => {
+      mouse.x = (e.clientX / target.innerWidth) * 2 - 1
+      mouse.y = 1 - (e.clientY / target.innerHeight) * 2
+    },
+    onDown: (e) => {
+      if (e.button === 0) mouse.down = true
+      if (e.button === 2) {
+        down.add('MouseRight')
+        pressed.add('MouseRight')
+      }
+    },
+    onUp: (e) => {
+      if (e.button === 0) mouse.down = false
+      if (e.button === 2) down.delete('MouseRight')
+    },
+    onContextMenu: (e) => e.preventDefault(),
+    onBlur: () => {
+      down.clear()
+      mouse.down = false
+    },
   }
-  const onKeyUp = (e: KeyboardEvent) => down.delete(e.code)
-  const onMove = (e: MouseEvent) => {
-    mouse.x = (e.clientX / target.innerWidth) * 2 - 1
-    mouse.y = 1 - (e.clientY / target.innerHeight) * 2
-  }
-  const onDown = (e: MouseEvent) => {
-    if (e.button === 0) mouse.down = true
-  }
-  const onUp = (e: MouseEvent) => {
-    if (e.button === 0) mouse.down = false
-  }
-  const onBlur = () => {
-    down.clear()
-    mouse.down = false
-  }
-  target.addEventListener('keydown', onKeyDown)
-  target.addEventListener('keyup', onKeyUp)
-  target.addEventListener('mousemove', onMove)
-  target.addEventListener('mousedown', onDown)
-  target.addEventListener('mouseup', onUp)
-  target.addEventListener('blur', onBlur)
+
+  attachListeners(target, listeners)
 
   return {
     isDown: (code) => down.has(code),
     pressed: (code) => pressed.has(code),
     mouse: () => mouse,
     endTick: () => pressed.clear(),
-    dispose() {
-      target.removeEventListener('keydown', onKeyDown)
-      target.removeEventListener('keyup', onKeyUp)
-      target.removeEventListener('mousemove', onMove)
-      target.removeEventListener('mousedown', onDown)
-      target.removeEventListener('mouseup', onUp)
-      target.removeEventListener('blur', onBlur)
-    },
+    dispose: () => removeListeners(target, listeners),
   }
 }

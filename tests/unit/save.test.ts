@@ -25,6 +25,11 @@ describe('save', () => {
     expect(deserializeSave(serializeSave(good))).toEqual(good)
   })
 
+  it('round-trips unlockedAstras when present in v2 save', () => {
+    const withAstras: Save = { ...good, unlockedAstras: ['agneyastra', 'manavastra'] }
+    expect(deserializeSave(serializeSave(withAstras))).toEqual(withAstras)
+  })
+
   it('migrates a v1 save to v2 with no benchmark result', () => {
     expect(parseSave(v1)).toEqual({ ...v1, version: 2, benchmarkTier: null })
   })

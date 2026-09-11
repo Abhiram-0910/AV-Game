@@ -16,6 +16,7 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { Target } from '@entities/Target'
+import { AstraVfx } from '@entities/AstraVfx'
 import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
@@ -32,6 +33,8 @@ function useAstraLesson() {
   useEffect(() => {
     if (hitCount >= 4 && !firedRef.current) {
       firedRef.current = true
+      gameStore.getState().unlockAstra('agneyastra')
+      gameStore.getState().selectAstra('agneyastra')
       worldStore.getState().setAstraReady(true)
       world.astraReady = true
       if (gameStore.getState().astraCharges <= 0) {
@@ -48,6 +51,7 @@ function useAstraLesson() {
 function useLevelLifecycle() {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
+    gameStore.getState().unlockAstra('manavastra')
     worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1)
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
@@ -91,6 +95,7 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         </>
       )}
       <FollowCamera />
+      <AstraVfx />
       <SimulationDriver bow={bow} />
     </group>
   )

@@ -1,16 +1,13 @@
 // MAX_ARROWS arrow meshes reused for every shot. Hidden when not in flight.
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
-import { Group, type Object3D, Vector3 } from 'three'
+import { Group, type Object3D } from 'three'
 import { BALANCE } from '@data/balance'
 import { world } from '@systems/world'
 import { disposeTree } from '@render/dispose'
 import { loadGltf } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { applyTierMaterials } from '@render/materials'
-
-const velocity = new Vector3()
-const ahead = new Vector3()
 
 export function ArrowPool({ tier }: { tier: ResolvedTier }) {
   const [pool, setPool] = useState<Group | null>(null)
@@ -41,9 +38,9 @@ export function ArrowPool({ tier }: { tier: ResolvedTier }) {
       mesh.visible = a !== undefined
       if (!a) return
       mesh.position.set(a.x, a.y, a.z)
-      velocity.set(a.vx, a.vy, a.vz)
-      ahead.copy(mesh.position).add(velocity)
-      mesh.lookAt(ahead)
+      mesh.rotation.y = Math.atan2(a.vx, a.vz)
+      mesh.rotation.x = Math.atan2(-a.vy, Math.hypot(a.vx, a.vz))
+      mesh.rotation.z = 0
     })
   })
   return pool ? <primitive object={pool} /> : null

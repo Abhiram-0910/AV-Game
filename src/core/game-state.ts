@@ -6,21 +6,13 @@ import type { FailCondition, LevelId } from '@data/levels'
 import type { GateId } from '@data/quiz'
 import { FAIL_EVENT, transition, type LevelEvent, type Phase } from './level-machine'
 import {
-  applyObjectiveEvent,
-  checkLevelObjectives,
-  completeObjective,
-  freshProgress,
-  type ObjectiveEvent,
-  type ObjectiveProgress,
+  applyObjectiveEvent, checkLevelObjectives, completeObjective, freshProgress,
+  type ObjectiveEvent, type ObjectiveProgress,
 } from './objectives'
 import { checkAnswer, codexUnlockedBy, gateAfter, isLastLevel, levelDef, nextLevel, scoreQuiz } from './progression'
-import { DEFAULT_SAVE, type BenchmarkTier, type Save, type Settings } from './save'
+import { DEFAULT_SAVE, type AstraId, type BenchmarkTier, type Save, type Settings } from './save'
 
-export interface QuizState {
-  gate: GateId | null
-  index: number
-  answers: number[]
-}
+export interface QuizState { gate: GateId | null; index: number; answers: number[] }
 
 export interface GameState {
   level: LevelId
@@ -30,6 +22,8 @@ export interface GameState {
   arrows: number
   astraCharges: number
   astraCooldownUntil: number
+  unlockedAstras: AstraId[]
+  selectedAstra: AstraId | null
   yajnaIntegrity: number
   yajnaInvulnUntil: number
   objectives: ObjectiveProgress[]
@@ -43,6 +37,7 @@ export interface GameState {
 
 export interface GameActions {
   startLevel(id: LevelId): void
+  restartLevel(): void
   dispatch(event: LevelEvent): void
   progress(e: ObjectiveEvent): void
   completeObjective(index?: number): void
@@ -52,6 +47,9 @@ export interface GameActions {
   fireArrow(): boolean
   pickupArrows(): void
   useAstra(tick: number): boolean
+  castAstra(tick?: number): boolean
+  unlockAstra(id: AstraId): void
+  selectAstra(id: AstraId): void
   addAstraCharge(): void
   fail(condition: FailCondition): void
   answerQuiz(option: number): { correct: boolean; explanation: string } | null
@@ -64,7 +62,12 @@ export interface GameActions {
 
 export type GameStore = GameState & GameActions
 
-function levelStart(id: LevelId): Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier'> {
+let restartHook: (() => void) | null = null
+export function registerRestartHook(fn: () => void) { restartHook = fn }
+
+type BaseState = Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier' | 'unlockedAstras' | 'selectedAstra'>
+
+function levelStart(id: LevelId): BaseState {
   return {
     level: id,
     phase: 'loading',
@@ -87,6 +90,8 @@ const initial = (): GameState => ({
   quizScores: {},
   settings: { ...DEFAULT_SAVE.settings },
   benchmarkTier: DEFAULT_SAVE.benchmarkTier,
+  unlockedAstras: [],
+  selectedAstra: null,
 })
 
 type Set = StoreApi<GameStore>['setState']
@@ -96,18 +101,33 @@ function flowActions(set: Set, get: Get) {
   return {
     startLevel: (id: LevelId) => set(levelStart(id)),
 
+    restartLevel: () => {
+      const s = get()
+      const def = levelDef(s.level)
+      set({
+        phase: 'play',
+        health: BALANCE.player.MAX_HEALTH,
+        playerInvulnUntil: 0,
+        arrows: BALANCE.player.START_ARROWS,
+        astraCharges: BALANCE.astra.START_CHARGES,
+        astraCooldownUntil: 0,
+        yajnaIntegrity: BALANCE.yajna.MAX_INTEGRITY,
+        yajnaInvulnUntil: 0,
+        objectives: freshProgress(def.objectives),
+      })
+      restartHook?.()
+    },
+
     dispatch: (event: LevelEvent) => {
       const s = get()
       const ctx = { hasQuiz: gateAfter(s.level) !== null, isLastLevel: isLastLevel(s.level) }
       const phase = transition(s.phase, event, ctx)
-      if (phase === null) return
-      set(onEnterPhase(s, phase))
+      if (phase !== null) set(onEnterPhase(s, phase))
     },
 
     fail: (condition: FailCondition) => {
       const s = get()
-      if (condition === 'none' || !levelDef(s.level).fail.includes(condition)) return
-      get().dispatch(FAIL_EVENT[condition])
+      if (condition !== 'none' && levelDef(s.level).fail.includes(condition)) get().dispatch(FAIL_EVENT[condition])
     },
 
     answerQuiz: (option: number) => {
@@ -163,10 +183,7 @@ function resourceActions(set: Set, get: Get) {
       if (health === 0) get().fail('healthZero')
     },
 
-    // Mirrors damagePlayer's invuln window: without it, several rakshasas landing attacks on
-    // the fire in the same tick each apply YAJNA_DAMAGE independently and drain it in a couple
-    // of seconds regardless of concurrent-attacker count — the player enjoys exactly this
-    // protection already (playerInvulnUntil), the yajna had none (pass 3 phase G playtesting).
+    // Yajna hit invulnerability window mirrors playerInvulnUntil against multi-attacker drain
     damageYajna: (amount: number, tick: number) => {
       const s = get()
       if (s.phase !== 'play' || tick < s.yajnaInvulnUntil) return
@@ -192,6 +209,25 @@ function resourceActions(set: Set, get: Get) {
       return true
     },
 
+    castAstra: (tick: number = 0) => {
+      const s = get()
+      if (s.phase !== 'play' || s.astraCharges <= 0 || tick < s.astraCooldownUntil || !s.selectedAstra) return false
+      set({ astraCharges: s.astraCharges - 1, astraCooldownUntil: tick + BALANCE.astra.COOLDOWN_TICKS })
+      return true
+    },
+
+    unlockAstra: (id: AstraId) => {
+      const s = get()
+      if (!s.unlockedAstras.includes(id)) {
+        set({ unlockedAstras: [...s.unlockedAstras, id], selectedAstra: s.selectedAstra ?? id })
+      }
+    },
+
+    selectAstra: (id: AstraId) => {
+      const s = get()
+      if (s.unlockedAstras.includes(id)) set({ selectedAstra: id })
+    },
+
     addAstraCharge: () =>
       set((s) => ({ astraCharges: Math.min(BALANCE.astra.MAX_CHARGES, s.astraCharges + 1) })),
   }
@@ -211,6 +247,8 @@ function persistenceActions(set: Set, get: Get) {
         quizScores: { ...save.quiz },
         settings: { ...save.settings },
         benchmarkTier: save.benchmarkTier,
+        unlockedAstras: [...(save.unlockedAstras ?? [])],
+        selectedAstra: save.unlockedAstras?.[0] ?? null,
       }),
 
     snapshot: (): Save => {
@@ -223,6 +261,7 @@ function persistenceActions(set: Set, get: Get) {
         quiz: { ...s.quizScores },
         settings: { ...s.settings },
         benchmarkTier: s.benchmarkTier,
+        unlockedAstras: [...s.unlockedAstras],
       }
     },
 
@@ -240,27 +279,19 @@ export function createGameStore() {
   }))
 }
 
-/** Side effects of entering a phase: unlocks on win, quiz setup, level advance. */
 function onEnterPhase(s: GameState, phase: Phase): Partial<GameState> {
-  switch (phase) {
-    case 'win': {
-      const card = codexUnlockedBy(s.level)
-      return {
-        phase,
-        completed: s.completed.includes(s.level) ? s.completed : [...s.completed, s.level],
-        codex: s.codex.includes(card) ? s.codex : [...s.codex, card],
-      }
-    }
-    case 'quiz':
-      return { phase, quiz: { gate: gateAfter(s.level)?.id ?? null, index: 0, answers: [] } }
-    case 'loading': {
-      // From 'transition' we advance; from 'fail' we retry the same level.
-      const id = s.phase === 'transition' ? (nextLevel(s.level) ?? s.level) : s.level
-      return levelStart(id)
-    }
-    default:
-      return { phase }
+  if (phase === 'win') {
+    const card = codexUnlockedBy(s.level)
+    const completed = s.completed.includes(s.level) ? s.completed : [...s.completed, s.level]
+    const codex = s.codex.includes(card) ? s.codex : [...s.codex, card]
+    return { phase, completed, codex }
   }
+  if (phase === 'quiz') return { phase, quiz: { gate: gateAfter(s.level)?.id ?? null, index: 0, answers: [] } }
+  if (phase === 'loading') {
+    const id = s.phase === 'transition' ? (nextLevel(s.level) ?? s.level) : s.level
+    return levelStart(id)
+  }
+  return { phase }
 }
 
 export const gameStore = createGameStore()

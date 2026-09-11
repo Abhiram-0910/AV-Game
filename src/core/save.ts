@@ -16,6 +16,8 @@ export interface Settings {
   subtitles: boolean
 }
 
+export type AstraId = 'agneyastra' | 'manavastra'
+
 interface SaveBody {
   level: LevelId
   completed: LevelId[]
@@ -23,6 +25,7 @@ interface SaveBody {
   /** Correct answers per gate, informational only. */
   quiz: Partial<Record<GateId, number>>
   settings: Settings
+  unlockedAstras?: AstraId[]
 }
 
 /** Shipped in pass 1; still accepted and migrated. */
@@ -46,6 +49,7 @@ export const DEFAULT_SAVE: Save = {
   quiz: {},
   settings: DEFAULT_SETTINGS,
   benchmarkTier: null,
+  unlockedAstras: [],
 }
 
 const TIERS: readonly QualityTier[] = ['auto', 'low', 'high']
@@ -77,12 +81,16 @@ function parseBody(raw: Record<string, unknown>): SaveBody | null {
   if (!settings || !isLevelId(raw.level)) return null
   if (!isStringArray(raw.completed) || !raw.completed.every(isLevelId)) return null
   if (!isStringArray(raw.codex) || !isRecord(raw.quiz)) return null
+  const unlockedAstras = Array.isArray(raw.unlockedAstras)
+    ? (raw.unlockedAstras.filter((a) => a === 'agneyastra' || a === 'manavastra') as AstraId[])
+    : undefined
   return {
     level: raw.level,
     completed: raw.completed as LevelId[],
     codex: raw.codex as CodexId[],
     quiz: raw.quiz as SaveBody['quiz'],
     settings,
+    ...(unlockedAstras !== undefined ? { unlockedAstras } : {}),
   }
 }
 

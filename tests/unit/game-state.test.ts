@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
-import { createGameStore } from '@core/game-state'
+import { createGameStore, registerRestartHook } from '@core/game-state'
 import { worldStore } from '@systems/world'
 
 let store: ReturnType<typeof createGameStore>
@@ -196,6 +196,48 @@ describe('game state', () => {
     expect(worldStore.getState().astraReady).toBe(true)
     worldStore.getState().setAstraReady(false)
     expect(worldStore.getState().astraReady).toBe(false)
+  })
+
+  it('restartLevel resets phase to play, resources, and fires restartHook', () => {
+    enterPlay('l5')
+    let hookFired = false
+    registerRestartHook(() => {
+      hookFired = true
+    })
+    s().damagePlayer(50, 0)
+    s().damageYajna(40, 0)
+    store.setState({ phase: 'fail', arrows: 0, astraCharges: 0 })
+    s().restartLevel()
+    expect(s().phase).toBe('play')
+    expect(s().health).toBe(BALANCE.player.MAX_HEALTH)
+    expect(s().yajnaIntegrity).toBe(BALANCE.yajna.MAX_INTEGRITY)
+    expect(s().arrows).toBe(BALANCE.player.START_ARROWS)
+    expect(s().astraCharges).toBe(BALANCE.astra.START_CHARGES)
+    expect(hookFired).toBe(true)
+  })
+
+  it('dual astra: unlock, select, cast, and persistence', () => {
+    enterPlay('l4')
+    expect(s().unlockedAstras).toEqual([])
+    expect(s().selectedAstra).toBeNull()
+    s().unlockAstra('manavastra')
+    expect(s().unlockedAstras).toEqual(['manavastra'])
+    expect(s().selectedAstra).toBe('manavastra')
+    s().unlockAstra('agneyastra')
+    expect(s().unlockedAstras).toEqual(['manavastra', 'agneyastra'])
+    s().selectAstra('agneyastra')
+    expect(s().selectedAstra).toBe('agneyastra')
+
+    expect(s().castAstra(0)).toBe(true)
+    expect(s().astraCharges).toBe(0)
+    expect(s().castAstra(1)).toBe(false)
+
+    const snap = s().snapshot()
+    expect(snap.unlockedAstras).toEqual(['manavastra', 'agneyastra'])
+    const fresh = createGameStore()
+    fresh.getState().hydrate(snap)
+    expect(fresh.getState().unlockedAstras).toEqual(['manavastra', 'agneyastra'])
+    expect(fresh.getState().selectedAstra).toBe('manavastra')
   })
 })
 

@@ -156,7 +156,13 @@ describe('trajectory sampling and preview', () => {
     }
     world.hittable = [target]
     gameStore.getState().startLevel('l4')
-    gameStore.setState({ phase: 'play', astraCharges: 1, astraCooldownUntil: 0 })
+    gameStore.setState({
+      phase: 'play',
+      astraCharges: 1,
+      astraCooldownUntil: 0,
+      unlockedAstras: ['agneyastra'],
+      selectedAstra: 'agneyastra',
+    })
     castAstra(0)
     expect(hitCalled).toBe(true)
     expect(world.hittable).not.toContain(target)

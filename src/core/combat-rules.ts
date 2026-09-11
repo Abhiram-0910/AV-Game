@@ -35,7 +35,7 @@ export function damageFor(hit: HitKind, attacker: CombatantKind): number {
     case 'astra:manava':
       return 0
     case 'melee':
-      return attacker === 'player' ? 0 : BALANCE.enemies[attacker].DAMAGE
+      return attacker === 'player' ? BALANCE.melee.DAMAGE : BALANCE.enemies[attacker].DAMAGE
   }
 }
 

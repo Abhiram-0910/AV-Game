@@ -1,14 +1,15 @@
-// Astra charge-and-release on the fixed tick. An astra is summoned by mantra, not thrown —
-// release performs a single instant hitscan along the aim direction rather than simulating a
-// slow arrow. Charging reuses the exact shape as the bow's draw (systems/archery/draw.ts).
+// Astra charge-and-release on the fixed tick.
+// Agneyastra: 120 AOE fire damage in 5.0m explosion radius.
+// Manavastra: 40 damage with 8m frontal cone impulse that knocks back 7m, stuns 90 ticks, and flings Maricha.
 import { type Object3D, Ray, Raycaster, Vector3 } from 'three'
 import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
-import { resolveHit } from '@core/combat-rules'
 import { playAudio } from '../audio'
 import { NO_DRAW } from '../archery/draw'
 import { resolveHitRoot } from '../archery/hit-test'
 import { world, worldStore } from '../world'
+import { triggerAstraVfx } from './vfx-state'
+export { triggerAstraVfx } from './vfx-state'
 
 const ray = new Raycaster()
 const origin = new Vector3()
@@ -38,72 +39,124 @@ function findProximityHit(rayOrigin: Vector3, rayDir: Vector3, maxDist: number, 
   return bestTarget
 }
 
-/** The Manava astra flings, it never kills — that's the story Vishwamitra chose it for
- * Maricha (see codex.ts's 'astra' card). Any other enemy the astra hits takes real damage
- * (Agneya-strength — see BALANCE.astra.DAMAGE), the same "fired at whoever's aimed at" hitscan. */
-function hitEnemy(enemy: (typeof world.enemies)[number], root: Object3D): void {
-  worldStore.getState().triggerHitFeedback('enemy')
-  const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
-  const kind = enemy.kind === 'maricha' ? 'astra:manava' : 'astra:agneya'
-  const result = resolveHit(enemy, kind, 'player', world.tick, distance)
-  enemy.health = result.target.health
-  enemy.invulnUntil = result.target.invulnUntil
-  const defeated = result.outcome === 'defeated' || result.outcome === 'flung'
-  if (defeated) {
-    playAudio(enemy.kind === 'tataka' ? 'boss_groan' : 'enemy_death')
-    enemy.state = 'dead'
-    enemy.stateUntil = world.tick + BALANCE.spawn.DESPAWN_TICKS
-    world.hittable = world.hittable.filter((o) => o !== root)
-    gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
-  } else if (result.outcome === 'hit') {
-    playAudio('enemy_hit')
-  }
-}
-
-function fireHitscan(): void {
-  playAudio('astra_cast')
+function resolveImpactPoint(): Vector3 {
   origin.set(world.player.x, BALANCE.archeryAim.MUZZLE_HEIGHT, world.player.z)
   dir.set(world.aimDir[0], world.aimDir[1], world.aimDir[2])
   ray.set(origin, dir)
   ray.far = BALANCE.combat.MAX_HIT_RANGE
-  let hitObj: Object3D | null = ray.intersectObjects(world.hittable as Object3D[], true)[0]?.object ?? null
 
-  if (!hitObj && world.hittable.length > 0) {
-    hitObj = findProximityHit(origin, dir, ray.far, world.hittable as Object3D[])
-  }
+  const hitObj = ray.intersectObjects(world.hittable as Object3D[], true)[0]?.object ??
+    (world.hittable.length > 0 ? findProximityHit(origin, dir, ray.far, world.hittable as Object3D[]) : null)
 
-  if (!hitObj) {
-    if (worldStore.getState().astraReady && gameStore.getState().astraCharges <= 0) {
-      gameStore.getState().addAstraCharge()
-    }
-    return
+  if (hitObj) {
+    hitObj.getWorldPosition(tempPos)
+    return tempPos.clone()
   }
+  // Default to point forward on the ground or ray trajectory
+  const dist = 18
+  return new Vector3(world.player.x + dir.x * dist, Math.max(0, origin.y + dir.y * dist), world.player.z + dir.z * dist)
+}
 
-  const root = resolveHitRoot(hitObj, world.hittable)
-  if (!root) return
-  const enemy = world.enemies.find((e) => e.root === root)
-  if (enemy) {
-    hitEnemy(enemy, root)
-    return
-  }
-  playAudio('arrow_hit_target')
-  worldStore.getState().triggerHitFeedback('target')
-  world.hittable = world.hittable.filter((o) => o !== root)
-  if (typeof root.userData.onHit === 'function') {
-    root.userData.onHit(root)
+function applyDamageToEnemy(enemy: (typeof world.enemies)[number], dmg: number, tick: number, stunTicks?: number): void {
+  enemy.health = Math.max(0, enemy.health - dmg)
+  enemy.invulnUntil = tick + BALANCE.combat.INVULN_TICKS
+  worldStore.getState().triggerHitFeedback('enemy')
+  if (enemy.health === 0) {
+    enemy.state = 'dead'
+    enemy.stateUntil = tick + BALANCE.spawn.DESPAWN_TICKS
+    playAudio(enemy.kind === 'tataka' ? 'boss_groan' : 'enemy_death')
+    if (enemy.root) world.hittable = world.hittable.filter((o) => o !== enemy.root)
+    gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
   } else {
-    gameStore.getState().progress({ kind: 'hitTargets' })
+    enemy.state = 'stagger'
+    enemy.stateUntil = tick + (stunTicks ?? BALANCE.combat.STAGGER_TICKS)
+    playAudio('enemy_hit')
   }
 }
 
-/** Executes an immediate astra cast and hitscan. */
-export function castAstra(tick: number = world.tick): void {
-  if (!gameStore.getState().useAstra(tick)) return
-  gameStore.getState().progress({ kind: 'chargeAstra' })
-  fireHitscan()
+function hitTargetsAround(center: Vector3, radius: number): void {
+  const hitRoots = new Set<Object3D>()
+  for (const obj of world.hittable) {
+    obj.getWorldPosition(tempPos)
+    if (tempPos.distanceTo(center) <= radius) {
+      const root = resolveHitRoot(obj, world.hittable)
+      if (root && !world.enemies.some((e) => e.root === root)) hitRoots.add(root)
+    }
+  }
+  for (const root of hitRoots) {
+    playAudio('arrow_hit_target')
+    worldStore.getState().triggerHitFeedback('target')
+    world.hittable = world.hittable.filter((o) => o !== root)
+    if (typeof root.userData.onHit === 'function') root.userData.onHit(root)
+    else gameStore.getState().progress({ kind: 'hitTargets' })
+  }
 }
 
-/** One fixed tick of the astra charge. `held` is the cast key's current state this tick. */
+export function castAgneyastra(
+  player = world.player,
+  enemies = world.enemies,
+  tick: number = world.tick,
+): Vector3 {
+  playAudio('astra_cast')
+  const impact = resolveImpactPoint()
+  triggerAstraVfx('agneyastra', player, impact)
+
+  const radius = BALANCE.astra.agneyastra.RADIUS
+  const damage = BALANCE.astra.agneyastra.DAMAGE
+  for (const enemy of enemies) {
+    if (enemy.state === 'dead') continue
+    const d = Math.hypot(enemy.x - impact.x, enemy.z - impact.z)
+    if (d <= radius) applyDamageToEnemy(enemy, damage, tick)
+  }
+  hitTargetsAround(impact, radius)
+  return impact
+}
+
+export function castManavastra(
+  player = world.player,
+  enemies = world.enemies,
+  tick: number = world.tick,
+): Vector3 {
+  playAudio('whoosh')
+  playAudio('astra_cast')
+  const px = player.x
+  const pz = player.z
+  const fx = Math.sin(player.yaw)
+  const fz = Math.cos(player.yaw)
+  const dirVec: [number, number, number] = [fx, 0, fz]
+  triggerAstraVfx('manavastra', player, dirVec)
+
+  const halfConeCos = Math.cos((BALANCE.astra.manavastra.CONE_ANGLE_DEG * Math.PI) / 360)
+  for (const enemy of enemies) {
+    if (enemy.state === 'dead') continue
+    const dx = enemy.x - px
+    const dz = enemy.z - pz
+    const dist = Math.hypot(dx, dz)
+    if (dist > BALANCE.astra.manavastra.CONE_RANGE || dist < 1e-4) continue
+    if ((fx * dx + fz * dz) / dist < halfConeCos) continue
+
+    enemy.x += (dx / dist) * BALANCE.astra.manavastra.KNOCKBACK_DISTANCE
+    enemy.z += (dz / dist) * BALANCE.astra.manavastra.KNOCKBACK_DISTANCE
+    if (enemy.kind === 'maricha') {
+      applyDamageToEnemy(enemy, enemy.health, tick)
+    } else {
+      applyDamageToEnemy(enemy, BALANCE.astra.manavastra.DAMAGE, tick, BALANCE.astra.manavastra.STUN_TICKS)
+    }
+  }
+  hitTargetsAround(new Vector3(px + fx * 4, 1, pz + fz * 4), 4.5)
+  return new Vector3(fx, 0, fz)
+}
+
+export function castAstra(tick: number = world.tick): boolean {
+  const store = gameStore.getState()
+  if (!store.castAstra(tick)) return false
+  store.progress({ kind: 'chargeAstra' })
+  const selected = store.selectedAstra ?? 'agneyastra'
+  if (selected === 'manavastra') castManavastra(world.player, world.enemies, tick)
+  else castAgneyastra(world.player, world.enemies, tick)
+  return true
+}
+
 export function stepAstra(held: boolean, tick: number): void {
   const s = world.astraCharge
   if (held) {

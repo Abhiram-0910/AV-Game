@@ -18,6 +18,7 @@ import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
+import { AstraVfx } from '@entities/AstraVfx'
 import { useWaveSpawner } from '@entities/wave-spawner'
 import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
@@ -111,12 +112,20 @@ function ArrowPickupsVisual() {
 function useLevelLifecycle() {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
+    worldStore.getState().setAstraReady(true)
+    world.astraReady = true
+    if (gameStore.getState().unlockedAstras.length === 0) {
+      gameStore.getState().unlockAstra('agneyastra')
+      gameStore.getState().unlockAstra('manavastra')
+    }
     worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + 1)
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
     return () => {
       unsubscribe()
+      worldStore.getState().setAstraReady(false)
+      world.astraReady = false
       evictAssets(scenery.statics.map((p) => p.asset))
     }
   }, [])
@@ -159,6 +168,7 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         </>
       )}
       <FollowCamera />
+      <AstraVfx />
       <SimulationDriver bow={bow} onTick={handleTick} />
     </group>
   )

@@ -49,8 +49,13 @@ function fire(fraction: number): void {
   const store = gameStore.getState()
   if (!store.fireArrow()) return
   const p = world.player
+  const forwardOffset = AIM.MUZZLE_FORWARD
+  const origin: [number, number, number] = [
+    p.x + forwardOffset * Math.sin(p.yaw),
+    p.y + 1.35,
+    p.z + forwardOffset * Math.cos(p.yaw),
+  ]
   const [dx, dy, dz] = world.aimDir
-  const origin: [number, number, number] = [p.x + dx * AIM.MUZZLE_FORWARD, p.y + AIM.MUZZLE_HEIGHT, p.z + dz * AIM.MUZZLE_FORWARD]
   world.arrows.push(launchArrow(origin, [dx, dy, dz], fraction))
 }
 

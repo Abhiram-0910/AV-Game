@@ -21,6 +21,7 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist')
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('enable-webgl')
+if (process.env.HEADLESS === 'true') app.commandLine.appendSwitch('headless')
 
 const MIME: Readonly<Record<string, string>> = {
   '.html': 'text/html',

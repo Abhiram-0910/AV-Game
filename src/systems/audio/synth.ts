@@ -161,6 +161,8 @@ function playLocomotion(key: LocomotionSoundKey, c: AudioContext, vol: number): 
 
 function playCombat(key: CombatSoundKey, c: AudioContext, vol: number): ActiveSoundHandle {
   if (key === 'astra_cast') return playTone(c, key, 587, 1175, 0.38, vol, 'sine')
+  if (key === 'whoosh') return playNoise(c, key, 0.35, vol, 450, 'bandpass')
+  if (key === 'sword_slash') return playNoise(c, key, 0.14, vol, 850, 'bandpass')
   if (key === 'enemy_hit') return playTone(c, key, 150, 45, 0.12, vol, 'sawtooth')
   if (key === 'enemy_death') return playNoise(c, key, 0.5, vol, 250, 'lowpass')
   return playTone(c, key, 75, 38, 0.6, vol, 'sawtooth')
@@ -223,7 +225,7 @@ export function playProceduralSound(key: SoundKey, opts: PlayOptions = {}): Acti
     if (key === 'footstep_walk' || key === 'footstep_run') {
       return playLocomotion(key, c, vol)
     }
-    if (key === 'astra_cast' || key === 'enemy_hit' || key === 'enemy_death' || key === 'boss_groan') {
+    if (key === 'astra_cast' || key === 'whoosh' || key === 'sword_slash' || key === 'enemy_hit' || key === 'enemy_death' || key === 'boss_groan') {
       return playCombat(key, c, vol)
     }
     if (key === 'button_click' || key === 'quiz_correct' || key === 'quiz_incorrect' || key === 'level_win' || key === 'level_fail' || key === 'title_theme') {

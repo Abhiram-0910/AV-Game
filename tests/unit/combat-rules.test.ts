@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
-import { isHitValid, resolveHit, type Combatant } from '@core/combat-rules'
+import { damageFor, isHitValid, resolveHit, type Combatant } from '@core/combat-rules'
+import { checkMeleeHit } from '@systems/combat-rules'
+import { spawnEnemy } from '@systems/ai/enemy-ai'
 
 const rakshasa = (): Combatant => ({ kind: 'rakshasa', health: BALANCE.enemies.rakshasa.HEALTH, invulnUntil: 0 })
 
@@ -46,5 +48,27 @@ describe('combat rules', () => {
     const r = resolveHit(player, 'melee', 'tataka', 10, 1)
     expect(r.damage).toBe(BALANCE.enemies.tataka.DAMAGE)
     expect(r.target.invulnUntil).toBe(10 + BALANCE.player.INVULN_TICKS)
+  })
+
+  it('player melee uses BALANCE.melee.DAMAGE', () => {
+    expect(damageFor('melee', 'player')).toBe(BALANCE.melee.DAMAGE)
+  })
+
+  it('checkMeleeHit damages and knocks back enemy in 120 deg frontal cone within 2.2m', () => {
+    const player = { x: 0, z: 0, yaw: 0 } // Facing +z (sin(0)=0, cos(0)=1)
+    const inCone = spawnEnemy('rakshasa', [0, 0, 1.8])
+    const outCone = spawnEnemy('rakshasa', [0, 0, -1.8]) // behind player
+    const outRange = spawnEnemy('rakshasa', [0, 0, 3.5]) // too far
+
+    const hit = checkMeleeHit(player, [inCone, outCone, outRange], 10)
+    expect(hit).toBe(true)
+    expect(inCone.health).toBe(Math.max(0, BALANCE.enemies.rakshasa.HEALTH - BALANCE.melee.DAMAGE))
+    expect(inCone.z).toBeCloseTo(1.8 + BALANCE.melee.KNOCKBACK_DISTANCE)
+    expect(inCone.state).toBe(inCone.health === 0 ? 'dead' : 'stagger')
+
+    // Out of cone / range unaffected
+    expect(outCone.health).toBe(BALANCE.enemies.rakshasa.HEALTH)
+    expect(outCone.z).toBe(-1.8)
+    expect(outRange.health).toBe(BALANCE.enemies.rakshasa.HEALTH)
   })
 })

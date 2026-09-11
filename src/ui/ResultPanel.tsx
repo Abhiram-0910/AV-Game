@@ -11,6 +11,7 @@ export function ResultPanel() {
   const phase = useGame((s) => s.phase)
   const level = useGame((s) => s.level)
   const dispatch = useGame((s) => s.dispatch)
+  const restartLevel = useGame((s) => s.restartLevel)
   const won = phase === 'win'
   const card = CODEX.find((c) => c.id === codexUnlockedBy(level))
   return (
@@ -28,7 +29,11 @@ export function ResultPanel() {
         data-testid="result-continue"
         onClick={() => {
           playAudio('button_click')
-          dispatch(won ? 'NEXT' : 'RETRY')
+          if (won) {
+            dispatch('NEXT')
+          } else {
+            restartLevel()
+          }
         }}
         autoFocus
       >
