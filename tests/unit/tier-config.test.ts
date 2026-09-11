@@ -14,12 +14,11 @@ describe('tier asset configuration', () => {
     expect(assetUrl('male')).toBe('/assets/high/characters/male.glb')
   })
 
-  it('switches to low tier and returns low asset URLs', () => {
+  it('low tier falls back to the high directory until assets/low is really built', () => {
     setAssetTier('low')
     expect(assetTier()).toBe('low')
-    expect(assetUrl('bow')).toBe('/assets/low/props/bow.glb')
-    expect(assetUrl('male')).toBe('/assets/low/characters/male.glb')
-    expect(assetUrl('palace')).toBe('/assets/low/env/palace.glb')
+    expect(assetUrl('bow')).toBe('/assets/high/props/bow.glb')
+    expect(assetUrl('male')).toBe('/assets/high/characters/male.glb')
   })
 
   it('getTierDirectory returns correct directory prefix', () => {

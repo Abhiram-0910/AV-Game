@@ -1,5 +1,15 @@
 # TODO
 
+## KNOWN — real KTX2 compression and a real low tier are still unbuilt (2026-09-11)
+
+Commit 3c28ccf added `public/assets/low/` claiming KTX2 compression. It held zero `.ktx2`
+textures: every GLB was byte-identical to `high/` except `characters/{male,female}.glb`, which
+were copies of the `-low` LODs already in `high/`. It doubled committed assets (50MB → 103MB)
+for nothing. Deleted; `render/manifest.ts` serves `high/` to both tiers again. Cause:
+`buildLowTier()` in `tools/build-assets.mjs` silently falls back to `copyFileSync` whenever
+`gltf-transform etc1s/uastc` or `toktx` fails. Before re-running it, make that fallback throw,
+and check the output actually contains KTX2 (`KHR_texture_basisu` in the GLB JSON).
+
 ## KNOWN — Electron shows a blank/crashed window in a GPU-less sandbox; not verified on a real target machine (pass 3 phase H, 2026-09-10)
 
 `electron/main.ts` launches, serves `dist/` over a local static server, and loads correctly —

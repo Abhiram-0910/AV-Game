@@ -15,5 +15,7 @@ export function assetTier(): ResolvedTier {
 }
 
 export function assetUrl(id: AssetId): string {
-  return `/assets/${activeTier}/${ASSET_FILES[id]}`
+  // ponytail: assets/low is unbuilt (no KTX2 yet); both tiers read the high directory until then.
+  const dir = activeTier === 'low' ? 'high' : activeTier
+  return `/assets/${dir}/${ASSET_FILES[id]}`
 }
