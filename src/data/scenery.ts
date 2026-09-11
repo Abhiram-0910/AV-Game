@@ -73,6 +73,8 @@ export interface Placement {
   tint?: string
   /** High-tier shadow casting; default true. The enclosing palace only receives, or its roof would shade the hall. */
   castShadow?: boolean
+  /** High-tier PBR factors replacing the source's (the untextured palace ships metalness 0.28 on stone). */
+  pbr?: { roughness: number; metalness: number }
 }
 
 export interface NpcPlacement {
@@ -104,7 +106,18 @@ export interface LevelLook {
   fill: { sky: string; ground: string; intensity: number }
   /** Back light separating characters from the background. High tier only. */
   rim: { color: string; intensity: number; dir: Vec3 }
+  /** scene.environmentIntensity of the high tier's reflection map: metal is dark with nothing to reflect. */
+  envIntensity: number
+  /** Ground albedo; on high, two dapple colours are painted into a tiled canvas texture over it. */
+  ground: { base: string; dapple: readonly [string, string] }
 }
+
+/** High-tier post-processing. Bloom threshold is linear HDR luminance: only emissives above 1 glow.
+ * Vignette darkness 1 mixes corners toward black; above 1 it goes negative. */
+export const POST = { BLOOM_STRENGTH: 0.55, BLOOM_RADIUS: 0.45, BLOOM_THRESHOLD: 1.05, VIGNETTE_OFFSET: 0.95, VIGNETTE_DARKNESS: 1.0 } as const
+
+/** Low tier has no reflection map; a neutral ambient of envIntensity × this stands in for its irradiance. */
+export const LOW_AMBIENT_FROM_ENV = 3
 
 /** High-tier shadow map for the key light. The frustum is fitted to each level's bounds. */
 export const SHADOW = { MAP_SIZE: 2048, BIAS: -0.0004, NORMAL_BIAS: 0.04, RADIUS: 3, NEAR: 0.5 } as const
@@ -114,7 +127,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     statics: [
       // Sketchfab palace ships in centimetres and off-centre (x −475..329, z −212..319 before
       // scaling); at 0.04 the hall is ~32 × 21 m and this offset puts it around the court.
-      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#d8c2a0', castShadow: false },
+      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#eadcc3', castShadow: false, pbr: { roughness: 0.72, metalness: 0 } },
       { asset: 'royalRoom', pos: [0, 0, 0], yaw: 0, scale: 1, ground: false },
     ],
     // Yaw 0 faces +Z (toward the entering player). The counsellors stand either side of the
@@ -134,6 +147,9 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       key: { color: '#ffc792', intensity: 2.3, dir: [3, 5, 10] },
       fill: { sky: '#7c89a8', ground: '#5c2a1c', intensity: 0.75 },
       rim: { color: '#9cc2ff', intensity: 1.8, dir: [-4, 6, -10] },
+      // An interior: nothing bright to reflect, just enough for gold to read as metal.
+      envIntensity: 0.18,
+      ground: { base: '#5a4636', dapple: ['#6a5442', '#4a382a'] },
     },
   },
   l2: {
@@ -163,6 +179,9 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       key: { color: '#ffd596', intensity: 2.6, dir: [8, 6, 6] },
       fill: { sky: '#a6cdf5', ground: '#4d5a2c', intensity: 0.7 },
       rim: { color: '#fff0cc', intensity: 1.2, dir: [-6, 5, -8] },
+      envIntensity: 0.35,
+      // Dappled green under a morning sun.
+      ground: { base: '#5f7d35', dapple: ['#7f9a44', '#48632a'] },
     },
   },
   l3: {
@@ -190,6 +209,9 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       key: { color: '#aebfd0', intensity: 2.0, dir: [-6, 6, -4] },
       fill: { sky: '#6a7c8c', ground: '#1d2418', intensity: 1.0 },
       rim: { color: '#7c9cc6', intensity: 1.5, dir: [5, 4, 8] },
+      envIntensity: 0.3,
+      // Desaturated and cold, but readable: grey-green, not the old near-black #243018.
+      ground: { base: '#46523f', dapple: ['#58624f', '#343f30'] },
     },
   },
   l4: {
@@ -215,6 +237,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       key: { color: '#fff3dd', intensity: 3.0, dir: [6, 12, 5] },
       fill: { sky: '#aed2ff', ground: '#56663a', intensity: 0.8 },
       rim: { color: '#ffffff', intensity: 0.9, dir: [-5, 6, -6] },
+      envIntensity: 0.4,
+      ground: { base: '#6c913d', dapple: ['#88a84c', '#557631'] },
     },
   },
   l5: {
@@ -237,9 +261,12 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     look: {
       exposure: 0.95,
       // Dusk: the sun almost on the horizon, deep blue sky fill, the altar fire does the rest.
-      key: { color: '#ff8646', intensity: 1.8, dir: [-10, 3, 6] },
+      key: { color: '#ff9658', intensity: 2.0, dir: [-10, 4.5, 6] },
       fill: { sky: '#3a4c80', ground: '#3a2012', intensity: 0.85 },
       rim: { color: '#6d8cff', intensity: 1.5, dir: [8, 5, -8] },
+      envIntensity: 0.3,
+      // Dusty earth that still reads at dusk (the old #4a3624 went black).
+      ground: { base: '#6e4d36', dapple: ['#80603f', '#553a28'] },
     },
   },
 }

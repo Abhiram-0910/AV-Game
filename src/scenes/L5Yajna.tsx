@@ -138,7 +138,7 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
-        color="#4a3624"
+        ground={scenery.look.ground}
       />
       <AltarFire />
       <ArrowPickupsVisual />

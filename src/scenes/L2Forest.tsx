@@ -54,7 +54,7 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
-        color="#4a6b34"
+        ground={scenery.look.ground}
       />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />

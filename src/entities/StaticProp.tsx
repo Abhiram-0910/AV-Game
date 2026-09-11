@@ -20,7 +20,7 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
       scene.position.set(placement.pos[0], placement.pos[1], placement.pos[2])
       scene.rotation.y = placement.yaw
       scene.scale.setScalar(placement.scale)
-      applyTierMaterials(scene, tier, { tint: placement.tint })
+      applyTierMaterials(scene, tier, { tint: placement.tint, pbr: placement.pbr })
       built = mergeByMaterial(scene)
       built.name = placement.asset
       built.traverse((o) => {

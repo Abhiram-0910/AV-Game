@@ -1,10 +1,11 @@
-// Per-level look from scenery.ts: tone mapping, exposure and the three-point rig (warm key,
-// hemisphere fill, cool rim). The key casts the one shadow map on high; low keeps key + fill
+// Per-level look from scenery.ts: tone mapping, exposure, reflections and the three-point rig
+// (warm key, hemisphere fill, cool rim). The key casts the one shadow map on high; low keeps key + fill
 // and its blob shadows. One mount per scene.
 import { useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo } from 'react'
-import { ACESFilmicToneMapping, Object3D, PCFShadowMap, SRGBColorSpace, Vector3 } from 'three'
-import { type LevelScenery, SHADOW } from '@data/scenery'
+import { ACESFilmicToneMapping, Object3D, PCFShadowMap, PMREMGenerator, SRGBColorSpace, Vector3 } from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { type LevelScenery, LOW_AMBIENT_FROM_ENV, SHADOW } from '@data/scenery'
 import type { ResolvedTier } from './manifest'
 
 type Bounds = LevelScenery['bounds']
@@ -45,10 +46,31 @@ function KeyLight({ scenery, shadows }: { scenery: LevelScenery; shadows: boolea
   )
 }
 
+/** High tier: a prefiltered RoomEnvironment so metal has something to reflect (built once per level). */
+function useReflections(enabled: boolean, intensity: number) {
+  const get = useThree((s) => s.get)
+  useLayoutEffect(() => {
+    if (!enabled) return
+    const { gl, scene } = get()
+    const pmrem = new PMREMGenerator(gl)
+    const room = new RoomEnvironment()
+    const env = pmrem.fromScene(room, 0.04).texture
+    room.dispose()
+    pmrem.dispose()
+    scene.environment = env
+    scene.environmentIntensity = intensity
+    return () => {
+      scene.environment = null
+      env.dispose()
+    }
+  }, [get, enabled, intensity])
+}
+
 export function Atmosphere({ scenery, tier }: { scenery: LevelScenery; tier: ResolvedTier }) {
   const get = useThree((s) => s.get)
   const { look } = scenery
   const high = tier === 'high'
+  useReflections(high, look.envIntensity)
 
   // Layout effect: the shadow-map switch must land before any material compiles.
   useLayoutEffect(() => {
@@ -63,6 +85,7 @@ export function Atmosphere({ scenery, tier }: { scenery: LevelScenery; tier: Res
   return (
     <>
       <hemisphereLight args={[look.fill.sky, look.fill.ground, look.fill.intensity]} />
+      {!high && <ambientLight intensity={look.envIntensity * LOW_AMBIENT_FROM_ENV} />}
       <KeyLight scenery={scenery} shadows={high} />
       {high && <directionalLight position={look.rim.dir} color={look.rim.color} intensity={look.rim.intensity} />}
     </>

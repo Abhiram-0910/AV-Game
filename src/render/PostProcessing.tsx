@@ -8,7 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js'
-import { BALANCE } from '@data/balance'
+import { POST } from '@data/scenery'
 
 interface ComposerBundle {
   composer: EffectComposer
@@ -28,19 +28,22 @@ function createComposer(
   const renderPass = new RenderPass(scene, camera)
   const bloom = new UnrealBloomPass(
     new Vector2(width, height),
-    BALANCE.render.BLOOM_STRENGTH,
-    BALANCE.render.BLOOM_RADIUS,
-    BALANCE.render.BLOOM_THRESHOLD,
+    POST.BLOOM_STRENGTH,
+    POST.BLOOM_RADIUS,
+    POST.BLOOM_THRESHOLD,
   )
   const vignette = new ShaderPass(VignetteShader)
-  vignette.uniforms['offset'].value = BALANCE.render.VIGNETTE_OFFSET
-  vignette.uniforms['darkness'].value = BALANCE.render.VIGNETTE_DARKNESS
+  vignette.uniforms['offset'].value = POST.VIGNETTE_OFFSET
+  vignette.uniforms['darkness'].value = POST.VIGNETTE_DARKNESS
   const output = new OutputPass()
 
+  // Bloom reads the linear HDR target, so a threshold above 1 catches emissives only. The
+  // vignette runs after OutputPass on display colours: before it, darkening happened in linear
+  // light and a darkness above 1 went negative (purple/teal fringes under ACES).
   composer.addPass(renderPass)
   composer.addPass(bloom)
-  composer.addPass(vignette)
   composer.addPass(output)
+  composer.addPass(vignette)
   return { composer, bloom, vignette, output }
 }
 
