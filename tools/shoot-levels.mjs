@@ -33,6 +33,8 @@ async function shoot(browser, level, extra) {
     await page.waitForTimeout(SETTLE_MS)
     await page.screenshot({ path: `docs/screenshots/vis-${tag}-${level}-throne${suffix}.png` })
   }
+  const perf = await page.evaluate(() => window.__bk.perf)
+  console.log(`${level} ${tier}: ${perf.triangles} tris, ${perf.calls} calls, ${perf.skinned} skinned`)
   await page.close()
 }
 
@@ -47,6 +49,5 @@ function toThrone() {
 const browser = await chromium.launch()
 for (const level of levels) {
   await shoot(browser, level, level === 'l1' ? toThrone : null)
-  console.log(`shot ${level} (${tier})`)
 }
 await browser.close()

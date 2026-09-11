@@ -4,6 +4,7 @@
 // its range) repositions the same instance instead of rebuilding it.
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
+import { useStore } from 'zustand'
 import { DIALOGUE } from '@data/dialogue'
 import type { NpcPlacement } from '@data/scenery'
 import { world, worldStore } from '@systems/world'
@@ -14,27 +15,31 @@ import type { ResolvedTier } from '@render/manifest'
 
 const SEATED = new Set(['SIT_IDLE', 'SIT_TALK'])
 
-function useNpc(npc: NpcPlacement['npc'], tier: ResolvedTier): BuiltCharacter | null {
+/** Low tier: the ~5k body, swapped for the full mesh while this NPC speaks. The previous
+ * instance stays on screen until its replacement is built, so the swap never blinks. */
+function useNpc(npc: NpcPlacement['npc'], tier: ResolvedTier, detail: 'high' | 'low'): BuiltCharacter | null {
   const [built, setBuilt] = useState<BuiltCharacter | null>(null)
+  const firstBuild = useRef(true)
   useEffect(() => {
     let live = true
-    let instance: BuiltCharacter | null = null
-    buildCharacter(npc, { tier, props: false }).then((b) => {
+    buildCharacter(npc, { tier, props: false, detail }).then((b) => {
       if (!live) return b.dispose()
-      instance = b
       setBuilt(b)
-      worldStore.getState().markLoaded()
+      if (firstBuild.current) worldStore.getState().markLoaded()
+      firstBuild.current = false
     })
     return () => {
       live = false
-      instance?.dispose()
     }
-  }, [npc, tier])
+  }, [npc, tier, detail])
+  // Runs after the replacement has committed (or on unmount), so a disposed body is never drawn.
+  useEffect(() => () => built?.dispose(), [built])
   return built
 }
 
 export function NpcCharacter({ placement, tier }: { placement: NpcPlacement; tier: ResolvedTier }) {
-  const built = useNpc(placement.npc, tier)
+  const speakingNow = useStore(worldStore, (s) => s.dialogue !== null && DIALOGUE[s.dialogue].speaker === placement.npc)
+  const built = useNpc(placement.npc, tier, tier === 'low' && !speakingNow ? 'low' : 'high')
   const pointRef = useRef<NpcPoint | null>(null)
 
   useEffect(() => {
