@@ -5,6 +5,7 @@ import {
   DataTexture,
   type Material,
   MeshStandardMaterial,
+  type MeshStandardMaterialParameters,
   MeshToonMaterial,
   NearestFilter,
   RedFormat,
@@ -100,4 +101,12 @@ export function applyTierMaterials(root: { traverse(cb: (o: unknown) => void): v
       mesh.material = next
     }
   })
+}
+
+/** Author a procedural surface as MeshStandard, then let the tier path decide: Standard on high, toon on low. */
+export function authoredMaterial(tier: ResolvedTier, params: MeshStandardMaterialParameters): Material {
+  const src = new MeshStandardMaterial(params)
+  const out = tierMaterial(src, tier)
+  src.dispose()
+  return out
 }

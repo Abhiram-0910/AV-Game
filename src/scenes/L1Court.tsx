@@ -41,7 +41,6 @@ export function L1Court({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
     <group name="l1-court">
       <Atmosphere scenery={scenery} tier={tier} />
       <CourtDressing tier={tier} />
-      <color attach="background" args={[scenery.background]} />
       {scenery.statics.map((p) => (
         <StaticProp key={p.asset} placement={p} tier={tier} />
       ))}

@@ -16,7 +16,6 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { Target } from '@entities/Target'
-import { SkyGradient } from '@entities/SkyGradient'
 import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
@@ -50,7 +49,6 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   return (
     <group name="l2-forest">
       <Atmosphere scenery={scenery} tier={tier} />
-      <SkyGradient topColor="#3b7cb8" horizonColor="#bfe0ff" groundColor="#4a6b34" />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

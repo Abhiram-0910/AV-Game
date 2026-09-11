@@ -4,25 +4,25 @@
 import {
   type BufferGeometry,
   BoxGeometry,
+  BufferGeometry as ThreeBufferGeometry,
   CircleGeometry,
-  ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  Float32BufferAttribute,
   type Group,
   Group as ThreeGroup,
   type Material,
   Mesh,
-  MeshStandardMaterial,
-  type MeshStandardMaterialParameters,
   PlaneGeometry,
   SphereGeometry,
 } from 'three'
 import { COURT } from '@data/scenery'
 import { disposeTree } from './dispose'
+import { flameGeometry } from './fire'
 import type { ResolvedTier } from './manifest'
-import { tierMaterial } from './materials'
+import { authoredMaterial as make } from './materials'
 import { mergeByMaterial } from './merge'
-import { bannerTexture, carpetTexture, marbleTexture } from './procedural-textures'
+import { bannerTexture, carpetTexture, flameTexture, friezeTexture, marbleTexture } from './procedural-textures'
 
 const P = COURT.palette
 const Y = COURT.floorY
@@ -34,14 +34,6 @@ export interface Court {
   /** Flame tips: where the high tier hangs a warm point light. */
   torches: readonly [number, number, number][]
   dispose(): void
-}
-
-/** Author as MeshStandard, then let the tier path decide: Standard on high, toon on low. */
-function make(tier: ResolvedTier, params: MeshStandardMaterialParameters): Material {
-  const src = new MeshStandardMaterial(params)
-  const out = tierMaterial(src, tier)
-  src.dispose()
-  return out
 }
 
 /** Floor and carpet lie a few mm over palace.glb's floor; polygon offset wins the depth test. */
@@ -58,7 +50,6 @@ function courtMaterials(tier: ResolvedTier) {
   floorTex.repeat.set((floor.maxX - floor.minX) / floor.tileM, (floor.maxZ - floor.minZ) / floor.tileM)
   const carpetTex = carpetTexture(P)
   carpetTex.repeat.set(1, (carpet.toZ - carpet.fromZ) / carpet.repeatM)
-  const flame = (color: string) => make(tier, { color, emissive: color, emissiveIntensity: COURT.torch.flameEmissive, roughness: 1 })
   return {
     floor: lift(make(tier, { map: floorTex, roughness: 0.5 }), -4),
     carpet: lift(make(tier, { map: carpetTex, roughness: 0.95 }), -8),
@@ -67,8 +58,9 @@ function courtMaterials(tier: ResolvedTier) {
     bronze: make(tier, { color: P.bronze, metalness: 0.6, roughness: 0.65 }),
     crimson: make(tier, { color: P.crimson, roughness: 0.8 }),
     banner: make(tier, { map: bannerTexture(P), roughness: 0.9, side: DoubleSide }),
-    flame: flame(P.flame),
-    flameCore: flame(P.flameCore),
+    frieze: make(tier, { map: friezeTexture(P), roughness: 0.7, side: DoubleSide }),
+    // Unlit look: black albedo, all colour from the emissive ramp. Kept under ~2 so ACES leaves it orange.
+    flame: make(tier, { color: '#000000', emissive: '#ffffff', emissiveMap: flameTexture(P.flameCore, P.flame), emissiveIntensity: COURT.torch.flameEmissive, roughness: 1 }),
   }
 }
 
@@ -133,16 +125,38 @@ function backdrop(g: Group, m: CourtMaterials) {
 
 function braziers(g: Group, m: CourtMaterials): [number, number, number][] {
   const tips: [number, number, number][] = []
+  const { flame } = COURT.torch
   for (const [x, z] of COURT.braziers) {
     put(g, new CylinderGeometry(0.24, 0.3, 0.07, 16), m.bronze, x, Y + 0.035, z)
     put(g, new CylinderGeometry(0.045, 0.07, 0.86, 10), m.bronze, x, Y + 0.5, z)
     put(g, new SphereGeometry(0.32, 16, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1, 0.55, 1), m.gold, x, Y + 1.1, z)
-    put(g, new ConeGeometry(0.2, 0.6, 8), m.flame, x, Y + 1.36, z)
-    put(g, new ConeGeometry(0.11, 0.38, 8), m.flameCore, x, Y + 1.27, z)
-    // Well above the bowl: a light 25 cm over polished gold drives it to ~50x and blooms the floor.
-    tips.push([x, Y + 2.1, z])
+    put(g, flameGeometry(flame.radius, flame.height), m.flame, x, Y + 1.1, z)
+    // Half a metre over the bowl: close enough to pool warm light on the floor, far enough that the
+    // polished gold (25 cm drove it to ~50x) does not bloom.
+    tips.push([x, Y + 1.65, z])
   }
   return tips
+}
+
+/** A vertical ribbon along COURT.frieze.path; u runs in metres of arc length so every lotus stays square. */
+function frieze(g: Group, m: CourtMaterials) {
+  const { path, y, repeatM } = COURT.frieze
+  const pos: number[] = []
+  const uv: number[] = []
+  const index: number[] = []
+  let s = 0
+  path.forEach(([x, z], i) => {
+    if (i > 0) s += Math.hypot(x - path[i - 1][0], z - path[i - 1][1])
+    pos.push(x, y[0], z, x, y[1], z)
+    uv.push(s / repeatM, 0, s / repeatM, 1)
+    if (i > 0) index.push(2 * i - 2, 2 * i, 2 * i - 1, 2 * i - 1, 2 * i, 2 * i + 1)
+  })
+  const geo = new ThreeBufferGeometry()
+  geo.setAttribute('position', new Float32BufferAttribute(pos, 3))
+  geo.setAttribute('uv', new Float32BufferAttribute(uv, 2))
+  geo.setIndex(index)
+  geo.computeVertexNormals()
+  put(g, geo, m.frieze, 0, 0, 0)
 }
 
 function bannersAndBands(g: Group, m: CourtMaterials) {
@@ -162,14 +176,16 @@ export function buildCourt(tier: ResolvedTier): Court {
   backdrop(raw, m)
   const torches = braziers(raw, m)
   bannersAndBands(raw, m)
+  frieze(raw, m)
   const group = mergeByMaterial(raw)
   group.name = 'court-dressing'
   group.traverse((o) => {
     const mesh = o as Mesh
     if (!mesh.isMesh) return
     mesh.receiveShadow = true
-    // Floor and carpet only receive; everything standing casts (high tier's shadow map only).
-    mesh.castShadow = mesh.material !== m.floor && mesh.material !== m.carpet
+    // Floor and carpet only receive; everything standing casts (high tier's shadow map only). The frieze
+    // is dressing on palace.glb, which casts nothing, so it must not either.
+    mesh.castShadow = mesh.material !== m.floor && mesh.material !== m.carpet && mesh.material !== m.frieze
   })
   return { group, torches, dispose: () => disposeTree(group) }
 }

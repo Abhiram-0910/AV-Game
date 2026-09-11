@@ -1,4 +1,4 @@
-// High tier post-processing: UnrealBloom and Vignette via EffectComposer.
+// High tier post-processing: UnrealBloom, a warm grade and Vignette via EffectComposer.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { Vector2, type Camera, type Scene, type WebGLRenderer } from 'three'
@@ -7,6 +7,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js'
 import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js'
 import { POST } from '@data/scenery'
 
@@ -14,6 +15,7 @@ interface ComposerBundle {
   composer: EffectComposer
   bloom: UnrealBloomPass
   vignette: ShaderPass
+  grade: ShaderPass
   output: OutputPass
 }
 
@@ -36,6 +38,9 @@ function createComposer(
   vignette.uniforms['offset'].value = POST.VIGNETTE_OFFSET
   vignette.uniforms['darkness'].value = POST.VIGNETTE_DARKNESS
   const output = new OutputPass()
+  const grade = new ShaderPass(ColorCorrectionShader)
+  grade.uniforms['mulRGB'].value.set(...POST.GRADE_MUL)
+  grade.uniforms['powRGB'].value.set(...POST.GRADE_POW)
 
   // Bloom reads the linear HDR target, so a threshold above 1 catches emissives only. The
   // vignette runs after OutputPass on display colours: before it, darkening happened in linear
@@ -43,8 +48,9 @@ function createComposer(
   composer.addPass(renderPass)
   composer.addPass(bloom)
   composer.addPass(output)
+  composer.addPass(grade)
   composer.addPass(vignette)
-  return { composer, bloom, vignette, output }
+  return { composer, bloom, vignette, grade, output }
 }
 
 export function PostProcessing() {
@@ -64,6 +70,7 @@ export function PostProcessing() {
     return () => {
       bundle.bloom.dispose()
       bundle.vignette.dispose()
+      bundle.grade.dispose()
       bundle.output.dispose()
       bundle.composer.dispose()
     }

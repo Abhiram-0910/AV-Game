@@ -2,6 +2,61 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-11 — Claude Code — Visual pass steps 3, 7, 8 and the four court/yajna fixes
+
+Unit suite confirmed green after the Antigravity PR merge (115 passed), then:
+
+**Built**
+- Step 3, sky and fog (`render/Atmosphere.tsx` `useSky`, `procedural-textures.ts` `skyTexture`, `LevelLook.sky/fog`
+  in `data/scenery.ts`). Root cause of "no level has ever rendered a sky": every `attach="background"` (the old
+  `SkyGradient`, each scene's `<color>`) sat inside the level `<group>`, so it set `group.background`, which three
+  ignores; the transparent canvas showed the page's `#0b0a08`. Sky and fog are now set on the scene: a 2×512
+  equirect gradient (zenith → horizon, packed into the ~0–16° the follow camera sees) and linear fog in the
+  horizon colour, `far` under the camera's 120 m so the ground edge melts. `SkyGradient.tsx` and
+  `LevelScenery.background` deleted.
+  Low tier paints the same gradient as a CSS background behind the transparent canvas instead: measured
+  back to back against a baseline worktree, the background cube's full-screen textured pass took SwiftShader
+  L2 from 36 to 26 fps (it is what pushed L2's e2e past 900 s). With the CSS sky: 35.0 / 33.6 fps vs the
+  baseline's 35.3 / 33.1.
+- Braziers (`render/court-dressing.ts`, `render/fire.ts`): emissive 6 on orange put linear red at 6.0, which ACES
+  clips to white. Now a lathe teardrop (r 0.13, h 0.42) with an `emissiveMap` ramp yellow base → orange tip at
+  emissive 1.8, light 1.8 cd / 3.8 m, hung 0.55 m over the bowl. Low tier keeps the ramp (tierMaterial carries
+  emissiveMap).
+- The dead band: raycast palace.glb from the throne framing. It is the palace's architrave, an apse-shaped beam
+  face at z ≈ 2.7, y 3.54–4.18, lit head-on by the key. Dressed with a crimson-and-gold lotus frieze ribbon that
+  follows the measured polyline 4 cm in front of it (`COURT.frieze`); casts no shadow (the palace casts none).
+- Royal dress (`render/garment-fit.ts`, `render/garments.ts`, `data/characters.ts`): garments fitted to the body
+  mesh instead of guessed. `bodySamples` reads bind-pose vertices by heaviest bone; `ringShell` wraps a
+  per-sector max-radius shell; `drape` lays a mantle over the shoulders from above; every vertex copies the skin
+  weights of the vertex it was fitted to. New spec fields `upper` (fitted sleeveless upper garment) and
+  `regalia` ('king' | 'prince': fitted gold crown band with points, a kirita for the king, rigid on Head; plus a
+  collar draped over neck/clavicles, never upper arms — arm-skinned collar verts followed SIT_TALK hands into
+  the lap). Dasharatha: ivory upper, gold dhoti, kirita. Rama: blue upper, pitambara dhoti, prince's crown.
+  Both tints set to white (the factory multiplies tint into every garment; Rama's blue tint was why his dhoti
+  read grey). character-factory.ts untouched.
+- L5 dressing (`render/yajna-dressing.ts`, `entities/YajnaDressing.tsx`, `YAJNA` in scenery.ts): kolam-plastered
+  ground, stepped brick altar with an ember bed, post-and-cord boundary with torana gates N/E/W (the wave
+  entrances; none on the south, it framed the spawn camera), yupa, kalasha pots. Altar fire: five flickering
+  teardrops scaled by integrity, a 14 cd warm point light, red flash while the hit invulnerability lasts (read
+  per frame; the old render-time `isHit` stayed red until the next store change), 90 embers on high.
+- Step 7: warm grade, three's `ColorCorrectionShader` after OutputPass (`POST.GRADE_MUL/POW`).
+- Step 8: FOV 50 → 45; each level opens with a 3.5 s establishing move (camera 2.6× out and up, smoothstep in),
+  clocked from the end of loading.
+
+**Verified**: tsc, eslint, vitest 116 passed / 1 skipped (new: upper garment clears the body, kirita tops the
+skull). High-tier shots: `docs/screenshots/vis-before6-*` vs `vis-after6-*`, sheets `vis-s6-compare-l1..l5.png`.
+L1 high 177k tris / 89 calls (was 174k / 80); L5 high 147k / 119 (was 140k / 96).
+
+**E2E (all five, once, `--workers=1`, 42.8 min)**: L1 pass (low: 79,684 tris, 43 calls vs 120k / 80), L3 pass.
+L4 fail (occluded target never hit), L5 fail (bot loses, "Try again"), L2 fail (900 s test timeout on its last
+assertions, after the win, codex, quiz and outro had all passed). L4 and L5 were rerun on a clean worktree of the
+pre-session HEAD `0cbba6a` and fail there too (L4: longRange never hit; L5: "Try again"), so they come from the
+merged Antigravity PR (aim assist 0.85 → 0.45 m / bias 0.35 → 0.1, release origin now follows body yaw, L5
+wave counts), not from this session. L2 rerun alone on this build: same 900 s timeout at the same finish-line step (15.5 min).
+That traced to the low-tier sky pass above; after the CSS-sky fix L2 ran in 9.3 min but missed the target at
+(12, -44) — the documented L2/L4 shot flake, now with the PR's smaller aim assist. L2 was not run on the
+baseline, so whether it passes there is unproven.
+
 ## 2026-09-11 — Antigravity — Arrow trajectory accuracy, aim alignment, end-to-end Astra invocation & 3D animations
 
 Refining archery ballistics and completing the Astra visual and invocation pipeline:

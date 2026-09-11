@@ -1,12 +1,13 @@
-// Per-level look from scenery.ts: tone mapping, exposure, reflections and the three-point rig
+// Per-level look from scenery.ts: tone mapping, exposure, sky, fog, reflections and the three-point rig
 // (warm key, hemisphere fill, cool rim). The key casts the one shadow map on high; low keeps key + fill
 // and its blob shadows. One mount per scene.
 import { useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo } from 'react'
-import { ACESFilmicToneMapping, Object3D, PCFShadowMap, PMREMGenerator, SRGBColorSpace, Vector3 } from 'three'
+import { ACESFilmicToneMapping, Fog, Object3D, PCFShadowMap, PMREMGenerator, SRGBColorSpace, Vector3 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { type LevelScenery, LOW_AMBIENT_FROM_ENV, SHADOW } from '@data/scenery'
 import type { ResolvedTier } from './manifest'
+import { skyTexture } from './procedural-textures'
 
 type Bounds = LevelScenery['bounds']
 
@@ -66,11 +67,34 @@ function useReflections(enabled: boolean, intensity: number) {
   }, [get, enabled, intensity])
 }
 
+/** Sky and fog are scene state: a JSX `attach="background"` inside a level's <group> sets the group's
+ * background, which three ignores — the reason no level showed a sky before 2026-09-11. High draws the
+ * view-dependent equirect sky. Low paints the same two colours as a CSS gradient behind the transparent
+ * canvas: the background cube is a full-screen textured pass every frame, which cost SwiftShader L2 a
+ * third of its frame rate (36 → 26 fps). The horizon sits ~22% down at FOV 45 and the camera's pitch. */
+function useSky({ sky, fog }: LevelScenery['look'], high: boolean) {
+  const get = useThree((s) => s.get)
+  useLayoutEffect(() => {
+    const { scene, gl } = get()
+    const texture = high ? skyTexture(sky.zenith, sky.horizon) : null
+    scene.background = texture
+    if (!high) gl.domElement.style.background = `linear-gradient(${sky.zenith} 0%, ${sky.horizon} 22%)`
+    scene.fog = new Fog(sky.horizon, fog.near, fog.far)
+    return () => {
+      scene.background = null
+      scene.fog = null
+      gl.domElement.style.background = ''
+      texture?.dispose()
+    }
+  }, [get, sky, fog, high])
+}
+
 export function Atmosphere({ scenery, tier }: { scenery: LevelScenery; tier: ResolvedTier }) {
   const get = useThree((s) => s.get)
   const { look } = scenery
   const high = tier === 'high'
   useReflections(high, look.envIntensity)
+  useSky(look, high)
 
   // Layout effect: the shadow-map switch must land before any material compiles.
   useLayoutEffect(() => {

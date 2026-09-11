@@ -4,7 +4,6 @@
 // Manava astra in systems/astra/step.ts). Wave rendering + the global 12-SkinnedMesh budget are
 // entities/wave-spawner.ts, reused as-is; this scene just supplies spawn points and layout.
 import { useEffect, useState } from 'react'
-import { useStore } from 'zustand'
 import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
@@ -19,6 +18,7 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { AstraVfx } from '@entities/AstraVfx'
+import { YajnaDressing } from '@entities/YajnaDressing'
 import { useWaveSpawner } from '@entities/wave-spawner'
 import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
@@ -46,41 +46,6 @@ function replenishSupply(tick: number) {
       break
     }
   }
-}
-
-function AltarFire() {
-  const yajnaIntegrity = useStore(gameStore, (s) => s.yajnaIntegrity)
-  const yajnaInvulnUntil = useStore(gameStore, (s) => s.yajnaInvulnUntil)
-  const isHit = world.tick < yajnaInvulnUntil
-  const frac = Math.max(0.12, yajnaIntegrity / BALANCE.yajna.MAX_INTEGRITY)
-  const flameH = 0.9 * frac + 0.2
-
-  return (
-    <group name="altar-fire" position={[0, 0, 0]}>
-      <mesh position={[0, 0.2, 0]}>
-        <boxGeometry args={[2.6, 0.4, 2.6]} />
-        <meshToonMaterial color={isHit ? '#8a3020' : '#4a3424'} />
-      </mesh>
-      <mesh position={[0, 0.41, 0]}>
-        <boxGeometry args={[1.8, 0.05, 1.8]} />
-        <meshToonMaterial color="#1a110a" />
-      </mesh>
-      <mesh position={[0, 0.4 + flameH / 2, 0]} scale={[frac, frac, frac]}>
-        <coneGeometry args={[0.65, flameH, 8]} />
-        <meshBasicMaterial color={isHit ? '#ff1100' : '#ff6a00'} />
-      </mesh>
-      <mesh position={[0, 0.4 + flameH * 0.4, 0]} scale={[frac * 0.6, frac * 0.6, frac * 0.6]}>
-        <coneGeometry args={[0.4, flameH * 0.7, 8]} />
-        <meshBasicMaterial color="#ffdd44" />
-      </mesh>
-      <pointLight
-        position={[0, 1.2, 0]}
-        color={isHit ? '#ff1100' : '#ff7a00'}
-        intensity={isHit ? 4.0 : 1.8 * frac}
-        distance={12}
-      />
-    </group>
-  )
 }
 
 function ArrowPickupsVisual() {
@@ -143,13 +108,12 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   return (
     <group name="l5-yajna">
       <Atmosphere scenery={scenery} tier={tier} />
-      <color attach="background" args={[scenery.background]} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
-      <AltarFire />
+      <YajnaDressing tier={tier} />
       <ArrowPickupsVisual />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />

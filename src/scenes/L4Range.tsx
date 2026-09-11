@@ -72,7 +72,6 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   return (
     <group name="l4-range">
       <Atmosphere scenery={scenery} tier={tier} />
-      <color attach="background" args={[scenery.background]} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

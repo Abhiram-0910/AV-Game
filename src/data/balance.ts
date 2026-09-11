@@ -190,9 +190,32 @@ export const BALANCE = {
     SASH_WIDTH: 0.12,
     SASH_THICKNESS: 0.03,
     SASH_SURFACE_OFFSET: 0.16,
+    /** Extra push when the sash lies over a fitted upper garment, or the cloth swallows it. */
+    SASH_OVER_UPPER: 0.035,
     /** Choli (torso wrap) waist radius and radial segments. */
     CHOLI_RADIUS: 0.24,
     CHOLI_RADIAL_SEGMENTS: 16,
+    /** Fitted upper garment (render/garment-fit.ts): starts this far under the pelvis bone (tucked into the
+     * dhoti), stops this far under the clavicle, rings × sectors, and its clearance off the skin (metres). */
+    UPPER_TUCK: 0.04,
+    UPPER_NECKLINE: 0.03,
+    UPPER_RINGS: 7,
+    UPPER_SECTORS: 20,
+    UPPER_GAP: 0.014,
+    /** Crown band from this far under the skull top to this far under it; clearance covers the hair. */
+    CROWN_BAND: [0.1, 0.05] as const,
+    CROWN_GAP: 0.03,
+    CROWN_POINT_RADIUS: 0.02,
+    KIRITA_HEIGHT: 0.13,
+    /** Shoulder collar: inner radius round the neck, outer half-widths (x across the shoulders, z chest to
+     * back), skin clearance, how far above the neck bone the skin still counts, and the drop search radius. */
+    COLLAR_INNER: 0.075,
+    COLLAR_OUTER: [0.17, 0.13] as const,
+    COLLAR_GAP: 0.012,
+    COLLAR_NECK_CLEAR: 0.03,
+    COLLAR_REACH: 0.035,
+    REGALIA_GOLD: '#d9a23a',
+    REGALIA_PBR: { metalness: 0.85, roughness: 0.35 },
   },
 
   interaction: {
@@ -234,7 +257,10 @@ export const BALANCE = {
     LOOK_HEIGHT: 1.3,
     /** Per-second exponential follow rate. */
     FOLLOW_RATE: 8,
-    FOV: 50,
+    /** Level-open establishing move: starts this many times farther out and higher, eases in over the seconds. */
+    ESTABLISH_SCALE: 2.6,
+    ESTABLISH_SECONDS: 3.5,
+    FOV: 45,
     NEAR: 0.1,
     FAR: 120,
   },

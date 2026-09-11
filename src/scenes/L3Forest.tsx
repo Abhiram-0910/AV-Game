@@ -16,7 +16,6 @@ import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
-import { SkyGradient } from '@entities/SkyGradient'
 import { Atmosphere } from '@render/Atmosphere'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
@@ -75,7 +74,6 @@ export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   return (
     <group name="l3-forest">
       <Atmosphere scenery={scenery} tier={tier} />
-      <SkyGradient topColor="#1a2528" horizonColor="#455448" groundColor="#243018" />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

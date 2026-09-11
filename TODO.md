@@ -1,5 +1,30 @@
 # TODO
 
+## KNOWN — vite.config.ts recreates the fake low tier on every Vite start (found 2026-09-11, Claude Code)
+
+The merged Antigravity PR added `syncLowTier()` to `vite.config.ts`: it copies all of `public/assets/high/` into
+`public/assets/low/` (49 MB) whenever Vite loads its config (dev, build, preview, even vitest). That is the
+same fake low tier the entry below deleted; `render/manifest.ts` still serves `high/` to both tiers, so nothing
+reads it. Left untracked, not committed. Remove `syncLowTier()` (and the directory) unless real KTX2 output is
+meant to land there.
+
+## BROKEN — L4 and L5 e2e fail on the merged Antigravity PR (found 2026-09-11, Claude Code)
+
+Reproduced on a clean worktree of `0cbba6a` (before any visual-pass change): L4 never hits the longRange /
+occluded target, L5's bot loses ("Try again"). The PR cut `archeryAim.AIM_ASSIST_RADIUS` 0.85 → 0.45 and
+`AIM_ASSIST_BIAS` 0.35 → 0.1, moved the arrow origin to follow body yaw (`systems/archery/step.ts`) while the
+e2e still solves aim from `AIM.MUZZLE_HEIGHT` at the old origin, and raised L5's wave counts. Either retune
+the balance or update the e2e aim model; the PR only ran typecheck and lint. L2's `shootTarget` also missed
+(12, -44) on this branch after the visual pass (not rerun on the baseline); L2 still uses fixed-ms draw waits,
+not the `world.draw.ticks` polling L4 switched to.
+
+## Visual pass follow-ups (2026-09-11, Claude Code)
+
+- Dasharatha's dhoti collapses into gold slivers at the knees in SIT_TALK (pre-existing: the tapered tube is
+  skinned pelvis→thigh by height). A seated dhoti could use `garment-fit.ts` weight copying.
+- The sash on Rama and Dasharatha mostly disappears under the collar; decide whether royals keep it.
+- Vishwamitra and Vasishtha are still bare-chested; the `upper` spec field now makes that a data change.
+
 ## KNOWN — real KTX2 compression and a real low tier are still unbuilt (2026-09-11)
 
 Commit 3c28ccf added `public/assets/low/` claiming KTX2 compression. It held zero `.ktx2`

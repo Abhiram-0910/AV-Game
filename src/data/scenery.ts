@@ -54,6 +54,7 @@ export const SKELETON = {
   LEFT_HAND: 'hand_l',
   RIGHT_HAND: 'hand_r',
   SPINE_TOP: 'spine_03',
+  NECK: 'neck_01',
   PELVIS: 'pelvis',
   THIGH_L: 'thigh_l',
   THIGH_R: 'thigh_r',
@@ -90,7 +91,6 @@ export interface LevelScenery {
   npcs: readonly NpcPlacement[]
   /** Kinematic bounds: the player is clamped inside this rectangle. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number }
-  background: string
   look: LevelLook
   /** Enclosed levels: the follow camera never leaves this box, so no wall comes between it and the player. */
   cameraBounds?: { minX: number; maxX: number; minZ: number; maxZ: number }
@@ -110,6 +110,10 @@ export interface LevelLook {
   envIntensity: number
   /** Ground albedo; on high, two dapple colours are painted into a tiled canvas texture over it. */
   ground: { base: string; dapple: readonly [string, string] }
+  /** Equirect sky gradient (render/procedural-textures.ts skyTexture). The horizon is also the fog colour. */
+  sky: { zenith: string; horizon: string }
+  /** Linear fog in metres. `far` stays under BALANCE.camera.FAR (120) so the ground's clipped edge is fully fogged. */
+  fog: { near: number; far: number }
 }
 
 type XZ = readonly [number, number]
@@ -139,16 +143,72 @@ export const COURT = {
   throne: { z: 0.2, seatW: 1.1, seatD: 0.7, seatH: 0.46, backH: 1.7, discY: 2.55, discR: 0.8 },
   /** Braziers: bronze stand, gold bowl, emissive flame; a warm point light each on high only. */
   braziers: [[-1.95, 5.6], [1.95, 5.6], [-1.95, 9.2], [1.95, 9.2], [-2.7, 1.0], [2.7, 1.0]] as readonly XZ[],
-  torch: { color: '#ff9a48', intensity: 3, distance: 6, decay: 2, flameEmissive: 6, flickerHz: 7, flickerAmount: 0.18 },
+  /** Lights the floor round each stand, not the hall: short range, and a flame whose emissive stays under
+   * ACES' white point (6 blew the old cones out to white). */
+  torch: { color: '#ff9a48', intensity: 1.8, distance: 3.8, decay: 2, flameEmissive: 1.8, flickerHz: 7, flickerAmount: 0.18, flame: { radius: 0.13, height: 0.42 } },
   /** Banners on column faces toward the entrance: x, z of the column, hung from y 2.2 to 5. */
   banners: [[-3.5, 2.0], [3.5, 2.0], [-5.85, 2.0], [5.85, 2.0], [-3.5, 10.75], [3.5, 10.75]] as readonly XZ[],
+  /** Painted frieze over palace.glb's architrave: the apse-shaped beam above the back columns, whose bare
+   * face (y 3.54–4.18) lit head-on by the key was the flat beige band across the top of every court frame.
+   * Points are the raycast face (x, z) pushed ~4 cm toward the hall; `repeatM` is one lotus per tile. */
+  frieze: {
+    y: [3.56, 4.16],
+    repeatM: 0.6,
+    path: [[-9.55, 3.75], [-8.05, 2.97], [-6.5, 2.79], [-5, 2.78], [-3.5, 2.77], [-2, 2.74], [-0.5, 2.71], [1, 2.73], [2.5, 2.76], [4, 2.78], [5.5, 2.79], [7.05, 2.9], [8.55, 3.3], [9.7, 4.6]] as readonly XZ[],
+  },
   /** Gold bands round the inner column shafts (radius, heights). */
   columnBands: { xs: [-3.5, -1.17, 1.17, 3.5], zs: [2.0, 10.75], radius: 0.2, ys: [1.1, 3.0] },
 } as const
 
+/** Level 5's sacred enclosure round the altar at the origin (render/yajna-dressing.ts, entities/YajnaDressing.tsx):
+ * plastered ground with a chalk kolam, a post-and-cord boundary with a torana gate on the N/E/W sides (the
+ * waves come in from there at 30 m; the south stays open for the camera), a yupa post, kalasha pots, and
+ * the altar fire as the dusk's warm light. */
+export const YAJNA = {
+  palette: {
+    plaster: '#9c7250',
+    chalk: '#f4ead6',
+    wood: '#5e3c22',
+    cord: '#c23a1c',
+    saffron: '#ff8c1a',
+    brick: '#9c4c2e',
+    mortar: '#6a3420',
+    terracotta: '#a4532e',
+    leaf: '#4f7a2a',
+    ember: '#2a0a04',
+    flame: '#ff4e0a',
+    flameCore: '#ffc45a',
+  },
+  groundSize: 18,
+  enclosure: { half: 9, postEvery: 3, postH: 1.5, postR: 0.07, cordY: 1.2, gateH: 3.4, gateHalf: 1.3 },
+  /** Sacrificial post, off the player's line to the altar. */
+  yupa: { x: 3.4, z: -3, h: 4.2 },
+  /** Kalasha pots at the altar's corners. */
+  pots: [[-1.9, -1.9], [1.9, -1.9], [-1.9, 1.9], [1.9, 1.9]] as readonly XZ[],
+  /** Stepped brick altar (width, rise), bottom up; the ember bed sits on the last step. */
+  altarSteps: [[2.9, 0.18], [2.35, 0.18], [1.8, 0.18]] as readonly (readonly [number, number])[],
+  /** Flames on the ember bed: x, z, radius, height at full integrity. */
+  flames: [[0, 0, 0.36, 1.1], [0.38, 0.2, 0.2, 0.62], [-0.34, 0.26, 0.22, 0.7], [0.2, -0.36, 0.2, 0.58], [-0.3, -0.28, 0.18, 0.5]] as readonly (readonly [number, number, number, number])[],
+  /** Physical point light (candela, decay 2): ~1.5 lux on a rakshasa 3 m out, the dusk key is 2. */
+  light: { color: '#ff8a3a', hit: '#ff2a10', intensity: 14, hitIntensity: 24, distance: 18, y: 1.3, flickerHz: 9, flickerAmount: 0.22 },
+  flameEmissive: 1.45,
+  /** High tier: sparks rising off the fire (count, rise speed m/s, fade-out height). */
+  embers: { count: 90, rise: [0.7, 1.7] as const, top: 4.5, size: 0.07 },
+} as const
+
 /** High-tier post-processing. Bloom threshold is linear HDR luminance: only emissives above 1 glow.
  * Vignette darkness 1 mixes corners toward black; above 1 it goes negative. */
-export const POST = { BLOOM_STRENGTH: 0.4, BLOOM_RADIUS: 0.45, BLOOM_THRESHOLD: 1.4, VIGNETTE_OFFSET: 0.95, VIGNETTE_DARKNESS: 1.0 } as const
+export const POST = {
+  BLOOM_STRENGTH: 0.4,
+  BLOOM_RADIUS: 0.45,
+  BLOOM_THRESHOLD: 1.4,
+  VIGNETTE_OFFSET: 0.95,
+  VIGNETTE_DARKNESS: 1.0,
+  /** Warm grade on display colours (three's ColorCorrectionShader: mul · (c + add)^pow): a touch of gold in the
+   * highlights, cooler blue pulled down, and a slight pow for contrast in the mids. */
+  GRADE_MUL: [1.04, 1.0, 0.93],
+  GRADE_POW: [1.06, 1.06, 1.1],
+} as const
 
 /** Low tier has no reflection map; a neutral ambient of envIntensity × this stands in for its irradiance. */
 export const LOW_AMBIENT_FROM_ENV = 3
@@ -177,7 +237,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     bounds: { minX: -7, maxX: 7, minZ: -1, maxZ: 15 },
     // Measured by raycasting palace.glb at this placement: inner walls at x -14.7 / 13.6, z -1.8 / 14.96.
     cameraBounds: { minX: -14.2, maxX: 13.1, minZ: -1.3, maxZ: 14.6 },
-    background: '#1a120b',
     look: {
       exposure: 0.72,
       // Late sun through the entrance behind the player: long shadows reach toward the throne.
@@ -187,6 +246,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       // An interior: nothing bright to reflect, just enough for gold to read as metal.
       envIntensity: 0.18,
       ground: { base: '#5a4636', dapple: ['#6a5442', '#4a382a'] },
+      sky: { zenith: '#2a1a12', horizon: '#7a5a40' },
+      fog: { near: 6, far: 70 },
     },
   },
   l2: {
@@ -210,7 +271,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, -18], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -12, maxX: 22, minZ: -52, maxZ: 6 },
-    background: '#7fb3d9',
     look: {
       exposure: 0.85,
       key: { color: '#ffd596', intensity: 2.6, dir: [8, 6, 6] },
@@ -219,6 +279,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       envIntensity: 0.35,
       // Dappled green under a morning sun.
       ground: { base: '#5f7d35', dapple: ['#7f9a44', '#48632a'] },
+      sky: { zenith: '#2e6fc0', horizon: '#cfe2ee' },
+      fog: { near: 30, far: 115 },
     },
   },
   l3: {
@@ -239,7 +301,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, 5], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -12, maxX: 12, minZ: -32, maxZ: 22 },
-    background: '#141a16',
     look: {
       exposure: 1.15,
       // "No birds sang": a cold, weak key and a colder rim; nothing warm in the frame.
@@ -249,6 +310,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       envIntensity: 0.3,
       // Desaturated and cold, but readable: grey-green, not the old near-black #243018.
       ground: { base: '#46523f', dapple: ['#58624f', '#343f30'] },
+      sky: { zenith: '#243038', horizon: '#56625c' },
+      fog: { near: 8, far: 60 },
     },
   },
   l4: {
@@ -268,7 +331,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, 1.5], yaw: Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -14, maxX: 14, minZ: -54, maxZ: 6 },
-    background: '#7fb3d9',
     look: {
       exposure: 0.8,
       key: { color: '#fff3dd', intensity: 3.0, dir: [6, 12, 5] },
@@ -276,6 +338,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       rim: { color: '#ffffff', intensity: 0.9, dir: [-5, 6, -6] },
       envIntensity: 0.4,
       ground: { base: '#6c913d', dapple: ['#88a84c', '#557631'] },
+      sky: { zenith: '#2f74c4', horizon: '#d6e4ec' },
+      fog: { near: 35, far: 115 },
     },
   },
   l5: {
@@ -294,7 +358,6 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, -1.5], yaw: -Math.PI / 4, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -32, maxX: 32, minZ: -32, maxZ: 10 },
-    background: '#2a1a12',
     look: {
       exposure: 0.95,
       // Dusk: the sun almost on the horizon, deep blue sky fill, the altar fire does the rest.
@@ -304,6 +367,8 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       envIntensity: 0.3,
       // Dusty earth that still reads at dusk (the old #4a3624 went black).
       ground: { base: '#6e4d36', dapple: ['#80603f', '#553a28'] },
+      sky: { zenith: '#101a44', horizon: '#56507c' },
+      fog: { near: 16, far: 85 },
     },
   },
 }
