@@ -8,6 +8,10 @@ export interface DrawState {
 
 export const NO_DRAW: DrawState = { drawing: false, ticks: 0 }
 
+export function isDrawing(s: DrawState): boolean {
+  return s.drawing
+}
+
 export function drawFraction(s: DrawState): number {
   return Math.min(1, s.ticks / BALANCE.arrow.DRAW_TICKS)
 }

@@ -3,11 +3,14 @@
 // Maricha ride in on the tail of the last wave; Maricha is only ever flung, never killed (the
 // Manava astra in systems/astra/step.ts). Wave rendering + the global 12-SkinnedMesh budget are
 // entities/wave-spawner.ts, reused as-is; this scene just supplies spawn points and layout.
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useStore } from 'zustand'
+import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { Enemy } from '@entities/Enemy'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
@@ -18,11 +21,91 @@ import { StaticProp } from '@entities/StaticProp'
 import { useWaveSpawner } from '@entities/wave-spawner'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
-import { resetWorld, worldStore } from '@systems/world'
+import { resetWorld, world, worldStore } from '@systems/world'
 
 const scenery = SCENERY.l5!
 const def = levelDef('l5')
 const spots = [def.waypoints.north, def.waypoints.east, def.waypoints.west]
+
+const SUPPLY_STATIONS = [
+  { x: -5, z: 4 },
+  { x: 5, z: 4 },
+  { x: -5, z: -4 },
+  { x: 5, z: -4 },
+] as const
+
+function replenishSupply(tick: number) {
+  if (tick < 2800 || tick % BALANCE.yajna.SUPPLY_RESPAWN_TICKS !== 0) return
+  if (world.arrowPickups.length >= 4) return
+  for (const pt of SUPPLY_STATIONS) {
+    const exists = world.arrowPickups.some((p) => Math.hypot(p.x - pt.x, p.z - pt.z) < 2.5)
+    if (!exists) {
+      world.arrowPickups.push({ x: pt.x, z: pt.z })
+      break
+    }
+  }
+}
+
+function AltarFire() {
+  const yajnaIntegrity = useStore(gameStore, (s) => s.yajnaIntegrity)
+  const yajnaInvulnUntil = useStore(gameStore, (s) => s.yajnaInvulnUntil)
+  const isHit = world.tick < yajnaInvulnUntil
+  const frac = Math.max(0.12, yajnaIntegrity / BALANCE.yajna.MAX_INTEGRITY)
+  const flameH = 0.9 * frac + 0.2
+
+  return (
+    <group name="altar-fire" position={[0, 0, 0]}>
+      <mesh position={[0, 0.2, 0]}>
+        <boxGeometry args={[2.6, 0.4, 2.6]} />
+        <meshToonMaterial color={isHit ? '#8a3020' : '#4a3424'} />
+      </mesh>
+      <mesh position={[0, 0.41, 0]}>
+        <boxGeometry args={[1.8, 0.05, 1.8]} />
+        <meshToonMaterial color="#1a110a" />
+      </mesh>
+      <mesh position={[0, 0.4 + flameH / 2, 0]} scale={[frac, frac, frac]}>
+        <coneGeometry args={[0.65, flameH, 8]} />
+        <meshBasicMaterial color={isHit ? '#ff1100' : '#ff6a00'} />
+      </mesh>
+      <mesh position={[0, 0.4 + flameH * 0.4, 0]} scale={[frac * 0.6, frac * 0.6, frac * 0.6]}>
+        <coneGeometry args={[0.4, flameH * 0.7, 8]} />
+        <meshBasicMaterial color="#ffdd44" />
+      </mesh>
+      <pointLight
+        position={[0, 1.2, 0]}
+        color={isHit ? '#ff1100' : '#ff7a00'}
+        intensity={isHit ? 4.0 : 1.8 * frac}
+        distance={12}
+      />
+    </group>
+  )
+}
+
+function ArrowPickupsVisual() {
+  const [pickups, setPickups] = useState(world.arrowPickups)
+  useEffect(() => {
+    const id = setInterval(() => setPickups([...world.arrowPickups]), 200)
+    return () => clearInterval(id)
+  }, [])
+
+  if (pickups.length === 0) return null
+  return (
+    <group name="arrow-pickups">
+      {pickups.map((p, i) => (
+        <group key={`${p.x.toFixed(1)}-${p.z.toFixed(1)}-${i}`} position={[p.x, 0.05, p.z]}>
+          <mesh rotation-x={-Math.PI / 2}>
+            <ringGeometry args={[0.25, 0.5, 16]} />
+            <meshBasicMaterial color="#ffd784" transparent opacity={0.65} />
+          </mesh>
+          <mesh position={[0, 0.1, 0]} rotation-z={Math.PI / 4}>
+            <cylinderGeometry args={[0.02, 0.02, 0.7, 6]} />
+            <meshBasicMaterial color="#e6b450" />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  )
+}
 
 function useLevelLifecycle() {
   useEffect(() => {
@@ -43,6 +126,7 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { active, onTick } = useWaveSpawner(def.waves, spots)
   const handleTick = (tick: number) => {
     onTick(tick)
+    replenishSupply(tick)
     gameStore.getState().progress({ kind: 'survive', ticks: 1 })
   }
   const { light, bounds } = scenery
@@ -56,6 +140,8 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         color="#4a3624"
       />
+      <AltarFire />
+      <ArrowPickupsVisual />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}
@@ -66,7 +152,12 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         <Enemy key={a.id} kind={a.kind} pos={a.pos} tier={tier} detail="low" spawnId={a.id} />
       ))}
       <Player tier={tier} bow={bow} />
-      {bow && <ArrowPool tier={tier} />}
+      {bow && (
+        <>
+          <ArrowPool tier={tier} />
+          <TrajectoryArc />
+        </>
+      )}
       <FollowCamera />
       <SimulationDriver bow={bow} onTick={handleTick} />
     </group>

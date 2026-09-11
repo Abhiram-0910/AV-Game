@@ -2,10 +2,13 @@
 // hesitation beat from the text); Tataka appears once the player reaches the clearing and the
 // enemy AI (systems/ai/enemy-ai.ts) takes over from there — existing archery is the weapon.
 import { useEffect, useRef } from 'react'
+import { useStore } from 'zustand'
+import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { Enemy } from '@entities/Enemy'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
@@ -13,10 +16,10 @@ import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
+import { SkyGradient } from '@entities/SkyGradient'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
-import { resetWorld, worldStore } from '@systems/world'
-import { useGame } from '@ui/use-game'
+import { resetWorld, world, worldStore } from '@systems/world'
 
 const scenery = SCENERY.l3!
 const def = levelDef('l3')
@@ -32,6 +35,7 @@ function useLevelLifecycle() {
     })
     return () => {
       unsubscribe()
+      worldStore.getState().setBoss(null)
       evictAssets(scenery.statics.map((p) => p.asset))
     }
   }, [])
@@ -51,16 +55,28 @@ function useNarrativeBeat(done: boolean, key: string) {
 
 export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
-  const dutyDone = useGame((s) => s.level === 'l3' && s.objectives[DUTY_DONE_AT]?.done === true)
-  const clearingDone = useGame((s) => s.level === 'l3' && s.objectives[CLEARING_DONE_AT]?.done === true)
+  const dutyDone = useStore(gameStore, (s) => s.level === 'l3' && s.objectives[DUTY_DONE_AT]?.done === true)
+  const clearingDone = useStore(gameStore, (s) => s.level === 'l3' && s.objectives[CLEARING_DONE_AT]?.done === true)
   useNarrativeBeat(dutyDone, 'l3.rama.resolve')
   useNarrativeBeat(clearingDone, 'l3.tataka.appears')
+
+  useEffect(() => {
+    if (clearingDone) {
+      const tataka = world.enemies.find((e) => e.kind === 'tataka')
+      worldStore.getState().setBoss({
+        kind: 'tataka',
+        health: tataka?.health ?? BALANCE.enemies.tataka.HEALTH,
+        max: BALANCE.enemies.tataka.HEALTH,
+      })
+    }
+  }, [clearingDone])
   const { light, bounds } = scenery
   return (
     <group name="l3-forest">
-      <color attach="background" args={[scenery.background]} />
-      <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
-      <directionalLight position={light.sun} intensity={light.sunIntensity} />
+      <SkyGradient topColor="#1a2528" horizonColor="#455448" groundColor="#243018" />
+      <hemisphereLight args={[light.sky, light.ground, BALANCE.lighting.L3_AMBIENT_INTENSITY]} />
+      <hemisphereLight args={['#88a0b0', '#2a3820', BALANCE.lighting.L3_FILL_INTENSITY]} />
+      <directionalLight position={light.sun} intensity={BALANCE.lighting.L3_SUN_INTENSITY} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
@@ -78,7 +94,12 @@ export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         <Enemy key={i} kind={e.kind} pos={e.pos} tier={tier} boss={def.enemies.length === 1 && clearingDone} />
       ))}
       <Player tier={tier} bow={bow} />
-      {bow && <ArrowPool tier={tier} />}
+      {bow && (
+        <>
+          <ArrowPool tier={tier} />
+          <TrajectoryArc />
+        </>
+      )}
       <FollowCamera />
       <SimulationDriver bow={bow} />
     </group>

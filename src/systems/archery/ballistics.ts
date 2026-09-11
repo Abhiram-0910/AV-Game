@@ -37,3 +37,26 @@ export function grounded(a: ArrowState): boolean {
 export function shouldFailArrowsOut(quiver: number, liveArrows: number, targetsRemaining: number): boolean {
   return quiver <= 0 && liveArrows === 0 && targetsRemaining > 0
 }
+
+/**
+ * Samples sequential flight states along the arrow's parabolic trajectory using the exact same
+ * ballistics equation until it is grounded, dies, or reaches maxSteps. Pure.
+ */
+export function sampleTrajectoryPath(
+  origin: readonly [number, number, number],
+  dir: readonly [number, number, number],
+  fraction: number,
+  dt: number,
+  maxSteps: number = BALANCE.arrow.LIFETIME_TICKS,
+): ArrowState[] {
+  const points: ArrowState[] = []
+  let current = launchArrow(origin, dir, fraction)
+  points.push(current)
+  for (let i = 0; i < maxSteps; i += 1) {
+    current = stepArrow(current, dt)
+    points.push(current)
+    if (grounded(current) || !current.alive) break
+  }
+  return points
+}
+

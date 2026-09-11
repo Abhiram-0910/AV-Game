@@ -151,7 +151,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, 5], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -12, maxX: 12, minZ: -32, maxZ: 22 },
-    light: { sky: '#5a6a72', ground: '#1f2a1a', sun: [-4, 8, -3], sunIntensity: 1.3, ambientIntensity: 0.55 },
+    light: { sky: '#687b84', ground: '#2b3924', sun: [-4, 8, -3], sunIntensity: 1.8, ambientIntensity: 0.95 },
     background: '#141a16',
   },
   l4: {

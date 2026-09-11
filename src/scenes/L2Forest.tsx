@@ -8,6 +8,7 @@ import { levelDef } from '@core/progression'
 import type { Vec3 } from '@data/levels'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
 import { NpcCharacter } from '@entities/NpcCharacter'
@@ -15,6 +16,7 @@ import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
 import { Target } from '@entities/Target'
+import { SkyGradient } from '@entities/SkyGradient'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { resetWorld, worldStore } from '@systems/world'
@@ -46,7 +48,7 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const { light, bounds } = scenery
   return (
     <group name="l2-forest">
-      <color attach="background" args={[scenery.background]} />
+      <SkyGradient topColor="#3b7cb8" horizonColor="#bfe0ff" groundColor="#4a6b34" />
       <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
       <directionalLight position={light.sun} intensity={light.sunIntensity} />
       <GroundPlane
@@ -61,10 +63,15 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         <NpcCharacter key={n.npc} placement={n.npc === 'vishwamitra' && mantrasDone ? { ...n, pos: VISHWAMITRA_AT_RANGE } : n} tier={tier} />
       ))}
       {def.targets.map((t, i) => (
-        <Target key={i} def={t} tier={tier} />
+        <Target key={i} def={t} tier={tier} onHit={() => gameStore.getState().progress({ kind: 'hitTargets' })} />
       ))}
       <Player tier={tier} bow={bow} />
-      {bow && <ArrowPool tier={tier} />}
+      {bow && (
+        <>
+          <ArrowPool tier={tier} />
+          <TrajectoryArc />
+        </>
+      )}
       <FollowCamera />
       <SimulationDriver bow={bow} />
     </group>

@@ -17,6 +17,10 @@ const saveFile = join(app.getPath('userData'), 'save.json')
 // app.ready. Never set MESA_GL_VERSION_OVERRIDE: it papers over the same failure instead of
 // fixing it, and silently changes what GL version the app thinks it has.
 if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform', 'x11')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('enable-webgl')
 
 const MIME: Readonly<Record<string, string>> = {
   '.html': 'text/html',

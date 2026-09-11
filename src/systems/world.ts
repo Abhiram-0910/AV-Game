@@ -3,6 +3,7 @@
 // state (player transform, arrows) is plain mutable data read by useFrame.
 import { createStore } from 'zustand/vanilla'
 import type { Object3D } from 'three'
+import { BALANCE } from '@data/balance'
 import type { DialogueKey } from '@data/dialogue'
 import type { EnemyKind, NpcId } from '@data/levels'
 import { SCENERY } from '@data/scenery'
@@ -31,12 +32,25 @@ export interface WorldUi {
   /** User-toggled pause (Escape during play), not part of the level phase machine — it stops
    * the fixed tick without touching win/fail/quiz flow. */
   paused: boolean
+  /** Whether the bow draw is currently active. */
+  isDrawing: boolean
+  /** Whether a valid target is under the landing vector. */
+  hasTarget: boolean
+  /** Current draw strength fraction 0..1. */
+  drawStrength: number
+  /** Transient hit feedback ('enemy' | 'target' | null) for visual confirmation. */
+  hitFeedback: 'enemy' | 'target' | null
+  /** Whether the Astra is unlocked and ready for summoning (Level 4 after 4 targets, or Level 5). */
+  astraReady: boolean
   setPrompt(p: NpcId | 'pickup' | null): void
   openDialogue(key: DialogueKey | null): void
   expect(n: number): void
   markLoaded(): void
   setBoss(b: BossHealth | null): void
   setPaused(p: boolean): void
+  setAimState(isDrawing: boolean, hasTarget: boolean, drawStrength: number): void
+  triggerHitFeedback(kind: 'enemy' | 'target'): void
+  setAstraReady(ready: boolean): void
 }
 
 export const worldStore = createStore<WorldUi>()((set) => ({
@@ -46,12 +60,31 @@ export const worldStore = createStore<WorldUi>()((set) => ({
   expected: 0,
   boss: null,
   paused: false,
+  isDrawing: false,
+  hasTarget: false,
+  drawStrength: 0,
+  hitFeedback: null,
+  astraReady: false,
   setPrompt: (prompt) => set((s) => (s.prompt === prompt ? s : { prompt })),
   openDialogue: (dialogue) => set({ dialogue }),
   expect: (expected) => set({ expected, loaded: 0 }),
   markLoaded: () => set((s) => ({ loaded: s.loaded + 1 })),
   setBoss: (boss) => set({ boss }),
   setPaused: (paused) => set({ paused }),
+  setAimState: (isDrawing, hasTarget, drawStrength) =>
+    set((s) => {
+      if (s.isDrawing === isDrawing && s.hasTarget === hasTarget && Math.abs(s.drawStrength - drawStrength) < 0.005) {
+        return s
+      }
+      return { isDrawing, hasTarget, drawStrength }
+    }),
+  triggerHitFeedback: (hitFeedback) => {
+    set({ hitFeedback })
+    setTimeout(() => {
+      set((s) => (s.hitFeedback === hitFeedback ? { hitFeedback: null } : s))
+    }, BALANCE.ui.HIT_FEEDBACK_MS)
+  },
+  setAstraReady: (astraReady) => set({ astraReady }),
 }))
 
 export interface WorldSim {
@@ -68,6 +101,9 @@ export interface WorldSim {
   swordSlashUntilTick: number
   /** Hold-to-charge state for the astra cast, same shape as the bow's draw. */
   astraCharge: DrawState
+  /** Whether the on-screen Astra button is being held down. */
+  astraButtonHeld: boolean
+  astraReady: boolean
   npcs: NpcPoint[]
   ground: Object3D[]
   hittable: Object3D[]
@@ -93,6 +129,8 @@ export const world: WorldSim = {
   arrowPickups: [],
   swordSlashUntilTick: 0,
   astraCharge: NO_DRAW,
+  astraButtonHeld: false,
+  astraReady: false,
   npcs: [],
   ground: [],
   hittable: [],
@@ -116,7 +154,9 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.arrowPickups = []
   world.swordSlashUntilTick = 0
   world.astraCharge = NO_DRAW
+  world.astraButtonHeld = false
+  world.astraReady = false
   world.alpha = 0
   world.tick = 0
-  worldStore.setState({ prompt: null, dialogue: null, paused: false })
+  worldStore.setState({ prompt: null, dialogue: null, paused: false, isDrawing: false, hasTarget: false, drawStrength: 0, astraReady: false })
 }

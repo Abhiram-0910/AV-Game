@@ -10,6 +10,7 @@ import { initLoaders } from '@render/loaders'
 import { type ResolvedTier, setAssetTier } from '@render/manifest'
 import { PerfOverlay, PerfProbe } from '@render/perf-overlay'
 import { perfStats } from '@render/perf-stats'
+import { PostProcessing } from '@render/PostProcessing'
 import { isSoftwareRenderer, resolveTier } from '@render/quality-tier'
 import { L1Court } from '@scenes/L1Court'
 import { L2Forest } from '@scenes/L2Forest'
@@ -20,6 +21,7 @@ import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
 import { TitleScreen } from '@ui/TitleScreen'
 import { useGame, useScreen } from '@ui/use-game'
+import { initAudioDispatcher } from '@systems/audio'
 import { world, worldStore } from '@systems/world'
 import './ui/ui.css'
 
@@ -63,6 +65,7 @@ export function App() {
   const [tier, setTier] = useState<ResolvedTier | null>(null)
   const screen = useScreen((s) => s.screen)
   useEffect(() => persistOnChange(), [])
+  useEffect(() => initAudioDispatcher(), [])
   useEffect(() => {
     if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats } })
   }, [])
@@ -78,6 +81,7 @@ export function App() {
         onCreated={(state) => void boot(state, setTier)}
       >
         {showLevel && <Level tier={tier} />}
+        {tier === 'high' && showLevel && <PostProcessing />}
         {DEBUG.overlay && <PerfProbe />}
       </Canvas>
       <div className="overlay">

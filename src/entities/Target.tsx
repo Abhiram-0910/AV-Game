@@ -10,6 +10,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import type { Group } from 'three'
 import type { TargetDef } from '@data/levels'
+import { gameStore } from '@core/game-state'
 import { world, worldStore } from '@systems/world'
 import { disposeTree } from '@render/dispose'
 import { loadGltf } from '@render/loaders'
@@ -17,7 +18,13 @@ import type { ResolvedTier } from '@render/manifest'
 import { applyTierMaterials } from '@render/materials'
 import { mergeByMaterial } from '@render/merge'
 
-export function Target({ def, tier }: { def: TargetDef; tier: ResolvedTier }) {
+export interface TargetProps {
+  def: TargetDef
+  tier: ResolvedTier
+  onHit?: (target: Group) => void
+}
+
+export function Target({ def, tier, onHit }: TargetProps) {
   const [group, setGroup] = useState<Group | null>(null)
   const ref = useRef<Group | null>(null)
   useEffect(() => {
@@ -35,6 +42,7 @@ export function Target({ def, tier }: { def: TargetDef; tier: ResolvedTier }) {
       built.position.set(def.pos[0], def.pos[1], def.pos[2])
       if (def.kind === 'astraOnly') built.userData.requiresAstra = true
       if (def.kind === 'lateral') built.userData.lateral = { baseX: def.pos[0], amplitude: def.amplitude, periodTicks: def.periodTicks }
+      built.userData.onHit = onHit ?? (() => gameStore.getState().progress({ kind: 'hitTargets' }))
       world.hittable.push(built)
       ref.current = built
       setGroup(built)
@@ -48,7 +56,7 @@ export function Target({ def, tier }: { def: TargetDef; tier: ResolvedTier }) {
         disposeTree(built, { textures: false })
       }
     }
-  }, [def, tier])
+  }, [def, tier, onHit])
   useFrame(() => {
     if (!ref.current) return
     ref.current.visible = world.hittable.includes(ref.current)

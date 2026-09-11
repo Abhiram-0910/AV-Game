@@ -8,11 +8,13 @@ import { applyArrowHit } from '../ai/enemy-ai'
 import { grounded, launchArrow, shouldFailArrowsOut, stepArrow } from './ballistics'
 import { drawFraction, stepDraw } from './draw'
 import { createHitTester, resolveHitRoot } from './hit-test'
-import { world } from '../world'
+import { playAudio } from '../audio'
+import { world, worldStore } from '../world'
 
 const AIM = BALANCE.archeryAim
 const hitTest = createHitTester()
-const dir = new Vector3()
+const targetDir = new Vector3()
+const currentDir = new Vector3()
 
 /** A 'lateral' target (entities/Target.tsx tags it in userData) is moved here, once per fixed
  * tick, right before this tick's hit-test — not in a render-frame useFrame. Under SwiftShader's
@@ -32,8 +34,10 @@ function updateAimDir(): void {
   const m = platform.input.mouse()
   const yaw = world.player.yaw + m.x * AIM.MOUSE_YAW_RAD
   const pitch = m.y * AIM.MOUSE_PITCH_RAD
-  dir.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize()
-  world.aimDir = [dir.x, dir.y, dir.z]
+  targetDir.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize()
+  currentDir.set(world.aimDir[0], world.aimDir[1], world.aimDir[2])
+  currentDir.lerp(targetDir, AIM.SMOOTH_FACTOR).normalize()
+  world.aimDir = [currentDir.x, currentDir.y, currentDir.z]
 }
 
 function updateBlend(dt: number): void {
@@ -56,43 +60,61 @@ function targetsRemaining(): number {
   return def.objectives.reduce((n, o, i) => (o.kind === 'hitTargets' ? n + (o.count - s.objectives[i].progress) : n), 0)
 }
 
+function handleArrowHit(hit: NonNullable<ReturnType<typeof hitTest>>): void {
+  const root = resolveHitRoot(hit.object, world.hittable)
+  const enemy = root && world.enemies.find((e) => e.root === root)
+  if (enemy?.kind === 'maricha') {
+    // Maricha is never killed by an arrow — only the Manava astra touches him.
+  } else if (enemy) {
+    playAudio('arrow_hit_flesh')
+    worldStore.getState().triggerHitFeedback('enemy')
+    const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
+    applyArrowHit(enemy, world.tick, distance)
+    if (enemy.state === 'dead') {
+      world.hittable = world.hittable.filter((o) => o !== root)
+      gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
+    }
+  } else if (root?.userData.requiresAstra) {
+    // A plain arrow bounces off — target stays hittable for astra.
+    playAudio('arrow_hit_target')
+  } else if (root) {
+    playAudio('arrow_hit_target')
+    worldStore.getState().triggerHitFeedback('target')
+    world.hittable = world.hittable.filter((o) => o !== root)
+    if (typeof root.userData.onHit === 'function') {
+      root.userData.onHit(root)
+    } else {
+      gameStore.getState().progress({ kind: 'hitTargets' })
+    }
+    const store = gameStore.getState()
+    if (store.level === 'l4' && targetsRemaining() <= 1) {
+      worldStore.getState().setAstraReady(true)
+      world.astraReady = true
+      if (store.astraCharges <= 0) store.addAstraCharge()
+    }
+  }
+}
+
 export function stepArchery(dt: number): void {
   updateMovingTargets(world.tick)
   updateAimDir()
   const { state, released } = stepDraw(world.draw, platform.input.mouse().down)
+  if (state.drawing && !world.draw.drawing) playAudio('bow_draw')
   world.draw = state
   updateBlend(dt)
-  if (released !== null) fire(released)
+  if (released !== null) {
+    playAudio('bow_release')
+    fire(released)
+  }
   const next = []
   for (const a of world.arrows) {
     const moved = stepArrow(a, dt)
     const hit = hitTest(a, moved, world.hittable)
     if (hit) {
-      const root = resolveHitRoot(hit.object, world.hittable)
-      const enemy = root && world.enemies.find((e) => e.root === root)
-      if (enemy?.kind === 'maricha') {
-        // Maricha is never killed by an arrow — the text is explicit that only the Manava
-        // astra touches him (see systems/astra/step.ts). A plain arrow just bounces off.
-      } else if (enemy) {
-        // Enemies take repeated hits — only remove from hittable once actually defeated.
-        const distance = Math.hypot(enemy.x - world.player.x, enemy.z - world.player.z)
-        applyArrowHit(enemy, world.tick, distance)
-        if (enemy.state === 'dead') {
-          world.hittable = world.hittable.filter((o) => o !== root)
-          gameStore.getState().progress({ kind: 'defeat', enemy: enemy.kind })
-        }
-      } else if (root?.userData.requiresAstra) {
-        // A plain arrow bounces off — the target stays hittable for a fired astra instead.
-      } else if (root) {
-        // A struck target stops being hittable so the same one can't be counted twice.
-        world.hittable = world.hittable.filter((o) => o !== root)
-        gameStore.getState().progress({ kind: 'hitTargets' })
-      }
+      handleArrowHit(hit)
     } else if (moved.alive && !grounded(moved)) {
       next.push(moved)
     } else if (moved.alive) {
-      // A miss embeds in the ground and can be walked back to (see stepInteraction) — capped
-      // so a long fight's list of piles doesn't grow without bound.
       world.arrowPickups.push({ x: moved.x, z: moved.z })
       if (world.arrowPickups.length > BALANCE.interaction.MAX_ARROW_PICKUPS) world.arrowPickups.shift()
     }

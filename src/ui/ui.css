@@ -243,10 +243,117 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  width: min(440px, 80vw);
+  background: rgba(16, 12, 10, 0.75);
+  padding: 8px 16px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(200, 60, 50, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}
+.enemy-health-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: baseline;
+}
+.enemy-health-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: #ff9580;
+  letter-spacing: 0.15em;
+}
+.enemy-health-numeric {
+  font-size: 14px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.enemy-health-track {
+  width: 100%;
+  height: 14px;
+  background: rgba(40, 10, 10, 0.8);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 100, 80, 0.3);
 }
 .hud-boss .bar-fill {
-  background: linear-gradient(90deg, #7a1f1f, #c9432c);
+  height: 100%;
+  background: linear-gradient(90deg, #991b1b, #ef4444);
+  transition: width 0.2s ease-out;
+}
+.enemy-health-bar--damaged {
+  border-color: #ffd784 !important;
+  box-shadow: 0 0 24px rgba(255, 180, 50, 0.8), 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+  animation: boss-hit-shake 0.28s ease-out;
+}
+.enemy-health-fill--flash {
+  background: linear-gradient(90deg, #ffdd44, #ff5a4a) !important;
+  filter: brightness(1.5);
+}
+@keyframes boss-hit-shake {
+  0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% - 4px)); }
+  75% { transform: translateX(calc(-50% + 4px)); }
+}
+.enemy-health-fill--critical {
+  background: linear-gradient(90deg, #b91c1c, #f87171) !important;
+  animation: pulse-health 0.8s infinite alternate ease-in-out;
+}
+@keyframes pulse-health {
+  from { opacity: 0.8; }
+  to { opacity: 1; filter: brightness(1.3); }
+}
+
+.hud-astra-btn {
+  position: absolute;
+  right: 28px;
+  bottom: 84px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  background: linear-gradient(135deg, rgba(40, 15, 8, 0.9), rgba(20, 8, 4, 0.95));
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(230, 180, 80, 0.45), 0 4px 12px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 10;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.hud-astra-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: #ffe082;
+  box-shadow: 0 0 24px rgba(255, 200, 80, 0.7), 0 6px 16px rgba(0, 0, 0, 0.7);
+}
+.hud-astra-btn:active {
+  transform: translateY(0) scale(0.98);
+  filter: brightness(1.2);
+}
+.hud-astra-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.hud-astra-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.hud-astra-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffd784;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hud-astra-key {
+  font-size: 13px;
+  color: var(--ink-dim);
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 .hud-objective {
   position: absolute;
@@ -287,12 +394,37 @@
   transform: translateX(-50%);
   width: min(900px, calc(100% - 48px));
   min-height: 140px;
-  padding: 18px 28px 14px;
+  padding: 18px 24px 14px;
   background: var(--scrim);
   border: 1px solid rgba(230, 180, 80, 0.4);
   border-radius: 12px;
   color: var(--ink);
   cursor: pointer;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.dialogue-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dialogue-portrait-frame {
+  flex-shrink: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 12px rgba(255, 215, 132, 0.25);
+  background: #140e08;
+}
+.dialogue-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .dialogue-speaker {
   font-family: var(--font-display);
@@ -346,3 +478,105 @@
   font-size: 13px;
   color: #9a9a9a;
 }
+
+/* Archery aiming crosshair and draw strength gauge */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--gold);
+  transition: color 100ms ease, transform 100ms ease;
+}
+.crosshair--drawing {
+  transform: translate(-50%, -50%) scale(1.08);
+}
+.crosshair--target {
+  color: #7ee787;
+  filter: drop-shadow(0 0 6px rgba(126, 231, 135, 0.75));
+  transform: translate(-50%, -50%) scale(1.18);
+}
+.crosshair--hit-enemy {
+  color: #ef4444 !important;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9));
+  transform: translate(-50%, -50%) scale(1.22);
+}
+.crosshair--hit-target {
+  color: #ffd784 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 132, 0.9));
+  transform: translate(-50%, -50%) scale(1.22);
+}
+.crosshair-hitmarker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  animation: hitmarker-pop 160ms ease-out forwards;
+}
+.crosshair-hitmarker--enemy {
+  color: #ef4444;
+}
+.crosshair-hitmarker--target {
+  color: #ffd784;
+}
+@keyframes hitmarker-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+.crosshair-reticle {
+  width: 100%;
+  height: 100%;
+}
+.draw-gauge {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.draw-gauge--active {
+  opacity: 1;
+}
+.draw-gauge-bar {
+  height: 6px;
+  background: rgba(12, 8, 4, 0.7);
+  border: 1px solid rgba(230, 180, 80, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.draw-gauge-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d9a441, #ffd784);
+  transition: width 50ms linear;
+}
+.draw-gauge-fill--ready {
+  background: linear-gradient(90deg, #ffd784, #7ee787);
+}
+.draw-gauge-fill--full {
+  background: #7ee787;
+  box-shadow: 0 0 4px #7ee787;
+}
+

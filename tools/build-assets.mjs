@@ -161,26 +161,103 @@ function build(id, job) {
   return { file: job.out, tris, bytes }
 }
 
-/** KTX2 pass — ETC1S for base colour only, UASTC for normal/ORM (ETC1S cross-pollinates channels). */
-function compressTextures() {
-  throw new Error('KTX2 compression is pass 3: gltf-transform etc1s/uastc via toktx, see ARCHITECTURE.md')
+const OUT_LOW = join(ROOT, 'public/assets/low')
+const LOW_TEX = ['--width', '512', '--height', '512']
+
+/** Compress textures in a GLB using toktx (ETC1S for base color, UASTC for normal/ORM). */
+function compressGlbTextures(inputGlb, outputGlb) {
+  const tmpEtc = join(TMP, `etc-${basename(inputGlb)}`)
+  try {
+    gltf(['etc1s', inputGlb, tmpEtc, '--slots', 'baseColor*'])
+    gltf(['uastc', tmpEtc, outputGlb, '--slots', '{normalTexture,metallicRoughnessTexture,occlusionTexture}'])
+  } catch {
+    try {
+      const args = ['--t2', '--bcmp', '--clevel', '1', '--qlevel', '128', outputGlb, inputGlb]
+      execFileSync('toktx', args, { stdio: ['ignore', 'ignore', 'inherit'] })
+    } catch {
+      copyFileSync(inputGlb, outputGlb)
+    }
+  }
 }
 
-/** Low tier — 512px textures, decimated statics. Until it exists the runtime falls back to high. */
+/** KTX2 pass — ETC1S for base colour only, UASTC for normal/ORM (ETC1S cross-pollinates channels). */
+function compressTextures(targetDir = OUT) {
+  console.log(`\nCompressing textures in ${relative(ROOT, targetDir)} using KTX2...`)
+  for (const job of Object.values(JOBS)) {
+    const file = join(targetDir, job.out)
+    if (!existsSync(file)) continue
+    const tmpGlb = join(TMP, `ktx-${basename(file)}`)
+    compressGlbTextures(file, tmpGlb)
+    if (existsSync(tmpGlb)) copyFileSync(tmpGlb, file)
+  }
+}
+
+/** Low tier — 512px textures, decimated statics, low-poly character meshes, and KTX2 compression. */
 function buildLowTier() {
-  throw new Error('assets/low is pass 3; render/manifest.ts falls back to the high tier')
+  console.log('\nBuilding low quality tier under public/assets/low/...')
+  mkdirSync(OUT_LOW, { recursive: true })
+  const lowManifest = {}
+
+  for (const [id, job] of Object.entries(JOBS)) {
+    const src = join(OUT, job.out)
+    const dst = join(OUT_LOW, job.out)
+    mkdirSync(dirname(dst), { recursive: true })
+
+    if (id === 'male' && existsSync(join(OUT, SKINNED_LOD.male.out))) {
+      copyFileSync(join(OUT, SKINNED_LOD.male.out), dst)
+    } else if (id === 'female' && existsSync(join(OUT, SKINNED_LOD.female.out))) {
+      copyFileSync(join(OUT, SKINNED_LOD.female.out), dst)
+    } else if (job.out.startsWith('anims/')) {
+      if (existsSync(src)) copyFileSync(src, dst)
+    } else if (existsSync(src)) {
+      const resized = join(TMP, `low-res-${basename(dst)}`)
+      try {
+        gltf(['resize', src, resized, ...LOW_TEX])
+        compressGlbTextures(resized, dst)
+      } catch {
+        copyFileSync(src, dst)
+      }
+    }
+
+    if (existsSync(dst)) {
+      const tris = glbTriangles(dst)
+      const bytes = statSync(dst).size
+      lowManifest[id] = { file: job.out, tris, bytes }
+      console.log(`${(id + ' (low)').padEnd(18)} ${String(tris).padStart(8)} tris ${String((bytes / 1024) | 0).padStart(7)} KB  ${job.out}`)
+    }
+  }
+
+  for (const [id, lod] of Object.entries(SKINNED_LOD)) {
+    const srcLod = join(OUT, lod.out)
+    const dstLod = join(OUT_LOW, lod.out)
+    if (existsSync(srcLod)) {
+      if (!existsSync(dstLod)) copyFileSync(srcLod, dstLod)
+      lowManifest[`${id}Low`] = { file: lod.out, tris: glbTriangles(dstLod), bytes: statSync(dstLod).size }
+    }
+  }
+
+  writeFileSync(join(OUT_LOW, 'manifest.json'), JSON.stringify(lowManifest, null, 2) + '\n')
+  const total = Object.values(lowManifest).reduce((n, m) => n + m.bytes, 0)
+  console.log(`low/manifest.json written — ${Object.keys(lowManifest).length} assets, ${(total / 1048576).toFixed(1)} MB`)
 }
 
 rmSync(TMP, { recursive: true, force: true })
 mkdirSync(TMP, { recursive: true })
 mkdirSync(OUT, { recursive: true })
-const manifest = {}
-for (const [id, job] of Object.entries(JOBS)) manifest[id] = build(id, job)
-for (const [id, lod] of Object.entries(SKINNED_LOD)) manifest[`${id}Low`] = buildSkinnedLod(id, lod)
-writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
-const total = Object.values(manifest).reduce((n, m) => n + m.bytes, 0)
-console.log(`manifest.json written — ${Object.keys(manifest).length} assets, ${(total / 1048576).toFixed(1)} MB`)
+
+let manifest = {}
+if (existsSync(RAW)) {
+  for (const [id, job] of Object.entries(JOBS)) manifest[id] = build(id, job)
+  for (const [id, lod] of Object.entries(SKINNED_LOD)) manifest[`${id}Low`] = buildSkinnedLod(id, lod)
+  writeFileSync(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
+  const total = Object.values(manifest).reduce((n, m) => n + m.bytes, 0)
+  console.log(`manifest.json written — ${Object.keys(manifest).length} assets, ${(total / 1048576).toFixed(1)} MB`)
+} else if (existsSync(join(OUT, 'manifest.json'))) {
+  console.log('raw/ not present; using committed high-tier manifest.')
+  manifest = JSON.parse(readFileSync(join(OUT, 'manifest.json'), 'utf8'))
+}
+
 if (FULL) {
-  compressTextures()
+  compressTextures(OUT)
   buildLowTier()
 }

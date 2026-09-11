@@ -34,13 +34,13 @@ export const BALANCE = {
   arrow: {
     DAMAGE: 15,
     HEADSHOT_DAMAGE: 30,
-    SPEED: 40,
+    SPEED: 42,
     GRAVITY: 9.8,
     LIFETIME_TICKS: 180,
     /** Ticks from click to release at full draw. */
-    DRAW_TICKS: 30,
+    DRAW_TICKS: 28,
     /** Minimum draw fraction that still fires. */
-    MIN_DRAW: 0.25,
+    MIN_DRAW: 0.2,
     HIT_RADIUS: 0.45,
     HEAD_RADIUS: 0.18,
   },
@@ -58,26 +58,12 @@ export const BALANCE = {
   },
 
   enemies: {
-    // DAMAGE lowered (10→6) and ATTACK_COOLDOWN raised (60→90) from the pass-1 draft:
-    // playtesting Level 5 (pass 3 phase G) found the player's own hit-invuln (INVULN_TICKS,
-    // shared across every attacker) caps incoming damage at one landed hit per invuln window
-    // regardless of how many rakshasas are in reach — so surrounded at the altar with the
-    // original numbers, a fully passive player died in well under 10 seconds, before a single
-    // wave was even thinned out. The lowered numbers give a real margin without changing how
-    // many arrows a rakshasa takes to kill (HEALTH untouched).
-    // YAJNA_DAMAGE lowered 5→4 alongside yajna.HIT_INVULN_TICKS (see balance.yajna): even
-    // rate-limited to one landing per invuln window, sustained sieges during an arrow-pickup
-    // run (see interact.ts's nearestPickupIndex) drained the fire faster than the wave schedule
-    // gives a realistic kill rate to keep up with.
-    rakshasa: { HEALTH: 30, SPEED: 3.0, DAMAGE: 6, ATTACK_COOLDOWN: 90, REACH: 1.6, YAJNA_DAMAGE: 4 },
-    // ATTACK_COOLDOWN raised and DAMAGE lowered from the pass-1 draft (90 / 15): playtesting the
-    // L3 fight (pass 3 phase D) found the original numbers let her kill a 100-health player in
-    // under 7 hits, faster than a bow-only player could land the 10 arrow hits her 150 health
-    // needs. 180 (~3s between attacks) and 10 damage (10 hits to kill the player) give an actual
-    // margin for a level meant to teach the mechanic, not punish a slow shot.
+    // Tuned for margin: player hit-invuln caps incoming damage; health allows realistic kill rates.
+    rakshasa: { HEALTH: 30, SPEED: 2.8, DAMAGE: 6, ATTACK_COOLDOWN: 90, REACH: 1.6, YAJNA_DAMAGE: 3 },
+    // Tuned for L3 tutorial margin: 180 cooldown (~3s) and 10 damage give room to aim arrows.
     tataka: { HEALTH: 150, SPEED: 2.4, DAMAGE: 10, ATTACK_COOLDOWN: 180, REACH: 2.4, YAJNA_DAMAGE: 0 },
-    subahu: { HEALTH: 120, SPEED: 3.2, DAMAGE: 15, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
-    maricha: { HEALTH: 90, SPEED: 3.6, DAMAGE: 12, ATTACK_COOLDOWN: 75, YAJNA_DAMAGE: 10, REACH: 2.0 },
+    subahu: { HEALTH: 120, SPEED: 3.0, DAMAGE: 12, ATTACK_COOLDOWN: 90, YAJNA_DAMAGE: 7, REACH: 2.0 },
+    maricha: { HEALTH: 90, SPEED: 3.4, DAMAGE: 10, ATTACK_COOLDOWN: 90, YAJNA_DAMAGE: 6, REACH: 2.0 },
   },
 
   combat: {
@@ -105,19 +91,16 @@ export const BALANCE = {
   },
 
   yajna: {
-    // Raised 100→140 (pass 3 phase G): even with HIT_INVULN_TICKS capping the drain rate to one
-    // landed hit per window regardless of concurrent attackers, arrow supply can't keep every
-    // rakshasa off the fire at once — 100 gave less runway than the wave schedule needs to be
-    // survivable at a realistic kill rate.
-    MAX_INTEGRITY: 140,
+    /** Sacred fire health (pass 3 phase G: raised to 150 to survive wave pressure). */
+    MAX_INTEGRITY: 150,
     /** Level 5 total guard duration (the six days and nights, compressed). */
     GUARD_TICKS: 5400,
-    /** Ticks the fire ignores further hits after one lands — mirrors player.INVULN_TICKS so
-     * several rakshasas reaching it in the same moment don't stack unmitigated damage. Wider
-     * than the player's own 45 (pass 3 phase G): a guard away on an arrow-pickup run (the fight
-     * runs the quiver dry more than once) leaves the fire briefly undefended, and it has no
-     * regen to fall back on the way the player's health does. */
-    HIT_INVULN_TICKS: 60,
+    /** Ticks the fire ignores further hits after one lands (prevents multi-hit stacking). */
+    HIT_INVULN_TICKS: 75,
+    /** Radius in metres around the altar for defense and fire awareness. */
+    DEFENSE_RADIUS: 4.0,
+    /** Ticks between automatic arrow supply bundle replenishment during heavy waves. */
+    SUPPLY_RESPAWN_TICKS: 450,
   },
 
   targets: {
@@ -143,6 +126,18 @@ export const BALANCE = {
     AIM_BLEND_OUT_SEC: 0.25,
     /** Clamp on pitch so the arms never fold through the torso. */
     MAX_PITCH_RAD: 1.1,
+    /** Ticks from click to full draw strength (mirrors arrow.DRAW_TICKS). */
+    DRAW_TICKS: 28,
+    /** Minimum draw fraction required to fire. */
+    MIN_DRAW: 0.2,
+    /** Maximum steps to sample for trajectory preview raycast. */
+    TRAJECTORY_MAX_STEPS: 90,
+    /** Draw gauge width in px on the HUD overlay. */
+    GAUGE_WIDTH: 64,
+    /** Radius in metres for proximity magnetism/assist toward targets/enemies. */
+    AIM_ASSIST_RADIUS: 0.85,
+    /** Fraction to bias trajectory landing point toward target center on assist lock (0..1). */
+    AIM_ASSIST_BIAS: 0.35,
   },
 
   archeryAim: {
@@ -154,23 +149,20 @@ export const BALANCE = {
     /** Arrow leaves from this height above the feet, this far ahead. */
     MUZZLE_HEIGHT: 1.35,
     MUZZLE_FORWARD: 0.5,
-    /** Bow grip: local offset, euler (radians), and uniform scale under hand_l. The Quaternius
-     * source model bakes a ~2m standing bow (node scale 100 on a centimetre-authored mesh) —
-     * BOW_GRIP_SCALE corrects it to a believable ~1.3m held bow. */
+    /** Bow grip: local offset, euler (radians), and uniform scale under hand_l. */
     BOW_GRIP_POS: [0, 0, 0],
     BOW_GRIP_ROT: [Math.PI / 2, 0, 0],
     BOW_GRIP_SCALE: 0.65,
-    /** Quiver on the back: local offset, euler, and scale under spine_03. Same oversized-source
-     * correction as the bow — the stand-in arrow model bakes to ~1.5m. */
+    /** Quiver on the back: local offset, euler, and scale under spine_03. */
     QUIVER_POS: [-0.15, 0.1, -0.12],
     QUIVER_ROT: [0.3, 0, 0.5],
     QUIVER_SCALE: 0.45,
+    /** Exponential smoothing factor for mouse aiming direction (0..1). */
+    SMOOTH_FACTOR: 0.35,
   },
 
   melee: {
-    /** Sword grip: local offset, euler (radians), and scale under hand_r. Same 90° convention
-     * as the bow grip — the source model is authored blade-up, +Y, like the bow's own rig pose.
-     * The source model bakes to a ~2.3m blade; SWORD_GRIP_SCALE corrects it to a ~1m sword. */
+    /** Sword grip: local offset, euler (radians), and scale under hand_r. */
     SWORD_GRIP_POS: [0, 0, 0],
     SWORD_GRIP_ROT: [Math.PI / 2, 0, 0],
     SWORD_GRIP_SCALE: 0.4,
@@ -183,13 +175,11 @@ export const BALANCE = {
     DHOTI_WAIST_RADIUS: 0.19,
     DHOTI_HEM_FLARE: 1.25,
     DHOTI_RADIAL_SEGMENTS: 16,
-    /** Angavastram sash: width and thickness in metres, and how far off the spine's
-     * centerline it's pushed so it drapes on the chest surface instead of inside the torso. */
+    /** Angavastram sash: width, thickness (metres), and spine centerline surface offset. */
     SASH_WIDTH: 0.12,
     SASH_THICKNESS: 0.03,
     SASH_SURFACE_OFFSET: 0.16,
-    /** Choli (torso wrap): covers the female base mesh from the waist to the collarbone —
-     * its baked-in top is otherwise fully exposed above the dhoti (see TODO.md, pass 3 phase B). */
+    /** Choli (torso wrap) waist radius and radial segments. */
     CHOLI_RADIUS: 0.24,
     CHOLI_RADIAL_SEGMENTS: 16,
   },
@@ -200,10 +190,9 @@ export const BALANCE = {
     /** Metres from an NPC within which the talk prompt appears. */
     TALK_RADIUS: 2.6,
     /** Metres from a spent-arrow pile within which the pickup prompt appears. */
-    PICKUP_RADIUS: 2.0,
-    /** Oldest pile is dropped once a level's spent-arrow piles reach this count — Level 5's
-     * long fight would otherwise grow the list for the whole 90+s guard duration. */
-    MAX_ARROW_PICKUPS: 8,
+    PICKUP_RADIUS: 2.2,
+    /** Oldest pile is dropped once spent-arrow piles reach this count. */
+    MAX_ARROW_PICKUPS: 10,
   },
 
   locomotion: {
@@ -252,11 +241,17 @@ export const BALANCE = {
     BENCH_CAMERA: { FOV: 50, NEAR: 0.1, FAR: 50, DISTANCE: 4 },
     /** MeshStandardMaterial roughness on the high tier. */
     STANDARD_ROUGHNESS: 0.85,
-    /** Blob shadow disc radius in metres, its opacity, height above the floor, and gradient softness (0..1). */
+    /** Blob shadow disc (radius, opacity, floor lift, gradient softness). */
     BLOB_RADIUS: 0.55,
     BLOB_OPACITY: 0.45,
     BLOB_LIFT: 0.02,
     BLOB_SOFTNESS: 0.6,
+    /** High tier post-processing (bloom and vignette). */
+    BLOOM_STRENGTH: 0.35,
+    BLOOM_RADIUS: 0.4,
+    BLOOM_THRESHOLD: 0.85,
+    VIGNETTE_OFFSET: 1.05,
+    VIGNETTE_DARKNESS: 1.1,
   },
 
   animation: {
@@ -267,9 +262,23 @@ export const BALANCE = {
   ui: {
     DIALOGUE_CHARS_PER_SEC: 40,
     HIT_FLASH_TICKS: 8,
+    /** Duration in ms to display hit-marker and flash on crosshair. */
+    HIT_FEEDBACK_MS: 160,
     /** Milliseconds a win/unlock card stays before Continue is offered. */
     RESULT_MIN_MS: 600,
     /** Perf overlay refresh, Hz. */
     OVERLAY_HZ: 4,
+  },
+
+  audio: {
+    MASTER_VOLUME: 0.8,
+    FOOTSTEP_WALK_INTERVAL_SEC: 0.42,
+    FOOTSTEP_RUN_INTERVAL_SEC: 0.28,
+  },
+
+  lighting: {
+    L3_AMBIENT_INTENSITY: 0.95,
+    L3_FILL_INTENSITY: 0.65,
+    L3_SUN_INTENSITY: 1.8,
   },
 } as const

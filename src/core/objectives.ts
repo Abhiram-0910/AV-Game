@@ -63,6 +63,25 @@ export function allDone(progress: readonly ObjectiveProgress[]): boolean {
   return progress.every((p) => p.done)
 }
 
+/** Check if all level objectives are met. Pure. */
+export function checkLevelObjectives(progress: readonly ObjectiveProgress[]): boolean {
+  return allDone(progress)
+}
+
+/** Mark an objective as complete (at index, or the current incomplete objective). Pure. */
+export function completeObjective(
+  objectives: readonly Objective[],
+  progress: readonly ObjectiveProgress[],
+  index?: number,
+): ObjectiveProgress[] {
+  const i = index ?? currentObjectiveIndex(progress)
+  if (i < 0 || i >= objectives.length) return [...progress]
+  const o = objectives[i]
+  const needed = requiredFor(o)
+  return progress.map((p, idx) => (idx === i ? { done: true, progress: needed } : p))
+}
+
 export function currentObjectiveIndex(progress: readonly ObjectiveProgress[]): number {
   return progress.findIndex((p) => !p.done)
 }
+

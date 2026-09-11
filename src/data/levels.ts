@@ -202,11 +202,11 @@ export const LEVELS: readonly LevelDef[] = [
       // reason: a bow-only kill takes two arrows per rakshasa, and the original cadence
       // outpaced how fast a well-aimed player can drop one and reload for the next.
       { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 150, maxAlive: 3 },
-      { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 6 },
-      { startTick: 3000, kind: 'rakshasa', count: 8, spawnIntervalTicks: 75, maxAlive: 6 },
-      { startTick: 4500, kind: 'rakshasa', count: 4, spawnIntervalTicks: 90, maxAlive: 4 },
-      { startTick: 4500, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
-      { startTick: 4560, kind: 'maricha', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
+      { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 5 },
+      { startTick: 3100, kind: 'rakshasa', count: 7, spawnIntervalTicks: 100, maxAlive: 5 },
+      { startTick: 4600, kind: 'rakshasa', count: 4, spawnIntervalTicks: 110, maxAlive: 3 },
+      { startTick: 4600, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
+      { startTick: 4680, kind: 'maricha', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
     ],
     quizGate: null,
     codexCard: 'maricha-subahu',

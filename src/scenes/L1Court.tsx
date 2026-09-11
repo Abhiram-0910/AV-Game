@@ -6,6 +6,7 @@ import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { FollowCamera } from '@entities/FollowCamera'
 import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
@@ -47,7 +48,12 @@ export function L1Court({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         <NpcCharacter key={n.npc} placement={n} tier={tier} />
       ))}
       <Player tier={tier} bow={bow} />
-      {bow && <ArrowPool tier={tier} />}
+      {bow && (
+        <>
+          <ArrowPool tier={tier} />
+          <TrajectoryArc />
+        </>
+      )}
       <FollowCamera />
       <SimulationDriver bow={bow} />
     </group>

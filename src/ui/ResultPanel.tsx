@@ -4,6 +4,7 @@
 import { CODEX } from '@data/codex'
 import { UI } from '@data/dialogue'
 import { codexUnlockedBy } from '@core/progression'
+import { playAudio } from '@systems/audio'
 import { useGame } from './use-game'
 
 export function ResultPanel() {
@@ -25,7 +26,10 @@ export function ResultPanel() {
         type="button"
         className="btn"
         data-testid="result-continue"
-        onClick={() => dispatch(won ? 'NEXT' : 'RETRY')}
+        onClick={() => {
+          playAudio('button_click')
+          dispatch(won ? 'NEXT' : 'RETRY')
+        }}
         autoFocus
       >
         {won ? UI['result.next'] : UI['result.retry']}

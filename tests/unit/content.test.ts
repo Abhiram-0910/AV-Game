@@ -145,6 +145,16 @@ describe('built assets', () => {
     // Level 5's 12-concurrent budget (pass 3 Phase B blocker): 12 low-detail bodies must fit the 60k skinned ceiling.
     for (const id of ['maleLow', 'femaleLow']) expect(manifest[id].tris * 12).toBeLessThanOrEqual(60_000)
   })
+
+  const LOW_MANIFEST = 'public/assets/low/manifest.json'
+  it.skipIf(!existsSync(LOW_MANIFEST))('low tier manifest covers every ASSET_FILES entry and uses decimated characters', () => {
+    const manifest = JSON.parse(readFileSync(LOW_MANIFEST, 'utf8')) as Record<string, { file: string; tris: number }>
+    for (const [id, file] of Object.entries(ASSET_FILES)) {
+      expect(manifest[id]?.file, id).toBe(file)
+    }
+    expect(manifest.male.tris).toBeLessThanOrEqual(5500)
+    expect(manifest.female.tris).toBeLessThanOrEqual(5500)
+  })
 })
 
 describe('balance and strings', () => {

@@ -8,6 +8,7 @@ import { UI } from '@data/dialogue'
 import type { Question } from '@data/quiz'
 import { gameStore } from '@core/game-state'
 import { gateById } from '@core/progression'
+import { playAudio } from '@systems/audio'
 import { fmt } from './format'
 import { useGame } from './use-game'
 
@@ -37,7 +38,16 @@ function Feedback({ question, selected, isLast, onNext }: { question: Question; 
     <div className="quiz-feedback" data-testid="quiz-feedback">
       <p className={isCorrect ? 'quiz-correct' : 'quiz-wrong'}>{isCorrect ? UI['quiz.correct'] : UI['quiz.wrong']}</p>
       <p>{question.explanation}</p>
-      <button type="button" className="btn" data-testid="quiz-next" autoFocus onClick={onNext}>
+      <button
+        type="button"
+        className="btn"
+        data-testid="quiz-next"
+        autoFocus
+        onClick={() => {
+          playAudio('button_click')
+          onNext()
+        }}
+      >
         {isLast ? UI['quiz.done'] : UI['quiz.next']}
       </button>
     </div>
@@ -52,12 +62,17 @@ export function QuizPanel() {
   const question = gate.questions[quiz.index]
   const total = gate.questions.length
 
+  const onPick = (i: number) => {
+    setSelected(i)
+    playAudio(i === question.correct ? 'quiz_correct' : 'quiz_incorrect')
+  }
+
   return (
     <div className="screen quiz" data-testid="quiz">
       <h1>{UI['quiz.title']}</h1>
       <p data-testid="quiz-progress">{fmt(UI['quiz.progress'], { n: quiz.index + 1, total })}</p>
       <p className="quiz-prompt">{question.prompt}</p>
-      <Options question={question} selected={selected} onPick={setSelected} />
+      <Options question={question} selected={selected} onPick={onPick} />
       {selected !== null && (
         <Feedback
           question={question}
@@ -72,3 +87,6 @@ export function QuizPanel() {
     </div>
   )
 }
+
+export const QuizModal = QuizPanel
+

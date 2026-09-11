@@ -2,6 +2,225 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-10 — Antigravity — Level 4 Astra trigger & 5th target destruction, Level 3 Tataka boss health bar
+
+Implementing Level 4 Astra progression and Level 3 Boss Health Bar:
+
+**Built**
+- Level 4 Astra Trigger & Target Destruction (`src/systems/world.ts`, `src/systems/astra/step.ts`, `src/systems/archery/step.ts`, `src/scenes/L4Range.tsx`):
+  - Added `astraReady` state and setter to `worldStore` and `world` simulation state.
+  - In `archery/step.ts`: Hitting the 4th target automatically unlocks `worldStore.getState().setAstraReady(true)` and grants an astra charge if 0.
+  - In `L4Range.tsx`: `useAstraLesson` hook triggers Vishwamitra's Astra lesson dialogue (`'l4.vishwamitra.astras'`) upon 4 targets being hit (bypassed in headless `?debug` e2e runs to avoid modal pausing).
+  - In `astra/step.ts`: Implemented `findProximityHit` so Agneyastra hitscan features generous proximity targeting at range; misses in tutorial mode refund the charge so the player is never softlocked; firing the Astra against the 5th large target executes its `onHit` callback, destroys it, and completes the level. Exported `castAstra()`.
+  - In `SimulationDriver.tsx`: Allowed `Space`, `KeyQ`, `KeyE` (outside talk/pickup range), and virtual on-screen hold (`world.astraButtonHeld`) to summon Astra.
+- Astra HUD Button (`src/ui/AstraButton.tsx`, `src/ui/Hud.tsx`, `src/ui/ui.css`):
+  - Created `AstraButton` component rendering a glowing gold/fire badge on HUD when `astraReady` is true (Level 4 after 4 targets, or Level 5).
+  - Clearly displays keybindings `[Space] / [Q]` and supports both click-to-cast and hold-to-charge summoning.
+  - Updated `ObjectiveRow` and `hud-controls` in `Hud.tsx` to clearly indicate calling Astra once available.
+- Level 3 Tataka Boss Health Bar & Damage Feedback (`src/ui/EnemyHealthBar.tsx`, `src/scenes/L3Forest.tsx`, `src/entities/Enemy.tsx`, `src/ui/ui.css`):
+  - Registered Tataka as active boss in `worldStore` when clearing waypoint is reached in `L3Forest.tsx`.
+  - Removed upward import of `@ui/use-game` in `L3Forest.tsx`, using Zustand's `useStore(gameStore, ...)` directly.
+  - Updated `Enemy.tsx`'s `updateBossAndDissolve` to continuously synchronize boss HP with runtime health on every frame.
+  - Enhanced `EnemyHealthBar.tsx` with dynamic hit detection: triggers `.enemy-health-bar--damaged` (subtle screen shake, bright glowing border) and `.enemy-health-fill--flash` (bright yellow/red flash) on hit.
+- Unit Testing (`tests/unit/archery.test.ts`, `tests/unit/game-state.test.ts`):
+  - Added tests for `castAstra` hitting target, invoking `onHit`, and clearing from `world.hittable`.
+  - Added tests for Tataka boss health registration in `worldStore` and `astraReady` tracking.
+
+## 2026-09-10 — Antigravity — Level 5 (L5Yajna) balance pass, altar defense feedback, and arrow replenishment
+
+Implementing HANDOFF.md §6.6:
+
+**Built**
+- Level 5 Wave Cadence & Budget Tuning (`src/data/levels.ts`):
+  - Softened wave 3 start tick (3000 → 3100), count (8 → 7), maxAlive (6 → 5), and widened spawn interval (75 → 100 ticks / ~1.67s).
+  - Softened wave 4 start tick (4500 → 4600), maxAlive (4 → 3), and widened spawn interval (90 → 110 ticks / ~1.83s).
+  - Staggered boss arrival times: Subahu spawns at tick 4600, followed by Maricha at tick 4680 (+80 ticks), giving players time to address Subahu before dealing with Maricha's Manavastra requirement.
+  - Strictly preserves the ≤ 12 concurrent SkinnedMesh performance budget (3 persistent heroes + 5 peak wave enemies = 8 concurrent skinned meshes).
+- Sacred Fire Altar Visuals & Hit Feedback (`src/scenes/L5Yajna.tsx`):
+  - Created `AltarFire` component rendering a 3D brick sacrificial kunda with inner embers, dual flame cones, and dynamic fire light.
+  - Flame scale and point light intensity dynamically track altar integrity fraction (`yajnaIntegrity / BALANCE.yajna.MAX_INTEGRITY`).
+  - Added visual hit reaction: altar bricks, flame, and point light flash bright red (`#ff1100`) whenever `world.tick < yajnaInvulnUntil`.
+- Arrow Supply Replenishment & Visuals (`src/scenes/L5Yajna.tsx`):
+  - Created `ArrowPickupsVisual` rendering 3D golden ground decals and arrow bundle meshes at active pickup coordinates.
+  - Implemented `replenishSupply(tick)`: during intense waves 3–5 (`tick >= 2800`), automatically restocks arrow pickup bundles at 4 perimeter stations every `BALANCE.yajna.SUPPLY_RESPAWN_TICKS` (450 ticks) if active pickups are below 4, preventing ammo starvation.
+  - Respects clean layer architecture: `L5Yajna.tsx` accesses store state via Zustand hooks (`useStore(gameStore, ...)`), avoiding upward imports into `ui`.
+
+**Balance changes in `src/data/balance.ts` (Reasons)**
+- `enemies.rakshasa.SPEED` (3.0 → 2.8), `YAJNA_DAMAGE` (4 → 3): Decreased rush speed and altar damage so a player has enough time to acquire targets, draw, and fire two arrows per enemy before the altar is overrun.
+- `enemies.subahu.SPEED` (3.2 → 3.0), `DAMAGE` (15 → 12), `ATTACK_COOLDOWN` (75 → 90 ticks), `YAJNA_DAMAGE` (10 → 7): Broadened attack cooldown to 1.5s and reduced altar damage chunking so boss hits do not instantly deplete the altar during melee scuffles.
+- `enemies.maricha.SPEED` (3.6 → 3.4), `DAMAGE` (12 → 10), `ATTACK_COOLDOWN` (75 → 90 ticks), `YAJNA_DAMAGE` (10 → 6): Balanced Maricha's speed and cooldown to provide a realistic window to charge and fire the Manavastra.
+- `yajna.MAX_INTEGRITY` (140 → 150): Increased altar buffer to withstand sustained wave pressure during the final 90 seconds.
+- `yajna.HIT_INVULN_TICKS` (60 → 75 ticks): Widened hit invulnerability to 1.25s to prevent simultaneous multi-enemy hits from instantly draining the sacred fire.
+- `yajna.DEFENSE_RADIUS` (4.0): Added altar defense radius constant.
+- `yajna.SUPPLY_RESPAWN_TICKS` (450 ticks / 7.5s): Governs replenishment cadence for arrow pickups during waves 3–5.
+- `interaction.PICKUP_RADIUS` (2.0 → 2.2): Widened pickup radius for smoother arrow retrieval during active combat locomotion.
+
+## 2026-09-10 — Antigravity — Low quality tier asset generation and KTX2 texture compression
+
+Implementing HANDOFF.md §6.8:
+
+**Built**
+- Asset Build Pipeline (`tools/build-assets.mjs`):
+  - Implemented `compressGlbTextures()` and `compressTextures()` for KTX2 texture compression:
+    - Base color textures compressed with ETC1S via `gltf-transform etc1s` / child process `toktx --bcmp`, preserving RGB channels efficiently for integrated and mobile GPUs.
+    - Normal and ORM maps compressed with UASTC via `gltf-transform uastc` / `toktx --uastc`, preventing cross-channel RGB/A contamination.
+    - Graceful fallback when `toktx` is absent in system PATH.
+  - Implemented `buildLowTier()`:
+    - Generates `public/assets/low/` alongside `public/assets/high/`.
+    - Downscales static textures to 512px for low-end memory headroom.
+    - Uses decimated skinned character models (`male-low.glb` ~4.7k tris, `female-low.glb` ~4.7k tris) to strictly respect the 60k skinned triangle budget across 12 concurrent instances.
+    - Emits `public/assets/low/manifest.json`.
+    - Supports running with committed `public/assets/high/` when `raw/` is not present.
+- Runtime Tier Loader (`src/render/manifest.ts`, `src/render/tier-config.ts`):
+  - Updated `assetUrl(id)` in `src/render/manifest.ts` to load directly from `/assets/${activeTier}/${ASSET_FILES[id]}` without hardcoded high-tier fallback.
+  - Created `src/render/tier-config.ts` exporting `getTierDirectory`, `getTierAssetUrl`, `assetTier`, `assetUrl`, and `setAssetTier`.
+- Asset Synchronization & Testing (`vite.config.ts`, `tests/unit/content.test.ts`, `tests/unit/tier-config.test.ts`):
+  - Added `syncLowTier()` to `vite.config.ts` to automatically populate and keep `public/assets/low/` in sync with low-poly character substitution during dev/build/test.
+  - Added unit test in `content.test.ts` verifying `public/assets/low/manifest.json` covers all `ASSET_FILES` with decimated characters (≤ 5500 tris).
+  - Added unit test `tests/unit/tier-config.test.ts` validating tier URL resolution and runtime tier switching.
+  - Refactored `src/entities/SkyGradient.tsx` to declaratively attach sky gradient textures via `<primitive object={texture} attach="background" />`, eliminating `useThree` and manual `scene.background` mutations.
+- Electron Shell (`electron/main.ts`):
+  - Added Chromium command line switches `ignore-gpu-blocklist`, `enable-gpu-rasterization`, `enable-zero-copy`, and `enable-webgl` alongside `ozone-platform x11` to prevent Chromium from disabling WebGL2 on Linux/Ubuntu integrated Intel GPUs.
+
+## 2026-09-10 — Antigravity — Character portraits, toon cel-shading visual pass, sky gradients, and post-processing
+
+Implementing HANDOFF.md §6.3 & §6.4:
+
+**Built**
+- Character Portraits (`src/ui/DialoguePanel.tsx`, `src/ui/DialogueBox.tsx`, `src/ui/ui.css`, `vite.config.ts`):
+  - Generated high-fidelity 1024px stylized portraits for Rama, Dasharatha, Vishwamitra, Vasishtha, and Lakshmana via DeepMind generative imagery tooling, saved in project artifacts and synced to `public/assets/portraits/*.png` via `vite.config.ts`.
+  - Added `SpeakerPortrait` component to `DialoguePanel.tsx` rendering an ornate circular gold frame (`.dialogue-portrait-frame`) with drop shadow and subtle golden aura; added graceful fallback if an image is missing or errors.
+  - Created `src/ui/DialogueBox.tsx` re-exporting `DialogueBox` and `DialoguePanel` for consistent naming.
+  - Achieves rich narrative storytelling during dialogue sequences with zero runtime GPU overhead on integrated graphics.
+- Stylized Visual Pass & Cel-Shading (`src/render/materials.ts`, `src/entities/GroundPlane.tsx`):
+  - Created `getToonRamp()` returning a reusable 2-tone `DataTexture` (`NearestFilter`, shadow 0.45, highlight 1.0) and upgraded `tierMaterial()` to return `MeshToonMaterial` with `gradientMap` on low tier.
+  - Upgraded `GroundPlane.tsx` to use `meshToonMaterial` with `getToonRamp()` and expanded visual ground plane to the horizon (`Math.max(size * 3, 280)`) to eliminate abrupt level edge cutoffs.
+- Sky Gradient Atmospheres (`src/entities/SkyGradient.tsx`, `src/scenes/L2Forest.tsx`, `src/scenes/L3Forest.tsx`):
+  - Created lightweight `SkyGradient.tsx` component generating a 256×2 linear gradient canvas texture assigned to `scene.background` with automatic resource cleanup on unmount (0 geometry draw calls, 2KB memory).
+  - Mounted daytime sky gradient in `L2Forest.tsx` (`#3b7cb8` sky to `#bfe0ff` horizon to `#4a6b34` ground).
+  - Mounted dusk/night sky gradient in `L3Forest.tsx` (`#1a2528` sky to `#455448` horizon to `#243018` ground), completely eliminating black void contrast at ground borders.
+- High-Tier Post-Processing (`src/render/PostProcessing.tsx`, `src/App.tsx`):
+  - Created `PostProcessing.tsx` utilizing Three.js `EffectComposer`, `RenderPass`, `UnrealBloomPass`, `ShaderPass(VignetteShader)`, and `OutputPass`.
+  - Driven by `BALANCE.render` tunables (`BLOOM_STRENGTH: 0.35`, `BLOOM_RADIUS: 0.4`, `BLOOM_THRESHOLD: 0.85`, `VIGNETTE_OFFSET: 1.05`, `VIGNETTE_DARKNESS: 1.1`).
+  - Wired into `App.tsx` Canvas conditionally when `tier === 'high' && showLevel`, taking over the render loop via `useFrame(..., 1)` while leaving the low tier completely untouched at 60fps.
+  - Proper disposal of render targets, passes, and composer on unmount.
+- Configuration & Hook Fixes (`vite.config.ts`, `SkyGradient.tsx`, `PostProcessing.tsx`):
+  - Changed `defineConfig` in `vite.config.ts` to import from `vitest/config` to resolve TS2769 on `test`.
+  - Resolved `react-hooks/immutability` in `SkyGradient.tsx` with inline `eslint-disable-next-line react-hooks/immutability` comment above `scene.background` assignment and restore.
+  - Resolved `react-hooks/exhaustive-deps` warning in `PostProcessing.tsx` by including `size.width` and `size.height` in `useMemo` dependencies.
+
+**Balance changes in `src/data/balance.ts` (Reasons)**
+- `render.BLOOM_STRENGTH` (0.35), `render.BLOOM_RADIUS` (0.4), `render.BLOOM_THRESHOLD` (0.85): High-tier bloom parameters configured for soft atmospheric light bleeding without blowing out character silhouettes or UI text.
+- `render.VIGNETTE_OFFSET` (1.05) & `render.VIGNETTE_DARKNESS` (1.1): Soft cinematic vignette darkening edge pixels to focus visual attention on the central action.
+- Condensed verbose commentary in `enemies` to strictly respect the 300-line limit (file currently at 288 lines).
+
+## 2026-09-10 — Antigravity — TypeScript, ESLint, and audio dispatcher unit test fixes
+
+- `src/systems/archery/hit-test.ts`: Fixed `TS2322: Type 'number' is not assignable to type '0.85'` by adding explicit `number` type annotation to `let bestDist: number = BALANCE.archery.AIM_ASSIST_RADIUS`.
+- `src/systems/audio/synth.ts`: Fixed `TS2339: Property 'loop' does not exist on type 'OscillatorNode'` by removing `osc.loop = loop` from `playOscTone` (continuous tone playback is already governed by omitting `osc.stop` when looping).
+- `tests/unit/archery.test.ts`: Fixed `TS2345: Argument of type ... is not assignable to type 'ArrowState'` by adding `age: 0` and `age: 1` properties to the test mock arrow state objects.
+- `src/ui/TitleScreen.tsx`: Fixed ESLint `max-lines-per-function` error on `TitleScreen` (reduced from 62 lines to 33 lines) by extracting `ConfirmNewGameModal` (15 lines) and `TitleMenuActions` (39 lines) helper components.
+- `src/systems/audio/audio-dispatcher.ts`: Fixed failing unit test `transitions ambient loops and stings on level machine state changes` by having `playAudio`, `stopAudio`, and internal phase transition handlers route directly through `soundManager`, allowing test spies on `soundManager.play` to observe ambient loop and sting triggers.
+
+## 2026-09-10 — Antigravity — Level 3 lighting, enemy health bars, hit feedback, and aim assist
+
+**Built**
+- `src/data/balance.ts`:
+  - Added `BALANCE.lighting`: `L3_AMBIENT_INTENSITY: 0.95`, `L3_FILL_INTENSITY: 0.65`, `L3_SUN_INTENSITY: 1.8`.
+  - Added `BALANCE.archery.AIM_ASSIST_RADIUS: 0.85` and `BALANCE.archery.AIM_ASSIST_BIAS: 0.35`.
+  - Added `BALANCE.archeryAim.SMOOTH_FACTOR: 0.35`.
+  - Added `BALANCE.ui.HIT_FEEDBACK_MS: 160`.
+  - Condensed comments on prop attachments to keep file strictly under the 300-line cap (298 lines).
+- `src/data/scenery.ts` & `src/scenes/L3Forest.tsx`:
+  - Enhanced Level 3 lighting: upgraded ambient and sun light intensities and mounted a secondary hemisphere fill light (`#88a0b0`, `#2a3820`, `BALANCE.lighting.L3_FILL_INTENSITY`) to ensure character and environment visibility in the forest dusk setting without magic numbers.
+- `src/ui/EnemyHealthBar.tsx` & `src/ui/Hud.tsx`:
+  - Created standalone `EnemyHealthBar.tsx` presenting active boss name (`UI['name.' + boss.kind]`), numeric current/max health readout, animated gradient health track, and pulsing critical health effect when below 25% health. Replaced inline HUD boss bar with `<EnemyHealthBar />`.
+- `src/systems/world.ts`:
+  - Added reactive `hitFeedback: 'enemy' | 'target' | null` and `triggerHitFeedback` action to `worldStore` using `BALANCE.ui.HIT_FEEDBACK_MS` for timed auto-clearing.
+- `src/systems/archery/step.ts`:
+  - Implemented aim direction lerp smoothing in `updateAimDir` via `AIM.SMOOTH_FACTOR` to eliminate pointer jitter.
+  - Wired `worldStore.getState().triggerHitFeedback('enemy')` and `triggerHitFeedback('target')` into `handleArrowHit`.
+- `src/systems/astra/step.ts`:
+  - Wired `worldStore.getState().triggerHitFeedback('enemy')` and `triggerHitFeedback('target')` into astra hit resolutions.
+- `src/systems/archery/hit-test.ts` & `src/systems/archery/trajectory.ts`:
+  - Implemented proximity assist magnetism in `findProximityHit` and `testSegmentCollision`: detecting targets and enemies whose bounding centers fall within `BALANCE.archery.AIM_ASSIST_RADIUS`, gently biasing terminal landing points by `BALANCE.archery.AIM_ASSIST_BIAS`, and resolving target lock (`isTarget: true`).
+  - Extracted helper `resolveGroundOrAssist` to ensure all functions remain strictly ≤ 50 lines.
+- `src/ui/Crosshair.tsx` & `src/ui/ui.css`:
+  - Added `HitMarkerSvg` overlay rendering 4 diagonal tick marks popping on successful hit (`@keyframes hitmarker-pop`).
+  - Styled `.crosshair--hit-enemy` (flashes bright red `#ef4444` with glow) and `.crosshair--hit-target` (flashes gold `#ffd784` with glow).
+- `tests/unit/archery.test.ts`:
+  - Added unit tests for proximity target magnetism, hit tester proximity resolution, and `worldStore` hit feedback lifecycle.
+
+**Balance Changes in `src/data/balance.ts` (Reasons)**
+- `lighting.L3_AMBIENT_INTENSITY` (0.95), `lighting.L3_FILL_INTENSITY` (0.65), `lighting.L3_SUN_INTENSITY` (1.8): Brightens dark forest setting to ensure player, Tataka, and trees are legible on integrated graphics without clipping or blowout.
+- `archery.AIM_ASSIST_RADIUS` (0.85) & `archery.AIM_ASSIST_BIAS` (0.35): Provides forgiving target magnetism for school kids playing on trackpads/mice without feeling automated.
+- `archeryAim.SMOOTH_FACTOR` (0.35): Eliminates high-frequency pointer jitter across 60Hz ticks.
+- `ui.HIT_FEEDBACK_MS` (160): Exactly 160ms window (~10 frames) for crosshair hit-marker display and color flash.
+
+## 2026-09-10 — Antigravity — Audio system architecture and procedural synthesizer fallbacks
+
+Implementing HANDOFF.md §6.1 / USER_REQUEST:
+
+**Built**
+- `src/systems/audio/sound-keys.ts`: Defined semantic sound keys across archery (`bow_draw`, `bow_release`, `arrow_hit_target`, `arrow_hit_flesh`), locomotion (`footstep_walk`, `footstep_run`), combat & astras (`astra_cast`, `enemy_hit`, `enemy_death`, `boss_groan`), UI & flow (`button_click`, `quiz_correct`, `quiz_incorrect`, `level_win`, `level_fail`, `title_theme`), and ambient loops (`ambient_court`, `ambient_forest`, `ambient_night`), along with default volume tables.
+- `src/systems/audio/synth.ts`: Procedural Web Audio API sound synthesizer with oscillator frequency/gain envelopes, bandpass/lowpass noise bursts, and looping drone atmospheres. Operates safely in headless environments without throwing errors when static audio files or AudioContext are absent; unlocks on first user gesture.
+- `src/systems/audio/audio-dispatcher.ts`: Event-driven `AudioDispatcher` and `soundManager` subscribing to `gameStore` and `screenStore`. Handles volume synchronization, phase transitions (victory/defeat stings, level ambient switching between court, forest, and night), active loop tracking, and graceful stop controls.
+- `src/systems/audio/index.ts`: Unified export for the audio system.
+- `src/systems/archery/step.ts`: Wired `bow_draw`, `bow_release`, `arrow_hit_target`, and `arrow_hit_flesh`. Extracted `handleArrowHit` to maintain function length ≤ 50 lines.
+- `src/systems/astra/step.ts`: Wired `astra_cast`, `enemy_hit`, `boss_groan`, `enemy_death`, and target hit sound.
+- `src/entities/Player.tsx`: Added `useFootstepCadence` hook triggering `footstep_walk` and `footstep_run` at cadence intervals based on movement speed.
+- `src/entities/Enemy.tsx`: Wired `enemy_hit`, `boss_groan`, and `enemy_death` sounds into enemy state and health transitions.
+- `src/ui/`: Wired `button_click`, `quiz_correct`, `quiz_incorrect`, and `level_win`/`level_fail` feedback across `QuizPanel.tsx`, `ResultPanel.tsx`, and `TitleScreen.tsx`.
+- `src/App.tsx`: Mounted `initAudioDispatcher()` lifecycle effect.
+- `tests/unit/audio.test.ts`: Added unit tests verifying sound keys, procedural synth headless safety, volume sync, and state-driven ambient/sting transitions.
+
+**Balance Changes in `src/data/balance.ts`**
+- Reason: Added `BALANCE.audio` configuration (`MASTER_VOLUME: 0.8`, `FOOTSTEP_WALK_INTERVAL_SEC: 0.42`, `FOOTSTEP_RUN_INTERVAL_SEC: 0.28`) to drive footstep cadence intervals and default master volume without hardcoded magic numbers. Zero imports retained in `src/data/` preserving the architectural boundary.
+
+## 2026-09-10 — Antigravity — React hook immutability fix in TrajectoryArc
+
+- Fixed `react-hooks/immutability` rule violation in `src/entities/TrajectoryArc.tsx`: replaced passing raw mutable `line: Line` to `useTrajectoryUpdate` with `lineRef: RefObject<Line | null>`.
+- Attached `lineRef` to `<primitive object={lineInstance} ref={lineRef} />` in `TrajectoryArc`.
+- Read current instance via `const line = lineRef.current; if (!line) return;` inside `useFrame`, eliminating any mutations on hook parameters.
+- Kept all functions ≤ 41 lines (`max-lines-per-function`) and file at 165 lines (`max-lines`).
+
+## 2026-09-10 — Antigravity — TypeScript & ESLint rule compliance fixes
+
+- Fixed TS6133 / `@typescript-eslint/no-unused-vars` in `src/core/game-state.ts` by removing unused `allDone` import.
+- Extracted `objectiveActions` in `src/core/game-state.ts` to keep all action creator functions strictly under the 50-line limit (`max-lines-per-function`).
+- Fixed `react-hooks/exhaustive-deps` in `src/entities/Target.tsx` by adding `onHit` to `useEffect` dependencies.
+- Fixed TS6133 on line 75 in `src/entities/TrajectoryArc.tsx` by destructuring `[dx, , dz]` instead of `[dx, dy, dz]`.
+- Fixed TS2322 collision on `<line>` with SVGLineElement in `src/entities/TrajectoryArc.tsx` by rendering `<primitive object={lineInstance} />`.
+- Extracted `useTrajectoryUpdate` hook in `src/entities/TrajectoryArc.tsx` keeping the component function under 45 lines.
+
+## 2026-09-10 — Antigravity — Level 2 progression verification and objective completion
+
+- Inspected `src/data/levels.ts` for Level 2 (`l2` / `L2Forest`): verified 3 static targets and the 5 sequential objectives leading to `{ kind: 'hitTargets', count: 3 }`, with no extraneous secondary objectives.
+- Updated `src/entities/Target.tsx` and `src/scenes/L2Forest.tsx`: added `onHit` callback prop to `TargetProps` and registered it on `built.userData.onHit` (defaulting to `gameStore.getState().progress({ kind: 'hitTargets' })`). Passed explicit `onHit` from `L2Forest.tsx`.
+- Updated `src/systems/archery/step.ts` and `src/systems/astra/step.ts`: verified that arrow and astra target hits trigger `root.userData.onHit` or dispatch `progress({ kind: 'hitTargets' })`.
+- Updated `src/core/objectives.ts` and `src/core/game-state.ts`: added and exported `completeObjective` and `checkLevelObjectives` (both pure functions and store actions). Confirmed that when all 3 targets are eliminated, `checkLevelObjectives` triggers `dispatch('OBJECTIVES_MET')`, transitioning the level machine to `'win'` and adding `'l2'` to `completed`.
+- Updated `src/ui/QuizPanel.tsx`: exported `QuizModal` alias and ensured instant reactive presentation upon level completion via `ResultPanel` and `QuizPanel`.
+- Added unit tests in `tests/unit/game-state.test.ts` covering Level 2 target elimination, level completion, and `completeObjective` / `checkLevelObjectives`.
+
+## 2026-09-10 — Antigravity — Archery trajectory preview, aiming crosshair, and landing indicator
+
+Implementing HANDOFF.md §6.2 / USER_REQUEST:
+
+**Built**
+- `src/systems/archery/ballistics.ts`: Added `sampleTrajectoryPath(origin, dir, fraction, dt, maxSteps)` sampling the exact physics (`launchArrow`, `stepArrow`, `grounded`) without Three.js dependencies.
+- `src/systems/archery/draw.ts`: Added `isDrawing(s: DrawState)` helper.
+- `src/systems/archery/trajectory.ts` (new): Real-time parabolic raycast simulation against `world.hittable` and `world.ground`, resolving terminal landing point, surface normal, and valid target acquisition (`resolveHitRoot`).
+- `src/systems/world.ts`: Added transient aim state fields (`isDrawing`, `hasTarget`, `drawStrength`) and `setAimState(...)` to `WorldUi` and `worldStore`, reset in `resetWorld()`.
+- `src/entities/TrajectoryArc.tsx` (new): R3F component sampling the ballistics function while `isDrawing === true`. Renders real-time trajectory line and terminal landing decal marker (ring + center dot) aligned with surface normal, dynamically coloring to lock-on green (`#7ee787`) on valid targets (`Enemy` or Level target) and amber gold on ground. Disposes geometries and materials on unmount.
+- `src/scenes/L1Court.tsx`, `L2Forest.tsx`, `L3Forest.tsx`, `L4Range.tsx`, `L5Yajna.tsx`: Mounted `<TrajectoryArc />` alongside `<ArrowPool />` when bow is equipped.
+- `src/ui/Crosshair.tsx` (new): Screen-center aiming reticle that dynamically highlights and changes color to target-lock state when a valid target is under the landing vector. Includes draw strength gauge feedback meter driven by draw duration and `BALANCE.archery`.
+- `src/ui/Hud.tsx`: Mounted `{bow && <Crosshair />}`.
+- `src/ui/ui.css`: CSS styling for `.crosshair`, `.crosshair--drawing`, `.crosshair--target`, `.draw-gauge`, `.draw-gauge-bar`, and `.draw-gauge-fill`.
+- `tests/unit/archery.test.ts`: Added test coverage for `sampleTrajectoryPath`, `isDrawing`, and `computeTrajectory` ground landing.
+
+**Balance Changes in `src/data/balance.ts`**
+- Reason: Retuned arrow `SPEED` (40 -> 42) for crisper, more predictable flight without flattening the arc; `DRAW_TICKS` (30 -> 28) and `MIN_DRAW` (0.25 -> 0.20) for more responsive draw feedback in action gameplay. Added `BALANCE.archery` configuration (`DRAW_TICKS: 28`, `MIN_DRAW: 0.20`, `TRAJECTORY_MAX_STEPS: 90`, `GAUGE_WIDTH: 64`) to drive HUD draw gauge and trajectory preview. Zero imports retained in `src/data/` preserving the architectural boundary.
+
 ## 2026-09-10 — Claude Code (Sonnet 5) — pass 3 phase H: Electron desktop shell
 
 Branch `feat/pass-3-overnight`, on top of `fab15a5` (phase G). `electron`/`electron-builder`/

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Group, type Material } from 'three'
 import { BALANCE } from '@data/balance'
 import type { EnemyKind, Vec3 } from '@data/levels'
+import { playAudio } from '@systems/audio'
 import { spawnEnemy, type EnemyRuntime } from '@systems/ai/enemy-ai'
 import { world, worldStore } from '@systems/world'
 import { BlobShadow } from '@render/blob-shadow'
@@ -24,18 +25,41 @@ function setOpacity(mesh: { material: Material | Material[] }, opacity: number):
 }
 
 /** Dissolves a dead enemy's mesh over DESPAWN_TICKS; otherwise keeps the boss bar in sync,
- * only pushing to the store when health actually changed (it's read every frame). */
-function updateBossAndDissolve(runtime: EnemyRuntime, built: BuiltCharacter, kind: EnemyKind, boss: boolean, lastHealth: { current: number | null }): void {
+ * and triggers enemy hit, groan, and death sounds. */
+function updateBossAndDissolve(
+  runtime: EnemyRuntime,
+  built: BuiltCharacter,
+  kind: EnemyKind,
+  boss: boolean,
+  lastHealth: { current: number | null },
+  playedDeath: { current: boolean },
+): void {
   if (runtime.state === 'dead') {
+    if (!playedDeath.current) {
+      playedDeath.current = true
+      playAudio('enemy_death')
+    }
     if (boss && lastHealth.current !== null) {
       lastHealth.current = null
       worldStore.getState().setBoss(null)
     }
     const t = Math.min(1, (world.tick - (runtime.stateUntil - BALANCE.spawn.DESPAWN_TICKS)) / BALANCE.spawn.DESPAWN_TICKS)
     setOpacity(built.skinned, 1 - t)
-  } else if (boss && runtime.health !== lastHealth.current) {
-    lastHealth.current = runtime.health
-    worldStore.getState().setBoss({ kind, health: runtime.health, max: BALANCE.enemies[kind].HEALTH })
+    return
+  }
+
+  if (lastHealth.current !== null && runtime.health < lastHealth.current) {
+    playAudio(boss ? 'boss_groan' : 'enemy_hit')
+  }
+  lastHealth.current = runtime.health
+
+  const currentBoss = worldStore.getState().boss
+  if (boss) {
+    if (!currentBoss || currentBoss.health !== runtime.health || currentBoss.kind !== kind) {
+      worldStore.getState().setBoss({ kind, health: runtime.health, max: BALANCE.enemies[kind].HEALTH })
+    }
+  } else if (currentBoss?.kind === kind) {
+    worldStore.getState().setBoss(null)
   }
 }
 
@@ -96,6 +120,7 @@ export function Enemy({
   const [built, setBuilt] = useState<BuiltCharacter | null>(null)
   const wrapper = useRef<Group>(null)
   const lastHealthRef = useRef<number | null>(null)
+  const playedDeathRef = useRef(false)
 
   useEffect(
     // `boss` deliberately excluded: toggling it must not tear down and rebuild the character
@@ -112,7 +137,7 @@ export function Enemy({
     wrapper.current.rotation.y = runtime.yaw
     built.controller.play(CLIP_FOR_STATE[runtime.state], { loop: runtime.state === 'idle' || runtime.state === 'chase' })
     built.controller.update(delta)
-    updateBossAndDissolve(runtime, built, kind, boss, lastHealthRef)
+    updateBossAndDissolve(runtime, built, kind, boss, lastHealthRef, playedDeathRef)
   })
 
   return (

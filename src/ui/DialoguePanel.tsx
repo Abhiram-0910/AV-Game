@@ -14,6 +14,31 @@ interface LineProps {
   onSkip(): void
 }
 
+const PORTRAIT_URLS: Record<string, string> = {
+  rama: '/assets/portraits/rama.png',
+  dasharatha: '/assets/portraits/dasharatha.png',
+  vishwamitra: '/assets/portraits/vishwamitra.png',
+  vasishtha: '/assets/portraits/vasishtha.png',
+  lakshmana: '/assets/portraits/lakshmana.png',
+}
+
+function SpeakerPortrait({ speaker, name }: { speaker: string; name?: string }) {
+  const [failed, setFailed] = useState(false)
+  const src = PORTRAIT_URLS[speaker]
+  if (!src || failed) return null
+
+  return (
+    <div className="dialogue-portrait-frame" data-testid="dialogue-portrait">
+      <img
+        src={src}
+        alt={name ?? speaker}
+        className="dialogue-portrait-img"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  )
+}
+
 /** One line; remounted (keyed) per line so the typewriter restarts from zero. */
 function Line({ text, onNext, onSkip }: LineProps) {
   const [shown, setShown] = useState(0)
@@ -62,19 +87,24 @@ export function DialoguePanel({ speech, onDone }: Props) {
   const name = UI[`name.${speech.speaker}`]
   return (
     <div className="dialogue" data-testid="dialogue">
-      {name && (
-        <div className="dialogue-speaker" data-testid="dialogue-speaker">
-          {name}
+      <SpeakerPortrait speaker={speech.speaker} name={name} />
+      <div className="dialogue-content">
+        {name && (
+          <div className="dialogue-speaker" data-testid="dialogue-speaker">
+            {name}
+          </div>
+        )}
+        <Line key={line} text={speech.lines[line]} onNext={onNext} onSkip={onDone} />
+        <div className="dialogue-hint">
+          <span>{UI['dialogue.advance']}</span>
+          <span>{UI['dialogue.skip']}</span>
+          <span className="dialogue-count">
+            {line + 1}/{speech.lines.length}
+          </span>
         </div>
-      )}
-      <Line key={line} text={speech.lines[line]} onNext={onNext} onSkip={onDone} />
-      <div className="dialogue-hint">
-        <span>{UI['dialogue.advance']}</span>
-        <span>{UI['dialogue.skip']}</span>
-        <span className="dialogue-count">
-          {line + 1}/{speech.lines.length}
-        </span>
       </div>
     </div>
   )
 }
+
+export const DialogueBox = DialoguePanel

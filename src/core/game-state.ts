@@ -5,7 +5,14 @@ import type { CodexId } from '@data/codex'
 import type { FailCondition, LevelId } from '@data/levels'
 import type { GateId } from '@data/quiz'
 import { FAIL_EVENT, transition, type LevelEvent, type Phase } from './level-machine'
-import { allDone, applyObjectiveEvent, freshProgress, type ObjectiveEvent, type ObjectiveProgress } from './objectives'
+import {
+  applyObjectiveEvent,
+  checkLevelObjectives,
+  completeObjective,
+  freshProgress,
+  type ObjectiveEvent,
+  type ObjectiveProgress,
+} from './objectives'
 import { checkAnswer, codexUnlockedBy, gateAfter, isLastLevel, levelDef, nextLevel, scoreQuiz } from './progression'
 import { DEFAULT_SAVE, type BenchmarkTier, type Save, type Settings } from './save'
 
@@ -38,6 +45,8 @@ export interface GameActions {
   startLevel(id: LevelId): void
   dispatch(event: LevelEvent): void
   progress(e: ObjectiveEvent): void
+  completeObjective(index?: number): void
+  checkLevelObjectives(): boolean
   damagePlayer(amount: number, tick: number): void
   damageYajna(amount: number, tick: number): void
   fireArrow(): boolean
@@ -95,14 +104,6 @@ function flowActions(set: Set, get: Get) {
       set(onEnterPhase(s, phase))
     },
 
-    progress: (e: ObjectiveEvent) => {
-      const s = get()
-      if (s.phase !== 'play') return
-      const objectives = applyObjectiveEvent(levelDef(s.level).objectives, s.objectives, e)
-      set({ objectives })
-      if (allDone(objectives)) get().dispatch('OBJECTIVES_MET')
-    },
-
     fail: (condition: FailCondition) => {
       const s = get()
       if (condition === 'none' || !levelDef(s.level).fail.includes(condition)) return
@@ -121,6 +122,33 @@ function flowActions(set: Set, get: Get) {
         get().dispatch('QUIZ_DONE')
       }
       return result
+    },
+  }
+}
+
+function objectiveActions(set: Set, get: Get) {
+  return {
+    progress: (e: ObjectiveEvent) => {
+      const s = get()
+      if (s.phase !== 'play') return
+      const objectives = applyObjectiveEvent(levelDef(s.level).objectives, s.objectives, e)
+      set({ objectives })
+      if (checkLevelObjectives(objectives)) get().dispatch('OBJECTIVES_MET')
+    },
+
+    completeObjective: (index?: number) => {
+      const s = get()
+      if (s.phase !== 'play') return
+      const objectives = completeObjective(levelDef(s.level).objectives, s.objectives, index)
+      set({ objectives })
+      if (checkLevelObjectives(objectives)) get().dispatch('OBJECTIVES_MET')
+    },
+
+    checkLevelObjectives: () => {
+      const s = get()
+      const done = checkLevelObjectives(s.objectives)
+      if (done && s.phase === 'play') get().dispatch('OBJECTIVES_MET')
+      return done
     },
   }
 }
@@ -206,6 +234,7 @@ export function createGameStore() {
   return createStore<GameStore>()((set, get) => ({
     ...initial(),
     ...flowActions(set, get),
+    ...objectiveActions(set, get),
     ...resourceActions(set, get),
     ...persistenceActions(set, get),
   }))

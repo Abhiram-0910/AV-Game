@@ -2,11 +2,13 @@
 // five distinct targets (levels.ts) — static, lateral, longRange, occluded, astraOnly. Target
 // behaviours live in entities/Target.tsx; the astra charge-and-hitscan lives in
 // systems/astra/step.ts. Existing procedural aim and archery otherwise, unchanged.
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { useStore } from 'zustand'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
+import { TrajectoryArc } from '@entities/TrajectoryArc'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
 import { NpcCharacter } from '@entities/NpcCharacter'
@@ -16,10 +18,31 @@ import { StaticProp } from '@entities/StaticProp'
 import { Target } from '@entities/Target'
 import { evictAssets } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
-import { resetWorld, worldStore } from '@systems/world'
+import { resetWorld, world, worldStore } from '@systems/world'
 
 const scenery = SCENERY.l4!
 const def = levelDef('l4')
+const TARGETS_OBJ_INDEX = def.objectives.findIndex((o) => o.kind === 'hitTargets')
+
+function useAstraLesson() {
+  const hitCount = useStore(gameStore, (s) => (s.level === 'l4' ? s.objectives[TARGETS_OBJ_INDEX]?.progress ?? 0 : 0))
+  const firedRef = useRef(false)
+
+  useEffect(() => {
+    if (hitCount >= 4 && !firedRef.current) {
+      firedRef.current = true
+      worldStore.getState().setAstraReady(true)
+      world.astraReady = true
+      if (gameStore.getState().astraCharges <= 0) {
+        gameStore.getState().addAstraCharge()
+      }
+      const isE2e = typeof window !== 'undefined' && window.location.search.includes('debug')
+      if (!isE2e) {
+        worldStore.getState().openDialogue('l4.vishwamitra.astras')
+      }
+    }
+  }, [hitCount])
+}
 
 function useLevelLifecycle() {
   useEffect(() => {
@@ -30,6 +53,8 @@ function useLevelLifecycle() {
     })
     return () => {
       unsubscribe()
+      worldStore.getState().setAstraReady(false)
+      world.astraReady = false
       evictAssets(scenery.statics.map((p) => p.asset))
     }
   }, [])
@@ -37,6 +62,7 @@ function useLevelLifecycle() {
 
 export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
+  useAstraLesson()
   const { light, bounds } = scenery
   return (
     <group name="l4-range">
@@ -58,7 +84,12 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         <Target key={i} def={t} tier={tier} />
       ))}
       <Player tier={tier} bow={bow} />
-      {bow && <ArrowPool tier={tier} />}
+      {bow && (
+        <>
+          <ArrowPool tier={tier} />
+          <TrajectoryArc />
+        </>
+      )}
       <FollowCamera />
       <SimulationDriver bow={bow} />
     </group>

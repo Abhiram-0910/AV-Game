@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type Group, Vector3 } from 'three'
 import { BALANCE } from '@data/balance'
+import { playAudio } from '@systems/audio'
 import { applyAimPose, collectAimBones } from '@systems/archery/aim-pose'
 import { drawFraction } from '@systems/archery/draw'
 import { lerpAngle } from '@systems/locomotion/kinematic'
@@ -39,15 +40,35 @@ function clipFor(speed: number): 'IDLE' | 'WALK' | 'JOG' {
   return s >= LOCO.JOG_THRESHOLD ? 'JOG' : 'WALK'
 }
 
+function useFootstepCadence(): (speed: number, delta: number) => void {
+  const timer = useRef(0)
+  return (speed: number, delta: number) => {
+    const s = Math.abs(speed)
+    if (s < LOCO.IDLE_THRESHOLD) {
+      timer.current = 0
+      return
+    }
+    const isRunning = s >= LOCO.JOG_THRESHOLD
+    const interval = isRunning ? BALANCE.audio.FOOTSTEP_RUN_INTERVAL_SEC : BALANCE.audio.FOOTSTEP_WALK_INTERVAL_SEC
+    timer.current += delta
+    if (timer.current >= interval) {
+      timer.current = 0
+      playAudio(isRunning ? 'footstep_run' : 'footstep_walk')
+    }
+  }
+}
+
 export function Player({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   const built = useBuilt(tier, bow)
   const wrapper = useRef<Group>(null)
   const aimBones = useMemo(() => (built && bow ? collectAimBones(built.bones) : null), [built, bow])
+  const updateFootsteps = useFootstepCadence()
 
   useFrame((_, delta) => {
     if (!built || !wrapper.current) return
     const p = world.player
     const t = world.alpha
+    updateFootsteps(p.speed, delta)
     wrapper.current.position.set(p.prevX + (p.x - p.prevX) * t, p.prevY + (p.y - p.prevY) * t, p.prevZ + (p.z - p.prevZ) * t)
     wrapper.current.rotation.y = lerpAngle(p.prevYaw, p.yaw, t) + LOCO.MODEL_YAW_OFFSET
     if (world.tick < world.swordSlashUntilTick) built.controller.play('SWORD_A', { loop: false })

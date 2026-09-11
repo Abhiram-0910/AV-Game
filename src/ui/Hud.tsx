@@ -4,20 +4,11 @@ import { UI } from '@data/dialogue'
 import type { Objective } from '@data/levels'
 import { currentObjectiveIndex, type ObjectiveProgress } from '@core/objectives'
 import { levelDef } from '@core/progression'
-import type { BossHealth } from '@systems/world'
 import { fmt } from './format'
 import { useGame, useWorld } from './use-game'
-
-function BossBar({ boss }: { boss: BossHealth }) {
-  return (
-    <div className="hud-boss" data-testid="hud-boss">
-      <span className="hud-label">{UI[`name.${boss.kind}`]}</span>
-      <div className="bar" role="meter" aria-valuenow={boss.health} aria-valuemin={0} aria-valuemax={boss.max}>
-        <div className="bar-fill" style={{ width: `${(boss.health / boss.max) * 100}%` }} />
-      </div>
-    </div>
-  )
-}
+import { EnemyHealthBar } from './EnemyHealthBar'
+import { Crosshair } from './Crosshair'
+import { AstraButton } from './AstraButton'
 
 function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefined): string {
   if (!o || !p) return ''
@@ -75,10 +66,11 @@ function TopStats({ bow, guardsYajna, health, arrows, astra, yajnaIntegrity }: {
   )
 }
 
-function ObjectiveRow({ text, timeLeft }: { text: string; timeLeft: number | null }) {
+function ObjectiveRow({ text, timeLeft, astraReady }: { text: string; timeLeft: number | null; astraReady?: boolean }) {
+  const displayText = astraReady && text ? `${text} · ${UI['objective.chargeAstra']}` : text
   return (
     <div className="hud-objective" data-testid="hud-objective">
-      <span className="hud-label">{UI['hud.objective']}</span> {text}
+      <span className="hud-label">{UI['hud.objective']}</span> {displayText}
       {timeLeft !== null && (
         <span className="hud-timeleft" data-testid="hud-timeleft">
           {' · '}
@@ -97,23 +89,32 @@ export function Hud({ bow }: { bow: boolean }) {
   const yajnaIntegrity = useGame((s) => s.yajnaIntegrity)
   const progress = useGame((s) => s.objectives)
   const prompt = useWorld((s) => s.prompt)
-  const boss = useWorld((s) => s.boss)
+  const astraReady = useWorld((s) => s.astraReady)
   const i = currentObjectiveIndex(progress)
   const def = levelDef(level)
   const objective = objectiveText(def.objectives[i], progress[i])
   const guardsYajna = def.fail.includes('yajnaZero')
   const timeLeft = secondsLeft(def.objectives[i], progress[i])
+  const controlsText =
+    bow && astraReady
+      ? `${UI['hud.bowControls']} · [Space/Q] ${UI['hud.astra']}`
+      : bow
+        ? UI['hud.bowControls']
+        : UI['hud.controls']
+
   return (
     <div className="hud" data-testid="hud">
       <TopStats bow={bow} guardsYajna={guardsYajna} health={health} arrows={arrows} astra={astra} yajnaIntegrity={yajnaIntegrity} />
-      {boss && <BossBar boss={boss} />}
-      <ObjectiveRow text={objective} timeLeft={timeLeft} />
+      <EnemyHealthBar />
+      <AstraButton />
+      <ObjectiveRow text={objective} timeLeft={timeLeft} astraReady={level === 'l4' && astraReady} />
       {prompt && (
         <div className="hud-prompt" data-testid="hud-prompt">
           {prompt === 'pickup' ? UI['hud.pickup'] : UI['hud.interact']}
         </div>
       )}
-      <div className="hud-controls">{bow ? UI['hud.bowControls'] : UI['hud.controls']}</div>
+      {bow && <Crosshair />}
+      <div className="hud-controls">{controlsText}</div>
     </div>
   )
 }

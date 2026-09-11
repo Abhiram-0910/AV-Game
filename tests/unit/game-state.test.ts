@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
 import { createGameStore } from '@core/game-state'
+import { worldStore } from '@systems/world'
 
 let store: ReturnType<typeof createGameStore>
 const s = () => store.getState()
@@ -130,4 +131,71 @@ describe('game state', () => {
     expect(fresh.getState().snapshot()).toEqual(snap)
     expect(fresh.getState().settings.qualityTier).toBe('high')
   })
+
+  it('Level 2: shooting down all 3 targets cleanly completes the level and opens gate2 quiz', () => {
+    s().startLevel('l2')
+    s().dispatch('LOADED')
+    s().dispatch('INTRO_DONE')
+    expect(s().phase).toBe('play')
+    s().progress({ kind: 'reach', waypoint: 'riverbank' })
+    s().progress({ kind: 'talk', dialogueKey: 'l2.vishwamitra.mantras' })
+    s().progress({ kind: 'reach', waypoint: 'range' })
+    s().progress({ kind: 'talk', dialogueKey: 'l2.vishwamitra.bow' })
+    expect(s().phase).toBe('play')
+
+    // First two targets
+    s().progress({ kind: 'hitTargets' })
+    s().progress({ kind: 'hitTargets' })
+    expect(s().phase).toBe('play')
+
+    // Third target eliminates the final objective
+    s().progress({ kind: 'hitTargets' })
+    expect(s().phase).toBe('win')
+    expect(s().completed).toContain('l2')
+    expect(s().codex).toContain('yajna')
+
+    // Level transition screen / quiz
+    s().dispatch('NEXT')
+    expect(s().phase).toBe('quiz')
+    expect(s().quiz.gate).toBe('gate2')
+  })
+
+  it('completeObjective and checkLevelObjectives helper actions transition phase to win', () => {
+    enterPlay('l1')
+    expect(s().checkLevelObjectives()).toBe(false)
+    for (let i = 0; i < 5; i += 1) s().completeObjective(i)
+    expect(s().checkLevelObjectives()).toBe(true)
+    expect(s().phase).toBe('win')
+  })
+
+  it('registers Tataka boss health in worldStore and tracks HP', () => {
+    worldStore.getState().setBoss({
+      kind: 'tataka',
+      health: BALANCE.enemies.tataka.HEALTH,
+      max: BALANCE.enemies.tataka.HEALTH,
+    })
+    const boss = worldStore.getState().boss
+    expect(boss).not.toBeNull()
+    expect(boss?.kind).toBe('tataka')
+    expect(boss?.health).toBe(BALANCE.enemies.tataka.HEALTH)
+    expect(boss?.max).toBe(BALANCE.enemies.tataka.HEALTH)
+
+    worldStore.getState().setBoss({
+      kind: 'tataka',
+      health: 120,
+      max: BALANCE.enemies.tataka.HEALTH,
+    })
+    expect(worldStore.getState().boss?.health).toBe(120)
+    worldStore.getState().setBoss(null)
+    expect(worldStore.getState().boss).toBeNull()
+  })
+
+  it('tracks astraReady state in worldStore', () => {
+    expect(worldStore.getState().astraReady).toBe(false)
+    worldStore.getState().setAstraReady(true)
+    expect(worldStore.getState().astraReady).toBe(true)
+    worldStore.getState().setAstraReady(false)
+    expect(worldStore.getState().astraReady).toBe(false)
+  })
 })
+

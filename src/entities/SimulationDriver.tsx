@@ -94,7 +94,12 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
         if (bow) {
           stepArchery(loop.dt)
           stepSword(tick)
-          stepAstra(platform.input.isDown(KEY_ASTRA), tick)
+          const astraHeld =
+            platform.input.isDown(KEY_ASTRA) ||
+            platform.input.isDown('Space') ||
+            world.astraButtonHeld ||
+            (world.astraReady && platform.input.isDown(KEY_E) && worldStore.getState().prompt === null)
+          stepAstra(astraHeld, tick)
         }
       } else {
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })
