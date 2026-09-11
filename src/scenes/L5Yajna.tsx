@@ -130,13 +130,11 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
     replenishSupply(tick)
     gameStore.getState().progress({ kind: 'survive', ticks: 1 })
   }
-  const { light, bounds } = scenery
+  const { bounds } = scenery
   return (
     <group name="l5-yajna">
       <Atmosphere scenery={scenery} tier={tier} />
       <color attach="background" args={[scenery.background]} />
-      <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
-      <directionalLight position={light.sun} intensity={light.sunIntensity} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

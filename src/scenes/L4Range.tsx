@@ -64,13 +64,11 @@ function useLevelLifecycle() {
 export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
   useAstraLesson()
-  const { light, bounds } = scenery
+  const { bounds } = scenery
   return (
     <group name="l4-range">
       <Atmosphere scenery={scenery} tier={tier} />
       <color attach="background" args={[scenery.background]} />
-      <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
-      <directionalLight position={light.sun} intensity={light.sunIntensity} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

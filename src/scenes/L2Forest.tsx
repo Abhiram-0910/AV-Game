@@ -46,13 +46,11 @@ function useLevelLifecycle() {
 export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
   const mantrasDone = useGame((s) => s.level === 'l2' && s.objectives[MANTRAS_DONE_AT]?.done === true)
-  const { light, bounds } = scenery
+  const { bounds } = scenery
   return (
     <group name="l2-forest">
       <Atmosphere scenery={scenery} tier={tier} />
       <SkyGradient topColor="#3b7cb8" horizonColor="#bfe0ff" groundColor="#4a6b34" />
-      <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
-      <directionalLight position={light.sun} intensity={light.sunIntensity} />
       <GroundPlane
         center={[(bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2]}
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}

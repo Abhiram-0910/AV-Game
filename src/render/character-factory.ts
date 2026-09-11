@@ -162,6 +162,8 @@ export async function buildCharacter(id: CharacterId, opts: BuildOptions): Promi
   root.name = id
   root.scale.setScalar(spec.scale)
   root.add(rig)
+  // Only takes effect when the high tier enables the shadow map (render/Atmosphere.tsx).
+  root.traverse((o) => (o.castShadow = true))
   const controller = createAnimationController(rig, clips)
   const slot = acquireSkinnedSlot(id)
   return {

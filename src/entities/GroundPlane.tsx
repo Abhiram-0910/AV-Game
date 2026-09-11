@@ -18,7 +18,7 @@ export function GroundPlane({ center, size, color }: { center: readonly [number,
   const depth = Math.max(size[1] * 3, 280)
 
   return (
-    <mesh ref={ref} position={[center[0], 0, center[1]]} rotation-x={-Math.PI / 2}>
+    <mesh ref={ref} position={[center[0], 0, center[1]]} rotation-x={-Math.PI / 2} receiveShadow>
       <planeGeometry args={[width, depth]} />
       <meshToonMaterial color={color} gradientMap={getToonRamp()} />
     </mesh>

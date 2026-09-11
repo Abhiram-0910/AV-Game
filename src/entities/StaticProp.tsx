@@ -23,6 +23,10 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
       applyTierMaterials(scene, tier, { tint: placement.tint })
       built = mergeByMaterial(scene)
       built.name = placement.asset
+      built.traverse((o) => {
+        o.castShadow = placement.castShadow ?? true
+        o.receiveShadow = true
+      })
       if (placement.ground) world.ground.push(built)
       setGroup(built)
       worldStore.getState().markLoaded()

@@ -1,6 +1,7 @@
-// A soft disc under each character. No shadow maps on the low tier, and this reads fine on both.
+// A soft disc under each character: the low tier's stand-in for the shadow map.
 import { CanvasTexture } from 'three'
 import { BALANCE } from '@data/balance'
+import { assetTier } from './manifest'
 
 let texture: CanvasTexture | null = null
 const SIZE = 64
@@ -21,6 +22,8 @@ function blobTexture(): CanvasTexture {
 }
 
 export function BlobShadow({ radius = BALANCE.render.BLOB_RADIUS }: { radius?: number }) {
+  // The high tier has a real shadow map (render/Atmosphere.tsx); the disc would double it.
+  if (assetTier() === 'high') return null
   return (
     <mesh rotation-x={-Math.PI / 2} position-y={BALANCE.render.BLOB_LIFT} renderOrder={-1}>
       <planeGeometry args={[radius * 2, radius * 2]} />

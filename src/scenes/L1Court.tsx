@@ -36,13 +36,10 @@ function useLevelLifecycle() {
 
 export function L1Court({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
-  const { light } = scenery
   return (
     <group name="l1-court">
       <Atmosphere scenery={scenery} tier={tier} />
       <color attach="background" args={[scenery.background]} />
-      <hemisphereLight args={[light.sky, light.ground, light.ambientIntensity]} />
-      <directionalLight position={light.sun} intensity={light.sunIntensity} />
       {scenery.statics.map((p) => (
         <StaticProp key={p.asset} placement={p} tier={tier} />
       ))}

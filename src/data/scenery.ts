@@ -71,6 +71,8 @@ export interface Placement {
   ground: boolean
   /** Multiplied into every material's base colour; untextured Sketchfab models ship pure white. */
   tint?: string
+  /** High-tier shadow casting; default true. The enclosing palace only receives, or its roof would shade the hall. */
+  castShadow?: boolean
 }
 
 export interface NpcPlacement {
@@ -86,7 +88,6 @@ export interface LevelScenery {
   npcs: readonly NpcPlacement[]
   /** Kinematic bounds: the player is clamped inside this rectangle. */
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number }
-  light: { sky: string; ground: string; sun: Vec3; sunIntensity: number; ambientIntensity: number }
   background: string
   look: LevelLook
 }
@@ -95,14 +96,23 @@ export interface LevelScenery {
 export interface LevelLook {
   /** renderer.toneMappingExposure under ACES Filmic. */
   exposure: number
+  /** Warm low-angle directional; `dir` points from the playable area toward the light. The one shadow caster on high. */
+  key: { color: string; intensity: number; dir: Vec3 }
+  /** Hemisphere fill: cool sky above, ground bounce below. */
+  fill: { sky: string; ground: string; intensity: number }
+  /** Back light separating characters from the background. High tier only. */
+  rim: { color: string; intensity: number; dir: Vec3 }
 }
+
+/** High-tier shadow map for the key light. The frustum is fitted to each level's bounds. */
+export const SHADOW = { MAP_SIZE: 2048, BIAS: -0.0004, NORMAL_BIAS: 0.04, RADIUS: 3, NEAR: 0.5 } as const
 
 export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', LevelScenery>>> = {
   l1: {
     statics: [
       // Sketchfab palace ships in centimetres and off-centre (x −475..329, z −212..319 before
       // scaling); at 0.04 the hall is ~32 × 21 m and this offset puts it around the court.
-      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#d8c2a0' },
+      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#d8c2a0', castShadow: false },
       { asset: 'royalRoom', pos: [0, 0, 0], yaw: 0, scale: 1, ground: false },
     ],
     // Yaw 0 faces +Z (toward the entering player). The counsellors stand either side of the
@@ -113,9 +123,14 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vasishtha', pos: [-2.4, 0, 3.6], yaw: Math.PI / 4, idle: 'IDLE' },
     ],
     bounds: { minX: -7, maxX: 7, minZ: -1, maxZ: 15 },
-    light: { sky: '#ffe9c4', ground: '#3b2a1a', sun: [4, 10, 6], sunIntensity: 2.2, ambientIntensity: 0.9 },
     background: '#1a120b',
-    look: { exposure: 0.72 },
+    look: {
+      exposure: 0.8,
+      // Late sun through the entrance behind the player: long shadows reach toward the throne.
+      key: { color: '#ffc792', intensity: 2.3, dir: [3, 5, 10] },
+      fill: { sky: '#7c89a8', ground: '#5c2a1c', intensity: 0.75 },
+      rim: { color: '#9cc2ff', intensity: 1.8, dir: [-4, 6, -10] },
+    },
   },
   l2: {
     // Trees and rocks scatter the banks either side of the walk from the camp to the range;
@@ -138,9 +153,13 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, -18], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -12, maxX: 22, minZ: -52, maxZ: 6 },
-    light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
-    look: { exposure: 0.85 },
+    look: {
+      exposure: 0.85,
+      key: { color: '#ffd596', intensity: 2.6, dir: [8, 6, 6] },
+      fill: { sky: '#a6cdf5', ground: '#4d5a2c', intensity: 0.7 },
+      rim: { color: '#fff0cc', intensity: 1.2, dir: [-6, 5, -8] },
+    },
   },
   l3: {
     // Dense, dark forest — "no birds sang" (l3.intro). Denser tree cover than L2's riverbank,
@@ -160,9 +179,14 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, 5], yaw: -Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -12, maxX: 12, minZ: -32, maxZ: 22 },
-    light: { sky: '#687b84', ground: '#2b3924', sun: [-4, 8, -3], sunIntensity: 1.8, ambientIntensity: 0.95 },
     background: '#141a16',
-    look: { exposure: 0.9 },
+    look: {
+      exposure: 1.15,
+      // "No birds sang": a cold, weak key and a colder rim; nothing warm in the frame.
+      key: { color: '#aebfd0', intensity: 2.0, dir: [-6, 6, -4] },
+      fill: { sky: '#6a7c8c', ground: '#1d2418', intensity: 1.0 },
+      rim: { color: '#7c9cc6', intensity: 1.5, dir: [5, 4, 8] },
+    },
   },
   l4: {
     // The trial range: open field, targets from the firing line out to -48. Trees/rocks are
@@ -181,9 +205,13 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, 1.5], yaw: Math.PI / 6, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -14, maxX: 14, minZ: -54, maxZ: 6 },
-    light: { sky: '#bfe0ff', ground: '#3a4a2a', sun: [5, 12, 4], sunIntensity: 2.4, ambientIntensity: 1.0 },
     background: '#7fb3d9',
-    look: { exposure: 0.85 },
+    look: {
+      exposure: 0.8,
+      key: { color: '#fff3dd', intensity: 3.0, dir: [6, 12, 5] },
+      fill: { sky: '#aed2ff', ground: '#56663a', intensity: 0.8 },
+      rim: { color: '#ffffff', intensity: 0.9, dir: [-5, 6, -6] },
+    },
   },
   l5: {
     // Rockfall-strewn clearing around the altar (waypoints.altar, levels.ts); rakshasa waves
@@ -201,8 +229,13 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
       { npc: 'vishwamitra', pos: [1.5, 0, -1.5], yaw: -Math.PI / 4, idle: 'ARMS_FOLDED' },
     ],
     bounds: { minX: -32, maxX: 32, minZ: -32, maxZ: 10 },
-    light: { sky: '#ffcf8a', ground: '#3a2a1a', sun: [-3, 6, 4], sunIntensity: 1.8, ambientIntensity: 0.7 },
     background: '#2a1a12',
-    look: { exposure: 0.9 },
+    look: {
+      exposure: 0.95,
+      // Dusk: the sun almost on the horizon, deep blue sky fill, the altar fire does the rest.
+      key: { color: '#ff8646', intensity: 1.8, dir: [-10, 3, 6] },
+      fill: { sky: '#3a4c80', ground: '#3a2012', intensity: 0.85 },
+      rim: { color: '#6d8cff', intensity: 1.5, dir: [8, 5, -8] },
+    },
   },
 }
