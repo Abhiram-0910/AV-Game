@@ -66,7 +66,19 @@ export function PostProcessing() {
     }
   }, [bundle])
 
-  useFrame((_, delta) => {
+  // Each pass is its own renderer.render(); with autoReset the perf overlay would only ever see
+  // the last fullscreen quad. Count the whole composed frame instead (post passes included).
+  const get = useThree((s) => s.get)
+  useEffect(() => {
+    const { info } = get().gl
+    info.autoReset = false
+    return () => {
+      info.autoReset = true
+    }
+  }, [get])
+
+  useFrame((state, delta) => {
+    state.gl.info.reset()
     bundle.composer.render(delta)
   }, 1)
 

@@ -6,6 +6,9 @@ export interface PerfStats {
   peakSkinned: number
   renderer: string
   software: boolean
+  /** Active quality tier and the UI key saying why (tier.reason.*). */
+  tier: string
+  tierReason: string
 }
 
-export const perfStats: PerfStats = { triangles: 0, calls: 0, skinned: 0, peakSkinned: 0, renderer: '', software: false }
+export const perfStats: PerfStats = { triangles: 0, calls: 0, skinned: 0, peakSkinned: 0, renderer: '', software: false, tier: '', tierReason: '' }

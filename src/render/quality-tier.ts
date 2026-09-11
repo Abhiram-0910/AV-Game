@@ -46,8 +46,12 @@ export function benchmark(renderer: WebGLRenderer): Promise<number> {
   })
 }
 
+/** Why the tier is what it is — shown in the perf overlay and Settings, so nobody judges the wrong renderer again. */
+export type TierReason = 'override' | 'saved' | 'software' | 'weakGpu' | 'slow' | 'fast'
+
 export interface TierDecision {
   tier: ResolvedTier
+  reason: TierReason
   /** Non-null only when the benchmark ran this boot; the caller persists it. */
   benchmarked: BenchmarkTier
   renderer: string
@@ -55,9 +59,9 @@ export interface TierDecision {
 
 export async function resolveTier(save: Save, renderer: WebGLRenderer): Promise<TierDecision> {
   const name = rendererName(renderer)
-  if (save.settings.qualityTier !== 'auto') return { tier: save.settings.qualityTier, benchmarked: null, renderer: name }
-  if (save.benchmarkTier) return { tier: save.benchmarkTier, benchmarked: null, renderer: name }
-  const slow = isSoftwareRenderer(name) || WEAK_GPU.test(name) || (await benchmark(renderer)) > BALANCE.render.BENCH_LOW_MS
-  const tier: ResolvedTier = slow ? 'low' : 'high'
-  return { tier, benchmarked: tier, renderer: name }
+  if (save.settings.qualityTier !== 'auto') return { tier: save.settings.qualityTier, reason: 'override', benchmarked: null, renderer: name }
+  if (save.benchmarkTier) return { tier: save.benchmarkTier, reason: 'saved', benchmarked: null, renderer: name }
+  const reason: TierReason = isSoftwareRenderer(name) ? 'software' : WEAK_GPU.test(name) ? 'weakGpu' : (await benchmark(renderer)) > BALANCE.render.BENCH_LOW_MS ? 'slow' : 'fast'
+  const tier: ResolvedTier = reason === 'fast' ? 'high' : 'low'
+  return { tier, reason, benchmarked: tier, renderer: name }
 }

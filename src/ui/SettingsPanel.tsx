@@ -1,13 +1,32 @@
 // Quality tier override, volume, subtitles. Reused from the title screen and the pause menu.
 // The quality tier is applied on the next load (resolveTier runs once at boot) — changing it
-// here only sets the saved preference, it doesn't hot-swap the live asset tier mid-session.
+// here sets the saved preference; the note under it says what is running now and offers a restart.
 import type { QualityTier, Settings } from '@core/save'
 import { UI } from '@data/dialogue'
 import { gameStore } from '@core/game-state'
 import { platform } from '@platform/index'
+import { useStore } from 'zustand'
+import { screenStore } from './screen-store'
 import { useGame } from './use-game'
 
 const TIERS: readonly QualityTier[] = ['auto', 'low', 'high']
+
+/** Which tier this boot runs and why; a changed choice only takes effect after a restart. */
+function ActiveTierNote({ current }: { current: QualityTier }) {
+  const active = useStore(screenStore, (s) => s.activeTier)
+  if (!active) return null
+  const pending = current !== 'auto' && current !== active.tier
+  return (
+    <p className="hud-label" data-testid="settings-active-tier">
+      {UI['settings.active']}: {UI[`settings.quality.${active.tier}`]} · {UI[`tier.reason.${active.reason}` as keyof typeof UI]}
+      {pending && (
+        <button type="button" className="btn btn-choice" data-testid="settings-restart" onClick={() => window.location.reload()}>
+          {UI['settings.restart']}
+        </button>
+      )}
+    </p>
+  )
+}
 
 function QualityRow({ current }: { current: QualityTier }) {
   return (
@@ -78,6 +97,7 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
     <div className="settings" data-testid="settings">
       <h2>{UI['menu.settings']}</h2>
       <QualityRow current={settings.qualityTier} />
+      <ActiveTierNote current={settings.qualityTier} />
       <VolumeRow volume={settings.volume} />
       <SubtitlesRow subtitles={settings.subtitles} />
       <button type="button" className="btn" data-testid="settings-back" onClick={onBack}>

@@ -41,6 +41,9 @@ export function PerfOverlay() {
       <div>
         {UI['debug.calls']} <b data-testid="perf-calls">{stats.calls}</b>
       </div>
+      <div data-testid="perf-tier">
+        {UI['debug.tier']} <b>{stats.tier.toUpperCase()}</b> · {stats.tierReason && UI[`tier.reason.${stats.tierReason}` as keyof typeof UI]}
+      </div>
       <div className="perf-renderer" data-testid="perf-renderer">
         {UI['debug.renderer']}: {stats.renderer} {stats.software ? `(${UI['debug.software']})` : ''}
       </div>

@@ -19,6 +19,7 @@ import { L4Range } from '@scenes/L4Range'
 import { L5Yajna } from '@scenes/L5Yajna'
 import { LodDebug } from '@scenes/LodDebug'
 import { Flow } from '@ui/Flow'
+import { screenStore } from '@ui/screen-store'
 import { TitleScreen } from '@ui/TitleScreen'
 import { useGame, useScreen } from '@ui/use-game'
 import { initAudioDispatcher } from '@systems/audio'
@@ -47,6 +48,9 @@ async function boot(state: RootState, setTier: (t: ResolvedTier) => void): Promi
   state.gl.setPixelRatio(decision.tier === 'low' ? BALANCE.render.PIXEL_RATIO_LOW : Math.min(window.devicePixelRatio, BALANCE.render.PIXEL_RATIO_HIGH_MAX))
   perfStats.renderer = decision.renderer
   perfStats.software = isSoftwareRenderer(decision.renderer)
+  perfStats.tier = decision.tier
+  perfStats.tierReason = decision.reason
+  screenStore.getState().setActiveTier({ tier: decision.tier, reason: decision.reason })
   setTier(decision.tier)
 }
 

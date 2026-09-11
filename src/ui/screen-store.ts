@@ -5,12 +5,22 @@ import { createStore } from 'zustand/vanilla'
 
 export type Screen = 'title' | 'game'
 
+/** The tier this boot actually runs and why (a tier.reason.* key suffix). Written once by App at boot. */
+export interface ActiveTier {
+  tier: 'low' | 'high'
+  reason: string
+}
+
 export interface ScreenState {
   screen: Screen
+  activeTier: ActiveTier | null
   setScreen(s: Screen): void
+  setActiveTier(t: ActiveTier): void
 }
 
 export const screenStore = createStore<ScreenState>()((set) => ({
   screen: 'title',
+  activeTier: null,
   setScreen: (screen) => set({ screen }),
+  setActiveTier: (activeTier) => set({ activeTier }),
 }))
