@@ -1,22 +1,39 @@
 # TODO
 
-## KNOWN — vite.config.ts recreates the fake low tier on every Vite start (found 2026-09-11, Claude Code)
+## Visual follow-ups (2026-09-13, Claude Code)
 
-The merged Antigravity PR added `syncLowTier()` to `vite.config.ts`: it copies all of `public/assets/high/` into
-`public/assets/low/` (49 MB) whenever Vite loads its config (dev, build, preview, even vitest). That is the
-same fake low tier the entry below deleted; `render/manifest.ts` still serves `high/` to both tiers, so nothing
-reads it. Left untracked, not committed. Remove `syncLowTier()` (and the directory) unless real KTX2 output is
-meant to land there.
+- Rama holds the sword upright behind his head while drawing the bow (seen from the L4 firing line on low). The
+  melee PR's sword prop stays attached during archery.
+- L2 light shafts were built and dropped: the key light is behind the camera for the whole walk, so they read as a
+  smear. They need a side-on sun, which changes the level's lighting.
+- Dressing does not collide and is not in `world.hittable` or `world.ground`: the player walks through trees and
+  arrows fly through bales. Registering bales as ground would make the arc stop where the fired arrow does not.
+- Forest trunks are plain tapered cylinders, and the bark reads orange-red next to the canopy up close.
+- High-tier draw calls are 106–132 on L2–L4. No high budget is written down; low is 80.
+- The L3 curse lift is high only; low keeps the cursed look through the outro.
+- `vite.config.ts` `syncPortraits()` reads `/home/yashwanth/...`, so it is dead on every other machine.
 
-## BROKEN — L4 and L5 e2e fail on the merged Antigravity PR (found 2026-09-11, Claude Code)
+## RESOLVED — L5 exceeded the 12 SkinnedMesh budget (16 / 12) (2026-09-13)
 
-Reproduced on a clean worktree of `0cbba6a` (before any visual-pass change): L4 never hits the longRange /
-occluded target, L5's bot loses ("Try again"). The PR cut `archeryAim.AIM_ASSIST_RADIUS` 0.85 → 0.45 and
-`AIM_ASSIST_BIAS` 0.35 → 0.1, moved the arrow origin to follow body yaw (`systems/archery/step.ts`) while the
-e2e still solves aim from `AIM.MUZZLE_HEIGHT` at the old origin, and raised L5's wave counts. Either retune
-the balance or update the e2e aim model; the PR only ran typecheck and lint. L2's `shootTarget` also missed
-(12, -44) on this branch after the visual pass (not rerun on the baseline); L2 still uses fixed-ms draw waits,
-not the `world.draw.ticks` polling L4 switched to.
+The wave spawner budgeted from built characters only, so spawns still loading their GLB went uncounted.
+`committedSkinned()` in `systems/spawner/wave-scheduler.ts` counts requested spawns too. Measured peak after the
+fix: 11 / 12.
+
+## RESOLVED — vite.config.ts recreated the fake low tier on every Vite start (2026-09-13)
+
+`syncLowTier()` deleted and the untracked `public/assets/low/` (49 MB) removed. `render/manifest.ts` still serves
+`high/` to both tiers; the KTX2 entry below still stands.
+
+## BROKEN — L5 e2e still loses; L4 fixed (updated 2026-09-13, Claude Code)
+
+L4 passes again: release origin back on the aim, aim assist 0.75 m / 0.3, and three stale spec assumptions fixed
+(see SESSION-LOG 2026-09-13). L5 still ends "Try again" after the budget, Maricha and Manava-key fixes. Next, in order:
+
+1. Why the bot's arrows stop firing mid-fight (the quiver sat at 3 for ~2300 ticks while the loop kept drawing).
+2. Whether the sword (F) ever lands in L5: scripted presses dealt no damage in the one instrumented run.
+3. The guard design. Rakshasas halt at REACH 1.6 from the altar centre, so a player standing on the altar is ~2 m
+   from them and blocks nothing. "Stand between them and the fire" (l5.intro) is not something the rules allow.
+4. Play it by hand before touching balance. `l5.spec.ts` should keep asserting a real win.
 
 ## Visual pass follow-ups (2026-09-11, Claude Code)
 

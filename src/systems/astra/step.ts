@@ -104,7 +104,8 @@ export function castAgneyastra(
   const radius = BALANCE.astra.agneyastra.RADIUS
   const damage = BALANCE.astra.agneyastra.DAMAGE
   for (const enemy of enemies) {
-    if (enemy.state === 'dead') continue
+    // Maricha is flung, never killed (AGENTS.md content rules): fire passes over him, as arrows do.
+    if (enemy.state === 'dead' || enemy.kind === 'maricha') continue
     const d = Math.hypot(enemy.x - impact.x, enemy.z - impact.z)
     if (d <= radius) applyDamageToEnemy(enemy, damage, tick)
   }

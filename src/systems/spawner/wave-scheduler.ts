@@ -43,3 +43,10 @@ export function dueSpawns(
 export function recordSpawn(progress: readonly WaveProgress[], wave: number, tick: number): WaveProgress[] {
   return progress.map((p, i) => (i === wave ? { spawned: p.spawned + 1, lastSpawnTick: tick } : p))
 }
+
+/** Skinned slots already spoken for: the live count, or the persistent cast plus every requested spawn, whichever
+ * is higher. A spawn only takes its slot once its GLB has loaded and the factory has built it, so budgeting from
+ * the live count alone kept spawning into promised slots (L5 reached 16 / 12 on 2026-09-13). */
+export function committedSkinned(live: number, persistent: number, active: number): number {
+  return Math.max(live, persistent + active)
+}

@@ -98,7 +98,7 @@ function useLevelLifecycle() {
 
 export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
-  const { active, onTick } = useWaveSpawner(def.waves, spots)
+  const { active, onTick } = useWaveSpawner(def.waves, spots, def.persistentSkinned.length)
   const handleTick = (tick: number) => {
     onTick(tick)
     replenishSupply(tick)

@@ -9,6 +9,7 @@ import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
 import { TrajectoryArc } from '@entities/TrajectoryArc'
+import { WildsDressing } from '@entities/WildsDressing'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
 import { NpcCharacter } from '@entities/NpcCharacter'
@@ -48,11 +49,11 @@ function useAstraLesson() {
   }, [hitCount])
 }
 
-function useLevelLifecycle() {
+function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
     gameStore.getState().unlockAstra('manavastra')
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1)
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -62,11 +63,11 @@ function useLevelLifecycle() {
       world.astraReady = false
       evictAssets(scenery.statics.map((p) => p.asset))
     }
-  }, [])
+  }, [tier])
 }
 
 export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
-  useLevelLifecycle()
+  useLevelLifecycle(tier)
   useAstraLesson()
   const { bounds } = scenery
   return (
@@ -77,6 +78,7 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
+      {tier === 'high' && <WildsDressing level="l4" />}
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}

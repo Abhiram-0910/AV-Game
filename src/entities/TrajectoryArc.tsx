@@ -15,11 +15,11 @@ import {
   Vector3,
 } from 'three'
 import { BALANCE } from '@data/balance'
+import { muzzleOrigin } from '@systems/archery/ballistics'
 import { isDrawing, drawFraction } from '@systems/archery/draw'
 import { computeTrajectory } from '@systems/archery/trajectory'
 import { world, worldStore } from '@systems/world'
 
-const AIM = BALANCE.archeryAim
 const MAX_POINTS = BALANCE.archery.TRAJECTORY_MAX_STEPS + 2
 const COLOR_TARGET = new Color('#7ee787')
 const COLOR_DEFAULT = new Color('#ffd784')
@@ -75,8 +75,7 @@ function getMuzzleOrigin(): [number, number, number] {
   const px = p.prevX + (p.x - p.prevX) * t
   const py = p.prevY + (p.y - p.prevY) * t
   const pz = p.prevZ + (p.z - p.prevZ) * t
-  const forwardOffset = AIM.MUZZLE_FORWARD
-  return [px + forwardOffset * Math.sin(p.yaw), py + AIM.MUZZLE_HEIGHT, pz + forwardOffset * Math.cos(p.yaw)]
+  return muzzleOrigin(px, py, pz, world.aimDir)
 }
 
 function useTrajectoryUpdate(

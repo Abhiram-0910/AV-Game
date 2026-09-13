@@ -1,6 +1,6 @@
 // A placed environment GLB: tier materials, merged by material, registered as ground if walkable.
 import { useEffect, useState } from 'react'
-import type { Group } from 'three'
+import type { Group, Material, Mesh, Object3D } from 'three'
 import type { Placement } from '@data/scenery'
 import { world, worldStore } from '@systems/world'
 import { disposeTree } from '@render/dispose'
@@ -8,6 +8,15 @@ import { loadGltf } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { applyTierMaterials } from '@render/materials'
 import { mergeByMaterial } from '@render/merge'
+
+/** tree.glb's leaf cards come off; the bark primitive left is trunk and branches. */
+function stripLeaves(root: Object3D): void {
+  const leaves: Object3D[] = []
+  root.traverse((o) => {
+    if ((o as Mesh).isMesh && ((o as Mesh).material as Material).name.startsWith('Leaves')) leaves.push(o)
+  })
+  leaves.forEach((o) => o.removeFromParent())
+}
 
 export function StaticProp({ placement, tier }: { placement: Placement; tier: ResolvedTier }) {
   const [group, setGroup] = useState<Group | null>(null)
@@ -17,6 +26,7 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
     loadGltf(placement.asset).then((gltf) => {
       if (!live) return
       const scene = gltf.scene.clone()
+      if (placement.bare) stripLeaves(scene)
       scene.position.set(placement.pos[0], placement.pos[1], placement.pos[2])
       scene.rotation.y = placement.yaw
       scene.scale.setScalar(placement.scale)

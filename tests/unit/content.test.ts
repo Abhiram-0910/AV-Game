@@ -8,7 +8,8 @@ import { CODEX } from '@data/codex'
 import { DIALOGUE, UI } from '@data/dialogue'
 import { LEVELS, LEVEL_ORDER } from '@data/levels'
 import { QUIZ_GATES } from '@data/quiz'
-import { ASSET_FILES } from '@data/scenery'
+import { ASSET_FILES, SCENERY, WILDS } from '@data/scenery'
+import { inCapsule } from '@render/wilds-dressing'
 
 const RAW_ANIMS = 'raw/staged/anims'
 
@@ -168,5 +169,16 @@ describe('balance and strings', () => {
 
   it('UI strings are non-empty except the narrator name', () => {
     for (const [k, v] of Object.entries(UI)) if (k !== 'name.narrator') expect(v.length, k).toBeGreaterThan(0)
+  })
+})
+
+describe('outdoor dressing', () => {
+  it('keeps every spawn, waypoint, NPC, enemy and target in L2–L4 inside a WILDS keep-clear capsule', () => {
+    for (const [id, wilds] of Object.entries(WILDS)) {
+      const def = LEVELS.find((l) => l.id === id)!
+      const npcs = SCENERY[id as keyof typeof WILDS]!.npcs.map((n) => n.pos)
+      const points = [def.playerSpawn.pos, ...Object.values(def.waypoints), ...def.targets.map((t) => t.pos), ...def.enemies.map((e) => e.pos), ...npcs]
+      for (const [x, , z] of points) expect(wilds!.clear.some((c) => inCapsule(c, x, z)), `${id} (${x}, ${z})`).toBe(true)
+    }
   })
 })

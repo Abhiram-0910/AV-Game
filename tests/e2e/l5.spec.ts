@@ -137,6 +137,8 @@ async function castAstraAt(page: Page, target: { x: number; z: number; y: number
   const p = await player(page)
   const pitch = Math.atan2(target.y - AIM.MUZZLE_HEIGHT, Math.hypot(target.x - p.x, target.z - p.z))
   await aimMouse(page, await player(page), target.x, target.z, pitch)
+  // L5 unlocks both astras and selects Agneyastra first (game-state.ts unlockAstra); only Manava flings Maricha.
+  await page.keyboard.press('Digit2')
   await page.keyboard.down('q')
   await pollUntil(page, () => page.evaluate((n) => window.__bk.world.astraCharge.ticks >= n, BALANCE.astra.CHARGE_TICKS), 4000)
   await page.keyboard.up('q')

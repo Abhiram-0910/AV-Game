@@ -10,7 +10,7 @@
 import { useCallback, useRef, useState } from 'react'
 import type { EnemyKind, Vec3, Wave } from '@data/levels'
 import { liveSkinned } from '@systems/spawner/skinned-budget'
-import { dueSpawns, freshWaveProgress, recordSpawn, type WaveProgress } from '@systems/spawner/wave-scheduler'
+import { committedSkinned, dueSpawns, freshWaveProgress, recordSpawn, type WaveProgress } from '@systems/spawner/wave-scheduler'
 import { world } from '@systems/world'
 
 export interface WaveSpawn {
@@ -25,7 +25,8 @@ function spawnPos(spots: readonly Vec3[], index: number): Vec3 {
   return spots[index % spots.length]
 }
 
-export function useWaveSpawner(waves: readonly Wave[], spots: readonly Vec3[]) {
+/** `persistent`: the level's always-present cast, which holds skinned slots before any wave spawns. */
+export function useWaveSpawner(waves: readonly Wave[], spots: readonly Vec3[], persistent: number) {
   const [active, setActive] = useState<WaveSpawn[]>([])
   const progressRef = useRef<WaveProgress[]>(freshWaveProgress(waves))
   const nextIdRef = useRef(0)
@@ -40,7 +41,7 @@ export function useWaveSpawner(waves: readonly Wave[], spots: readonly Vec3[]) {
           return !rt || rt.state !== 'dead' || tick < rt.stateUntil
         })
         const aliveByWave = waves.map((_, i) => kept.filter((a) => a.wave === i).length)
-        const requests = dueSpawns(waves, progressRef.current, tick, aliveByWave, liveSkinned())
+        const requests = dueSpawns(waves, progressRef.current, tick, aliveByWave, committedSkinned(liveSkinned(), persistent, kept.length))
         if (requests.length === 0) return kept.length === prev.length ? prev : kept
         let progress = progressRef.current
         const spawned = requests.map((r) => {
@@ -52,7 +53,7 @@ export function useWaveSpawner(waves: readonly Wave[], spots: readonly Vec3[]) {
         return [...kept, ...spawned]
       })
     },
-    [waves, spots],
+    [waves, spots, persistent],
   )
 
   return { active, onTick }

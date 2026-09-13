@@ -143,10 +143,14 @@ export const BALANCE = {
     TRAJECTORY_MAX_STEPS: 90,
     /** Draw gauge width in px on the HUD overlay. */
     GAUGE_WIDTH: 64,
-    /** Radius in metres for proximity magnetism/assist toward targets/enemies. */
-    AIM_ASSIST_RADIUS: 0.45,
-    /** Fraction to bias trajectory landing point toward target center on assist lock (0..1). */
-    AIM_ASSIST_BIAS: 0.1,
+    /** Radius in metres for proximity magnetism/assist toward targets/enemies. 0.85 → 0.45 in the combat PR
+     * (no stated reason) left a child on a trackpad (~20 px hand error) hitting the 16 m L4 target 55 % of
+     * the time; 0.75 gives 78 %, and with the arc locked green before release (~10 px click jitter) 99 %.
+     * Measured with the real ballistics and hit tester, 400 shots a cell (SESSION-LOG 2026-09-13). */
+    AIM_ASSIST_RADIUS: 0.75,
+    /** Fraction to bias the preview's landing marker toward the target centre on assist lock (0..1). Visual
+     * only — the hit itself is decided by the radius. 0.3 makes the marker visibly snap onto the target. */
+    AIM_ASSIST_BIAS: 0.3,
   },
 
   archeryAim: {

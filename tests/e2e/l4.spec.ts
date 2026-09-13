@@ -122,22 +122,26 @@ function aimMouse(page: Page, p: { x: number; z: number; yaw: number }, targetX:
   return page.mouse.move(((mx + 1) / 2) * size.width, ((1 - my) / 2) * size.height)
 }
 
-/** Fixed pos → a constant resolver. 'lateral' targets replicate Target.tsx's own oscillation
- * formula (deterministic from world.tick) — but the arrow's flight/draw time is a real
- * fraction of the 4s period, and how many game ticks that wall-clock wait covers isn't exact
- * under SwiftShader's variable frame rate, so precisely leading the shot isn't reliable. Waits
- * for a turning point instead (velocity near zero, the sine wave's peak/trough) — position
- * barely changes there even if the timing sync is imprecise by a few ticks. */
-function targetResolver(page: Page, t: TargetDef, y: number): () => Promise<{ x: number; z: number; y: number }> {
+type Aim = { x: number; z: number; y: number; releaseTick?: number }
+
+/** Ticks between the release tick being read and the arrow actually leaving: draw time plus slack for the
+ * mouse-up to land a SwiftShader frame (≤ MAX_SUBSTEPS ticks) later. */
+const LEAD_TICKS = BALANCE.arrow.DRAW_TICKS + 20
+
+/** Fixed pos → a constant resolver. 'lateral' moves on world.tick (systems/archery/step.ts), so the shot is
+ * timed in ticks, not wall-clock: pick the next turning point (sine peak or trough, velocity zero) the arrow
+ * can reach, aim there, and release at arrival minus flight time. The old version aimed at a turning point
+ * by wall-clock and released after the draw, by which time the target had slid up to 3 m. */
+function targetResolver(page: Page, t: TargetDef, y: number): () => Promise<Aim> {
   if (t.kind !== 'lateral') return async () => ({ x: t.pos[0], z: t.pos[2], y })
   return async () => {
-    for (let i = 0; i < 200; i += 1) {
-      const tick = await page.evaluate(() => window.__bk.world.tick)
-      const phase = (tick / t.periodTicks) * Math.PI * 2
-      if (Math.abs(Math.cos(phase)) < 0.1) return { x: t.pos[0] + Math.sin(phase) * t.amplitude, z: t.pos[2], y }
-      await page.waitForTimeout(80)
-    }
-    return { x: t.pos[0], z: t.pos[2], y }
+    const [tick, p] = await Promise.all([page.evaluate(() => window.__bk.world.tick), player(page)])
+    const flight = Math.round((Math.hypot(t.pos[0] - p.x, t.pos[2] - p.z) / BALANCE.arrow.SPEED) * BALANCE.loop.HZ)
+    const half = t.periodTicks / 2
+    const first = t.periodTicks / 4 // sin peaks at a quarter period, then every half period
+    const arrive = first + Math.ceil((tick + LEAD_TICKS + flight - first) / half) * half
+    const x = t.pos[0] + Math.sin((arrive / t.periodTicks) * Math.PI * 2) * t.amplitude
+    return { x, z: t.pos[2], y, releaseTick: arrive - flight }
   }
 }
 
@@ -152,9 +156,10 @@ async function pollUntil(page: Page, check: () => Promise<boolean>, maxMs = 20_0
   }
 }
 
-async function aimAndFireAt(page: Page, target: { x: number; z: number; y: number }, pitchTrim: number, yawTrim = 0) {
+async function aimAndFireAt(page: Page, target: Aim, pitchTrim: number, yawTrim = 0) {
   const p = await player(page)
-  const r = Math.hypot(target.x - p.x, target.z - p.z)
+  // The arrow leaves MUZZLE_FORWARD ahead along the aim (ballistics.ts muzzleOrigin).
+  const r = Math.hypot(target.x - p.x, target.z - p.z) - AIM.MUZZLE_FORWARD
   const pitch = solvePitch(BALANCE.arrow.SPEED, BALANCE.arrow.GRAVITY, r, target.y - AIM.MUZZLE_HEIGHT)
   if (pitch === null) return
   // yawTrim nudges the aim point sideways (in metres, perpendicular-ish via a small z offset
@@ -162,6 +167,8 @@ async function aimAndFireAt(page: Page, target: { x: number; z: number; y: numbe
   await aimMouse(page, p, target.x + yawTrim, target.z, pitch + pitchTrim)
   await page.mouse.down()
   await pollUntil(page, () => page.evaluate((n) => window.__bk.world.draw.ticks >= n, BALANCE.arrow.DRAW_TICKS))
+  const release = target.releaseTick
+  if (release !== undefined) await pollUntil(page, () => page.evaluate((n) => window.__bk.world.tick >= n, release))
   await page.mouse.up()
   await pollUntil(page, () => page.evaluate(() => window.__bk.world.arrows.length === 0))
 }
@@ -254,8 +261,9 @@ test('Level 4 plays end to end: the astra lesson and all five targets', async ({
   await aimAndFireAt(page, { x: astraTarget.pos[0], y: 1.0, z: astraTarget.pos[2] }, 0)
   expect(await hittableCount(page)).toBe(before) // the arrow did nothing — still hittable
 
+  // castAstra (systems/astra/step.ts) counts the chargeAstra objective in the same tick as the target hit,
+  // so the level completes at once: there is no frame showing the chargeAstra objective to assert on.
   await castAstraAt(page, { x: astraTarget.pos[0], y: 0.9 * astraTarget.scale, z: astraTarget.pos[2] })
-  await expect(objective).toContainText(UI['objective.chargeAstra'])
 
   await expect(page.getByTestId('result-title')).toHaveText(UI['result.win'])
   const card = CODEX.find((c) => c.id === L4.codexCard)!

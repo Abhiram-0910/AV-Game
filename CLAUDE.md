@@ -57,4 +57,12 @@ the gotchas that are not derivable from the tree.
   error; the symptom is a level that never finishes loading (0 Skinned meshes, phase stuck at
   `'loading'`) even though the source is correct. Run `npm run build` before `playwright test`
   whenever `src/` changed since the last build.
+- **three caches an equirect `scene.background` as a cubemap per texture.** `needsUpdate` on a repainted canvas
+  does nothing. Build a new texture and dispose the old one, which frees its cubemap (L3 curse lift,
+  `entities/WildsDressing.tsx`).
+- **A failed level under e2e looks like a silent reset.** `ResultPanel` autofocuses Retry and the spec's next
+  `mouse.down/up` lands on it: objectives reset, arrows do not. Find out why the level failed (L4: `arrowsOut`)
+  before debugging the reset.
+- **`mergeByMaterial` silently drops a bucket that mixes indexed and non-indexed geometry** (`mergeGeometries`
+  returns null). Polyhedron geometries (Dodecahedron, Icosahedron) are non-indexed; give them their own material.
 - **No AI attribution trailers in commits**, ever (user rule, overrides tool defaults).

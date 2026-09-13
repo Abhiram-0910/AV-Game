@@ -81,6 +81,9 @@ export function tierMaterial(source: Material, tier: ResolvedTier, opts: TierMat
     emissive: src.emissive?.clone() ?? new Color(0),
     emissiveMap: src.emissiveMap ?? null,
     emissiveIntensity: src.emissiveIntensity ?? 1,
+    // glTF BLEND foliage (tree.glb's leaf cards) arrives transparent; dropping that drew each card's clear
+    // texels as solid. Cut out instead: no sorting, and the shadow pass honours it.
+    alphaTest: src.transparent ? 0.5 : src.alphaTest,
   }
   if (tier === 'high') return standard(src, shared, opts)
   return new MeshToonMaterial({ ...shared, gradientMap: getToonRamp() })

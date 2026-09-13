@@ -5,7 +5,7 @@ import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
 import { applyArrowHit } from '../ai/enemy-ai'
-import { grounded, launchArrow, shouldFailArrowsOut, stepArrow } from './ballistics'
+import { grounded, launchArrow, muzzleOrigin, shouldFailArrowsOut, stepArrow } from './ballistics'
 import { drawFraction, stepDraw } from './draw'
 import { createHitTester, resolveHitRoot } from './hit-test'
 import { playAudio } from '../audio'
@@ -48,15 +48,8 @@ function updateBlend(dt: number): void {
 function fire(fraction: number): void {
   const store = gameStore.getState()
   if (!store.fireArrow()) return
-  const p = world.player
-  const forwardOffset = AIM.MUZZLE_FORWARD
-  const origin: [number, number, number] = [
-    p.x + forwardOffset * Math.sin(p.yaw),
-    p.y + 1.35,
-    p.z + forwardOffset * Math.cos(p.yaw),
-  ]
-  const [dx, dy, dz] = world.aimDir
-  world.arrows.push(launchArrow(origin, [dx, dy, dz], fraction))
+  const { x, y, z } = world.player
+  world.arrows.push(launchArrow(muzzleOrigin(x, y, z, world.aimDir), world.aimDir, fraction))
 }
 
 function targetsRemaining(): number {

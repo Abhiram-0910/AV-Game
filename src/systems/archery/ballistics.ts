@@ -12,6 +12,14 @@ export interface ArrowState {
   alive: boolean
 }
 
+/** Where the arrow leaves the bow: MUZZLE_FORWARD along the AIM, not the body's yaw (mouse aim swings
+ * ±MOUSE_YAW_RAD off the body, and an origin on the body's heading sent arrows off the arc). The release
+ * and the preview arc both call this, so the arc cannot start somewhere the arrow does not. */
+export function muzzleOrigin(x: number, y: number, z: number, dir: readonly [number, number, number]): [number, number, number] {
+  const { MUZZLE_FORWARD: f, MUZZLE_HEIGHT: h } = BALANCE.archeryAim
+  return [x + dir[0] * f, y + h, z + dir[2] * f]
+}
+
 export function launchArrow(origin: readonly [number, number, number], dir: readonly [number, number, number], fraction: number): ArrowState {
   const speed = BALANCE.arrow.SPEED * fraction
   const pitch = Math.asin(Math.max(-1, Math.min(1, dir[1])))

@@ -9,6 +9,7 @@ import { levelDef } from '@core/progression'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
 import { TrajectoryArc } from '@entities/TrajectoryArc'
+import { WildsDressing } from '@entities/WildsDressing'
 import { Enemy } from '@entities/Enemy'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
@@ -26,10 +27,10 @@ const def = levelDef('l3')
 const DUTY_DONE_AT = def.objectives.findIndex((o) => o.kind === 'talk' && o.dialogueKey === 'l3.vishwamitra.duty')
 const CLEARING_DONE_AT = def.objectives.findIndex((o) => o.kind === 'reach' && o.waypoint === 'clearing')
 
-function useLevelLifecycle() {
+function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.enemies.length + 1)
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.enemies.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -38,7 +39,7 @@ function useLevelLifecycle() {
       worldStore.getState().setBoss(null)
       evictAssets(scenery.statics.map((p) => p.asset))
     }
-  }, [])
+  }, [tier])
 }
 
 /** One-shot narrative beat: opens `key` the first time `done` turns true. Not gated by any
@@ -54,7 +55,7 @@ function useNarrativeBeat(done: boolean, key: string) {
 }
 
 export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
-  useLevelLifecycle()
+  useLevelLifecycle(tier)
   const dutyDone = useStore(gameStore, (s) => s.level === 'l3' && s.objectives[DUTY_DONE_AT]?.done === true)
   const clearingDone = useStore(gameStore, (s) => s.level === 'l3' && s.objectives[CLEARING_DONE_AT]?.done === true)
   useNarrativeBeat(dutyDone, 'l3.rama.resolve')
@@ -79,6 +80,7 @@ export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
+      {tier === 'high' && <WildsDressing level="l3" />}
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}

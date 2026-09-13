@@ -1,12 +1,13 @@
 import { Object3D } from 'three'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
-import { grounded, launchArrow, sampleTrajectoryPath, shouldFailArrowsOut, stepArrow } from '@systems/archery/ballistics'
+import { grounded, launchArrow, muzzleOrigin, sampleTrajectoryPath, shouldFailArrowsOut, stepArrow } from '@systems/archery/ballistics'
 import { NO_DRAW, drawFraction, isDrawing, stepDraw } from '@systems/archery/draw'
 import { createHitTester } from '@systems/archery/hit-test'
 import { updateMovingTargets } from '@systems/archery/step'
 import { computeTrajectory } from '@systems/archery/trajectory'
-import { castAstra } from '@systems/astra/step'
+import { castAgneyastra, castAstra } from '@systems/astra/step'
+import { spawnEnemy } from '@systems/ai/enemy-ai'
 import { gameStore } from '@core/game-state'
 import { world, worldStore } from '@systems/world'
 
@@ -39,6 +40,16 @@ describe('ballistics', () => {
     }
     expect(peak).toBeGreaterThan(1.4)
     expect(grounded(a) || !a.alive).toBe(true)
+  })
+})
+
+describe('release origin', () => {
+  it('leaves the bow along the aim, not the body heading, so the arc starts where the arrow does', () => {
+    // Body faces +Z (yaw 0); the mouse aims hard right (+X).
+    const [x, y, z] = muzzleOrigin(0, 0, 0, [1, 0, 0])
+    expect(x).toBeCloseTo(BALANCE.archeryAim.MUZZLE_FORWARD)
+    expect(y).toBeCloseTo(BALANCE.archeryAim.MUZZLE_HEIGHT)
+    expect(z).toBeCloseTo(0)
   })
 })
 
@@ -169,3 +180,19 @@ describe('trajectory sampling and preview', () => {
   })
 })
 
+
+describe('Agneyastra spares Maricha', () => {
+  it('burns a rakshasa at the impact point but leaves Maricha untouched (he is flung, never killed)', () => {
+    world.player.x = 0
+    world.player.z = 0
+    world.aimDir = [0, 0, 1]
+    world.hittable = []
+    // No hittable in the way, so the impact lands 18 m straight ahead (resolveImpactPoint).
+    const maricha = spawnEnemy('maricha', [0, 0, 18], null)
+    const rakshasa = spawnEnemy('rakshasa', [0.5, 0, 18], null)
+    castAgneyastra(world.player, [maricha, rakshasa], 0)
+    expect(maricha.health).toBe(BALANCE.enemies.maricha.HEALTH)
+    expect(maricha.state).not.toBe('dead')
+    expect(rakshasa.health).toBeLessThan(BALANCE.enemies.rakshasa.HEALTH)
+  })
+})

@@ -29,34 +29,6 @@ function syncPortraits() {
 }
 syncPortraits()
 
-function syncLowTier() {
-  const highDir = fileURLToPath(new URL('./public/assets/high', import.meta.url))
-  const lowDir = fileURLToPath(new URL('./public/assets/low', import.meta.url))
-  if (!fs.existsSync(highDir)) return
-  if (!fs.existsSync(lowDir)) fs.mkdirSync(lowDir, { recursive: true })
-
-  const copyMap: Record<string, string> = {
-    'characters/male.glb': 'characters/male-low.glb',
-    'characters/female.glb': 'characters/female-low.glb',
-  }
-
-  const highManifestFile = path.join(highDir, 'manifest.json')
-  if (!fs.existsSync(highManifestFile)) return
-  const highManifest = JSON.parse(fs.readFileSync(highManifestFile, 'utf8')) as Record<string, { file: string; tris: number; bytes: number }>
-
-  for (const item of Object.values(highManifest)) {
-    const srcRel = copyMap[item.file] && fs.existsSync(path.join(highDir, copyMap[item.file])) ? copyMap[item.file] : item.file
-    const src = path.join(highDir, srcRel)
-    const dst = path.join(lowDir, item.file)
-    const dstSub = path.dirname(dst)
-    if (!fs.existsSync(dstSub)) fs.mkdirSync(dstSub, { recursive: true })
-    if (fs.existsSync(src) && !fs.existsSync(dst)) {
-      fs.copyFileSync(src, dst)
-    }
-  }
-}
-syncLowTier()
-
 export default defineConfig({
   plugins: [
     react(),

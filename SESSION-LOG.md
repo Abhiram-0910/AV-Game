@@ -2,6 +2,120 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-13 — Claude Code (Opus 5) — Archery regression fixed, L2–L4 dressed, fake low tier removed
+
+Branch `feat/visual-grandeur`.
+
+**1. Archery regression**
+- Root cause: the combat PR (6c94d46) put the release origin in `systems/archery/step.ts` on the body's yaw (and a
+  hard-coded 1.35 m), and `TrajectoryArc` copied it. Mouse aim swings ±0.6 rad off the body, so the arrow left from
+  a point the aim did not pass through. New `muzzleOrigin(x, y, z, aimDir)` in `ballistics.ts` is called by both the
+  release and the arc, so they cannot drift apart again. Unit test: the origin follows the aim, not the heading.
+- Arc audit: `computeTrajectory` already steps the same `launchArrow` / `stepArrow` and the same
+  `findProximityHit` assist as the fired arrow. The origin was the only divergence.
+- Aim assist 0.45 m / 0.1 → **0.75 m / 0.3** (reason inline in `balance.ts`). Bias is visual only (it snaps the
+  landing marker toward the target centre); the radius decides the hit. Measured, not guessed:
+  - Sweep, real ballistics and hit tester, 400 shots a cell, hand error as Gaussian screen px:
+
+    | hand error | shot | 0.45 | 0.55 | 0.65 | 0.75 | 0.85 |
+    |---|---|---|---|---|---|---|
+    | 10 px (arc locked, click jitter) | L4 static 16 m | 94 % | 97 % | 98 % | 99 % | 100 % |
+    | 20 px (child, trackpad) | L2 13 m | 67 % | 80 % | 86 % | 86 % | 95 % |
+    | 20 px | L4 static 16 m | 55 % | 66 % | 66 % | 78 % | 84 % |
+    | 20 px | L4 occluded 24 m | 23 % | 27 % | 37 % | 49 % | 49 % |
+    | 20 px | L4 long 44 m | 9 % | 12 % | 21 % | 21 % | 28 % |
+
+  - Play in the real build (L4, scripted "child": ~40 px initial misjudgement, corrects while watching the arc,
+    releases when it turns green with ~6 px click jitter): static, occluded and long range each hit on the first
+    arrow; arc and outcome agreed 3 of 3. Impatient variant (releases at full draw without waiting for green):
+    hits on arrows 2, 5 and 5; the arc called 11 of 12 releases right (one amber arc at 44 m still hit, inside the
+    assist radius).
+- `tests/e2e/l4.spec.ts` had three stale assumptions, fixed in the spec, not the game:
+  - The lateral target was shot by wall clock. It slid up to 3.4 m during draw and flight; after nine misses
+    `arrowsOut` failed the level, and the spec's next mouse click landed on the autofocused Retry button. That is
+    why the failure looked like a reset. It is now timed in ticks to arrive at a sine turning point.
+  - Pitch is now solved from the muzzle (range − `MUZZLE_FORWARD`).
+  - The `chargeAstra` objective assertion is gone: `castAstra` completes that objective in the same tick as the
+    hit, so the HUD goes straight to "Level complete".
+  - L4 alone on the fixed build: pass, 2.2 min.
+
+**2. L2, L3, L4 dressed (high tier only)**
+Files: `WILDS` and `RANGE` in `data/scenery.ts`, `render/wilds-dressing.ts`, `render/range-dressing.ts`,
+`render/wild-textures.ts`, `entities/WildsDressing.tsx`. Each scene mounts it on high and counts it in the load gate.
+- **Technique:**
+  - tree.glb and rock.glb render as InstancedMesh. `render/instancing.ts` now takes per-axis scale, tilt and
+    instance colour.
+  - A leafy forest tree is tree.glb's leaf cards on a bark-textured 14-tri trunk (~2k tris against the full
+    model's 6.3k; 50 full trees blew the high budget). A bare tree is the bark primitive alone.
+  - Only trees near the play bounds cast shadows. Shrubs are crossed cards of the leaf texture. Grass is crossed
+    alpha-cut quads with upturned normals.
+  - Seeded rejection scatter outside keep-clear capsules. A new content test asserts every spawn, waypoint, NPC,
+    enemy and target sits inside one.
+- **L2 Sarayu:** 52 trees, the river west of the walk (scrolling water, sand bank, reeds), 150 shrubs, 900 grass
+  tufts, 34 rocks.
+- **L3 Tataka's forest:**
+  - 14 extra bare trees. The six static trees are `bare` on both tiers (`Placement.bare`; `StaticProp` strips
+    `Leaves*`). This is a deliberate exception to high-only gating: it only removes triangles from low.
+  - Drifting ground mist.
+  - Curse lift: when the defeat objective completes, over 5 s the mist burns off, fog and exposure warm, a gold sun
+    rises, and the sky is rebuilt in 12 steps. three caches an equirect background as a cubemap per texture and
+    ignores `needsUpdate`, so repainting the canvas did nothing.
+- **L4 ashram range:** a ring of 34 trees outside the bounds; a firing line of chalk stones on earth with flagged
+  posts; a straw bale, stakes and an earth pad behind every target (one long bale on a plank rail for the lateral
+  target); a round mud-walled kuti with a thatch cone and doorway; a fire pit with flames and a flickering light.
+- **Material fix:** `tierMaterial` dropped glTF BLEND, so tree.glb's leaf cards drew their clear texels solid.
+  That was the dark scribbled canopy in every earlier shot, on both tiers. It is now `alphaTest` 0.5, on low too.
+- **Built and dropped:** L2 light shafts. The key light is behind the camera along the whole walk, so additive
+  shafts pointed at the lens and read as an orange wash (confirmed at full opacity in red), never as beams.
+- **High-tier budget:** first pass 362k (L2) / 353k (L3); cut the tree count, shadow reach and rock shadows.
+  Final:
+
+  | level | before (spawn) | after (spawn) | after (gameplay view) |
+  |---|---|---|---|
+  | L2 | 138k tris / 95 calls | 291k / 106 | 299k / 118 |
+  | L3 | 216k / 122 | 291k / 117 | 289k / 115 |
+  | L4 | 121k / 90 | 211k / 117 | 228k / 132 |
+
+- **Low tier** (dressing not mounted): L2 29k tris / 32 calls, L3 77k / 51, L4 31k / 36, at most 4 SkinnedMesh.
+- **Screenshots:** `vis-before7-l{2,3,4}.png` and `-play.png` against `vis-after7-*` for the same framings, plus
+  `vis-after7-l3-lifted.png` and `vis-after7-l{2,3,4}-low.png`.
+
+**3. Fake low tier:** `syncLowTier()` removed from `vite.config.ts`; the untracked 49 MB `public/assets/low/`
+deleted. The manifest fallback to high is untouched and the KTX2 TODO stays. `syncPortraits()` is still there: it
+reads another developer's home directory and does nothing elsewhere. Not asked, not touched.
+
+**4. Found while running L5** (the full e2e run lost L5 at 16 live SkinnedMesh, peak 16 / 12, 191 draw calls on low):
+- **Skinned budget overflow.** `entities/wave-spawner.ts` budgeted from `liveSkinned()`, but an enemy takes its slot
+  only once its GLB has loaded and `character-factory.ts` has built it. Every spawn requested in that gap was
+  invisible to the scheduler, so waves kept spawning into promised slots. New pure
+  `committedSkinned(live, persistent, active)` in `wave-scheduler.ts` (unit-tested) counts requested spawns; L5 passes
+  its persistent cast. Re-run: peak 11 / 12. The pre-session commit's `l5-fight-end.png` peaked at 12 / 12; the
+  overflow is newer.
+- **Agneyastra killed Maricha.** 120 fire damage against his 90 health, which breaks the content rule (flung, never
+  killed). `castAgneyastra` now skips him, as arrows already do. Unit test added.
+- **`l5.spec.ts` fired the wrong astra.** L5 unlocks both astras and selects Agneyastra first, so the bot's "single
+  Manava charge" was fire. It now presses Digit2 first.
+
+**Verified**: tsc, eslint, vitest 120 passed / 1 skipped.
+
+**E2E (all five, once, `--workers=1`, 21.6 min, on the build before part 4)**: L1 pass (1.6 min), L2 pass (14.1 min),
+L3 pass (58 s), L4 pass (1.6 min), **L5 fail** ("Try again"). L5 re-run alone after the part-4 fixes: 1.1 min
+(budget fix), then 3.0 min (plus the Maricha guard and the Manava key), both "Try again". L1–L4 were not re-run
+after part 4: it touches only the wave spawner (L5 only), `castAgneyastra` (the guard is Maricha-specific; L4 casts it
+on a target) and `l5.spec.ts`.
+
+**Why L5 still loses** (an instrumented copy of the spec, state every 5 s; not committed):
+- The yajna runs out, not Rama. Rama at (0, 0.5) took no damage all fight. The rakshasas stop at their REACH (1.6 m)
+  from the altar centre, about 2 m out on every side, so Rama is outside their reach, blocks nothing, and the altar
+  takes every hit. 150 integrity hit 0 at tick ~6700, after the survive timer but before Subahu and Maricha were down.
+- The bot's kill rate is the failure. Arrows went 12 → 3 by tick 4428 with most rakshasas still at 30/30, then
+  stopped decrementing for ~2300 ticks while the loop kept firing. Not diagnosed.
+- A melee-first bot (the combat PR's sword: F, 35 damage, 2.2 m) lasted 5.2 min once. Its instrumented run showed
+  it never landed a hit and its guard stopped at z −0.9, inside the rakshasas' reach. Reverted, not committed.
+- The bot has never won L5: the pre-PR commit's fight-end shot is also "Try again", at 12 / 12. Whether a child
+  can win it by hand is unverified.
+
+
 ## 2026-09-11 — Claude Code — Visual pass steps 3, 7, 8 and the four court/yajna fixes
 
 Unit suite confirmed green after the Antigravity PR merge (115 passed), then:

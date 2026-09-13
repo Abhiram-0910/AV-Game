@@ -76,6 +76,8 @@ export interface Placement {
   castShadow?: boolean
   /** High-tier PBR factors replacing the source's (the untextured palace ships metalness 0.28 on stone). */
   pbr?: { roughness: number; metalness: number }
+  /** tree.glb without its leaves: the bark primitive is trunk and branches, a dead tree. */
+  bare?: boolean
 }
 
 export interface NpcPlacement {
@@ -196,6 +198,128 @@ export const YAJNA = {
   embers: { count: 90, rise: [0.7, 1.7] as const, top: 4.5, size: 0.07 },
 } as const
 
+/** A keep-clear capsule on the ground: segment (x0, z0)–(x1, z1) grown by radius r. */
+type Capsule = readonly [x0: number, z0: number, x1: number, z1: number, r: number]
+type Span = readonly [number, number]
+
+/** Levels 2–4 outdoors, high tier only (render/wilds-dressing.ts, entities/WildsDressing.tsx). tree.glb and
+ * rock.glb scatter as InstancedMesh, one draw call per mesh however many trees. A leafy forest tree is
+ * tree.glb's leaf cards on a tapered bark-textured trunk (~2k tris; the full model's branches are 4.3k more); a
+ * bare tree is its bark primitive alone. Shrubs are crossed cards of the same leaf texture, so undergrowth
+ * matches the canopy. Seeded rejection sampling inside `area`; nothing may sit in a `clear` capsule,
+ * which keep every walk, the follow camera 5.5 m behind it, and every line of fire open (dressing never
+ * collides). Colours are per-instance multipliers. */
+export interface Wilds {
+  seed: number
+  area: { minX: number; maxX: number; minZ: number; maxZ: number }
+  clear: readonly Capsule[]
+  /** `tints` multiply the leaves, or a bare tree's bark; `lean` is the most a trunk tilts off plumb (radians). */
+  trees: { count: number; scale: Span; bare: boolean; minGap: number; tints: readonly string[]; lean: number }
+  /** Trees within the play bounds grown by this many metres cast shadows; farther ones only receive. */
+  shadowReach: number
+  rocks: { count: number; scale: Span; colors: readonly string[] }
+  shrubs: { count: number; scale: Span; colors: readonly string[] }
+  grass: { count: number; height: Span; colors: readonly string[] }
+  /** The Sarayu: a scrolling water plane west of the walk, a sand bank on its near edge lined with reeds. */
+  water?: { minX: number; maxX: number; minZ: number; maxZ: number; color: string; bank: string; bankWidth: number; reeds: number; flow: number }
+  /** Horizontal mist sheets at these heights over `size` metres round the play area, drifting. */
+  mist?: { color: string; opacity: number; heights: readonly number[]; size: number; drift: number }
+  /** When Tataka falls the curse lifts over `seconds`: mist burns off, fog and sky warm, a gold sun comes up. */
+  curseLift?: { seconds: number; fog: string; sky: { zenith: string; horizon: string }; exposure: number; sun: { color: string; intensity: number; dir: Vec3 } }
+}
+
+export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
+  l2: {
+    seed: 2,
+    // Spawn at the origin faces +Z into the wood the brothers came through; the walk runs −Z to the range.
+    area: { minX: -70, maxX: 44, minZ: -88, maxZ: 34 },
+    clear: [
+      [0, 4, 0, -18, 5], // spawn → riverbank
+      [0, -18, 0, -18, 7.5], // the mantras, and the camera swinging round as Rama turns
+      [0, -18, 10.5, -30, 5.5], // riverbank → range
+      [10.5, -30, 10.5, -30, 7.5],
+      [10.5, -30, 12, -46, 7.5], // line of fire to the three targets (x 8–16, z −42…−44)
+    ],
+    trees: { count: 52, scale: [0.85, 1.5], bare: false, minGap: 4.2, tints: ['#ffffff', '#dfeec0', '#c3d69a', '#e9f2d0'], lean: 0.05 },
+    shadowReach: 4,
+    rocks: { count: 34, scale: [1.2, 3.6], colors: ['#ffffff', '#d8d4c4', '#b9b5a4'] },
+    shrubs: { count: 150, scale: [0.6, 1.4], colors: ['#ffffff', '#d0e0a8', '#b8cc88', '#e0ecc0'] },
+    grass: { count: 900, height: [0.35, 0.75], colors: ['#b4cc78', '#a0bc66', '#c4d888', '#94b25e'] },
+    water: { minX: -46, maxX: -14.5, minZ: -140, maxZ: 70, color: '#6aa6a2', bank: '#a89468', bankWidth: 3, reeds: 160, flow: 0.035 },
+  },
+  l3: {
+    seed: 3,
+    area: { minX: -42, maxX: 42, minZ: -64, maxZ: 54 },
+    clear: [
+      [0, 27, 0, -26, 6], // spawn (0, 20) facing −Z down to the clearing
+      [0, -16, 0, -16, 11], // Tataka's clearing: open ground to fight in
+    ],
+    trees: { count: 14, scale: [0.8, 1.35], bare: true, minGap: 6, tints: ['#a4a4a4', '#8a8a8a', '#bab6ae'], lean: 0.14 },
+    shadowReach: 0,
+    rocks: { count: 40, scale: [1.2, 4], colors: ['#9a9a94', '#7c7c78', '#b0aea6'] },
+    shrubs: { count: 90, scale: [0.5, 1.2], colors: ['#8a7a5a', '#6e6250', '#9a8a68'] },
+    grass: { count: 520, height: [0.3, 0.7], colors: ['#77705a', '#646050', '#8a8266', '#5a5a4a'] },
+    mist: { color: '#9aa6a0', opacity: 0.2, heights: [0.12, 0.35, 0.65], size: 110, drift: 0.012 },
+    curseLift: { seconds: 5, fog: '#b3a582', sky: { zenith: '#6f93b8', horizon: '#cdbb92' }, exposure: 1.05, sun: { color: '#ffc67a', intensity: 2.2, dir: [6, 8, 4] } },
+  },
+  l4: {
+    seed: 4,
+    area: { minX: -48, maxX: 48, minZ: -90, maxZ: 40 },
+    clear: [
+      [0, 8, 0, -56, 17.5], // the whole range (bounds x ±14, z −54…6): an ashram clearing
+      [6.5, 11, 6.5, 11, 4.2], // the hut
+      [-3.5, 8.5, -3.5, 8.5, 2.5], // the fire pit
+    ],
+    trees: { count: 34, scale: [0.9, 1.55], bare: false, minGap: 5, tints: ['#ffffff', '#e4f0c4', '#cbdca0'], lean: 0.04 },
+    shadowReach: 10,
+    rocks: { count: 18, scale: [1.2, 3], colors: ['#ffffff', '#dedad0'] },
+    shrubs: { count: 70, scale: [0.6, 1.3], colors: ['#ffffff', '#d8e6b0', '#c0d496'] },
+    grass: { count: 520, height: [0.3, 0.65], colors: ['#86a84c', '#739a44', '#98b45a'] },
+  },
+}
+
+/** Level 4's built pieces (render/range-dressing.ts): Vishwamitra's hermitage past the spawn edge (bounds maxZ
+ * 6, so nobody walks into it), a whitewashed firing line, and a straw-bale backstop behind every target so
+ * none of them stands alone on the grass. Target positions come from levels.ts at build time. */
+export const RANGE = {
+  palette: {
+    straw: '#c9a24e',
+    strawDark: '#8a6a2c',
+    strawLight: '#e6cc86',
+    wood: '#6b4a2c',
+    mud: '#a57a52',
+    mudDark: '#8a6040',
+    mudLight: '#b88c60',
+    thatch: '#a8844a',
+    doorway: '#1d130c',
+    chalk: '#ece4d0',
+    stone: '#8a857a',
+    earth: '#85674a',
+    saffron: '#ff8c1a',
+    ember: '#2a0a04',
+    flame: '#ff6a1a',
+    flameCore: '#ffd07a',
+  },
+  /** Whitewashed stones across z from −halfWidth to +halfWidth, a saffron-flagged post at each end, on a
+   * trodden earth strip `depth` deep. */
+  firingLine: { z: -4.9, halfWidth: 5, stoneEvery: 0.6, depth: 2.4 },
+  /** Bale behind each target, sized at target scale 1 (width, height, depth) and set `behind` metres farther
+   * down range; a lateral target's bale spans its whole slide. */
+  backstop: { w: 1.5, h: 0.95, d: 0.6, behind: 0.75 },
+  /** Round mud-walled kuti with a conical thatch roof and a doorway facing the range. */
+  hut: { x: 6.5, z: 11, r: 2.3, wallH: 2.1, roofH: 2.7, overhang: 0.6 },
+  /** Stone-ringed fire pit: ring radius, stone count, flames (x, z, radius, height), and a flickering light. */
+  firePit: {
+    x: -3.5,
+    z: 8.5,
+    r: 0.62,
+    stones: 11,
+    flames: [[0, 0, 0.17, 0.62], [0.13, 0.08, 0.1, 0.38], [-0.12, 0.07, 0.11, 0.34], [0.02, -0.13, 0.09, 0.3]] as readonly (readonly [number, number, number, number])[],
+    flameEmissive: 1.6,
+    light: { color: '#ff9a48', intensity: 9, distance: 10, y: 0.9, flickerHz: 8, flickerAmount: 0.2 },
+  },
+} as const
+
 /** High-tier post-processing. Bloom threshold is linear HDR luminance: only emissives above 1 glow.
  * Vignette darkness 1 mixes corners toward black; above 1 it goes negative. */
 export const POST = {
@@ -286,13 +410,15 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
   l3: {
     // Dense, dark forest — "no birds sang" (l3.intro). Denser tree cover than L2's riverbank,
     // thinning near the clearing at z -10 so Tataka's fight has open ground.
+    // Bare on both tiers (2026-09-13): leaves in Tataka's cursed wood contradicted the level, and dropping them
+    // only removes triangles from low.
     statics: [
-      { asset: 'tree', pos: [-4, 0, 2], yaw: 0.2, scale: 1.05, ground: false },
-      { asset: 'tree', pos: [5, 0, 0], yaw: 1.4, scale: 0.95, ground: false },
-      { asset: 'tree', pos: [-7, 0, -8], yaw: 2.1, scale: 1.1, ground: false },
-      { asset: 'tree', pos: [8, 0, -10], yaw: 0.7, scale: 1, ground: false },
-      { asset: 'tree', pos: [-8, 0, -20], yaw: 1.9, scale: 1.0, ground: false },
-      { asset: 'tree', pos: [8, 0, -22], yaw: 0.5, scale: 1.05, ground: false },
+      { asset: 'tree', pos: [-4, 0, 2], yaw: 0.2, scale: 1.05, ground: false, bare: true },
+      { asset: 'tree', pos: [5, 0, 0], yaw: 1.4, scale: 0.95, ground: false, bare: true },
+      { asset: 'tree', pos: [-7, 0, -8], yaw: 2.1, scale: 1.1, ground: false, bare: true },
+      { asset: 'tree', pos: [8, 0, -10], yaw: 0.7, scale: 1, ground: false, bare: true },
+      { asset: 'tree', pos: [-8, 0, -20], yaw: 1.9, scale: 1.0, ground: false, bare: true },
+      { asset: 'tree', pos: [8, 0, -22], yaw: 0.5, scale: 1.05, ground: false, bare: true },
       { asset: 'rock', pos: [3, 0, -16], yaw: 0.3, scale: 1.5, ground: false },
       { asset: 'rock', pos: [-3, 0, -26], yaw: 1.6, scale: 1.7, ground: false },
     ],

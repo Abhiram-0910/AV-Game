@@ -9,6 +9,7 @@ import type { Vec3 } from '@data/levels'
 import { SCENERY } from '@data/scenery'
 import { ArrowPool } from '@entities/ArrowPool'
 import { TrajectoryArc } from '@entities/TrajectoryArc'
+import { WildsDressing } from '@entities/WildsDressing'
 import { FollowCamera } from '@entities/FollowCamera'
 import { GroundPlane } from '@entities/GroundPlane'
 import { NpcCharacter } from '@entities/NpcCharacter'
@@ -28,10 +29,10 @@ const MANTRAS_DONE_AT = def.objectives.findIndex((o) => o.kind === 'talk' && o.d
 // Offset from the range waypoint so he stays within TALK_RADIUS once the player arrives.
 const VISHWAMITRA_AT_RANGE: Vec3 = [def.waypoints.range[0] - 1.5, 0, def.waypoints.range[2]]
 
-function useLevelLifecycle() {
+function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1)
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -39,11 +40,11 @@ function useLevelLifecycle() {
       unsubscribe()
       evictAssets(scenery.statics.map((p) => p.asset))
     }
-  }, [])
+  }, [tier])
 }
 
 export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
-  useLevelLifecycle()
+  useLevelLifecycle(tier)
   const mantrasDone = useGame((s) => s.level === 'l2' && s.objectives[MANTRAS_DONE_AT]?.done === true)
   const { bounds } = scenery
   return (
@@ -54,6 +55,7 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
+      {tier === 'high' && <WildsDressing level="l2" />}
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BALANCE } from '@data/balance'
 import { LEVELS } from '@data/levels'
 import { acquireSkinnedSlot, liveSkinned, peakSkinned, releaseSkinnedSlot, resetSkinnedBudget } from '@systems/spawner/skinned-budget'
-import { dueSpawns, freshWaveProgress, recordSpawn } from '@systems/spawner/wave-scheduler'
+import { committedSkinned, dueSpawns, freshWaveProgress, recordSpawn } from '@systems/spawner/wave-scheduler'
 
 afterEach(() => {
   resetSkinnedBudget()
@@ -53,5 +53,12 @@ describe('wave scheduler', () => {
     expect(dueSpawns(waves, progress, 2000, [0, 0, 0, 0, 0, 0], persistent).some((d) => d.wave === 0)).toBe(false)
     const fresh = freshWaveProgress(waves)
     expect(dueSpawns(waves, fresh, 1500, [0, waves[1].maxAlive, 0, 0, 0, 0], persistent).some((d) => d.wave === 1)).toBe(false)
+  })
+})
+
+describe('committed skinned slots', () => {
+  it('counts spawns still loading against the budget, not just built characters', () => {
+    expect(committedSkinned(3, 3, 9)).toBe(12) // nine requested, none built yet
+    expect(committedSkinned(12, 3, 4)).toBe(12) // dissolving enemies still hold their slots
   })
 })
