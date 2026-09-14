@@ -92,3 +92,9 @@ export function angleDelta(a: number, b: number): number {
 export function lerpAngle(a: number, b: number, t: number): number {
   return a + angleDelta(a, b) * t
 }
+
+/** Turn `yaw` toward `target` by at most `maxStep`, the short way round, never past it. */
+export function turnToward(yaw: number, target: number, maxStep: number): number {
+  const d = angleDelta(yaw, target)
+  return Math.abs(d) <= maxStep ? yaw + d : yaw + Math.sign(d) * maxStep
+}

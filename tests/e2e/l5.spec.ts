@@ -8,135 +8,31 @@ import { expect, test, type Page } from '@playwright/test'
 import { BALANCE } from '../../src/data/balance'
 import { DIALOGUE, UI } from '../../src/data/dialogue'
 import { LEVELS } from '../../src/data/levels'
-import { SAVE_VERSION } from '../../src/core/save'
-
-declare global {
-  interface Window {
-    __bk: {
-      world: {
-        player: { x: number; z: number; yaw: number }
-        hittable: readonly unknown[]
-        arrowPickups: readonly { x: number; z: number }[]
-        enemies: readonly { x: number; z: number; health: number; state: string; kind: string }[]
-        tick: number
-        arrows: readonly unknown[]
-        draw: { drawing: boolean; ticks: number }
-        astraCharge: { drawing: boolean; ticks: number }
-      }
-    }
-  }
-}
+import { face, player, pollUntil, projectToScreen, seedSave, shoot, skipSpeech, steerTo, waitFrames, type Point } from './play'
 
 const L5 = LEVELS[4]
-const AIM = BALANCE.archeryAim
-const SETTLE_MS = 80
+/** A rakshasa is the male mesh at 1.1x: about 2 m tall. */
+const ENEMY_CENTRE_Y = 1.0
 
-test.setTimeout(900_000)
+// The fight loop alone may run HARD_STOP_MS (12 min); the aim now waits for the arc to settle before each release.
+test.setTimeout(1_200_000)
+test.beforeEach(({ page }) => seedSave(page, 'l5'))
 
-test.beforeEach(async ({ page }) => {
-  const save = {
-    version: SAVE_VERSION,
-    level: 'l5',
-    completed: ['l1', 'l2', 'l3', 'l4'],
-    codex: ['vishwamitra', 'yajna', 'tataka', 'astra'],
-    quiz: {},
-    settings: { qualityTier: 'auto', volume: 0.8, subtitles: true },
-    benchmarkTier: null,
-  }
-  await page.addInitScript(([key, json]) => window.localStorage.setItem(key as string, json as string), ['bala-kanda.save', JSON.stringify(save)])
-})
-
-async function player(page: Page) {
-  return page.evaluate(() => {
-    const p = window.__bk.world.player
-    return { x: p.x, z: p.z, yaw: p.yaw }
+/** One arrow at the nearest live enemy, aimed with raw mouse coordinates and tracking it through the draw. */
+async function fireAt(page: Page, target: Sighted) {
+  await face(page, target)
+  await shoot(page, async () => {
+    const now = (await nearestEnemy(page)) ?? target
+    return { x: now.x, y: ENEMY_CENTRE_Y, z: now.z }
   })
 }
 
-function headingError(p: { x: number; z: number; yaw: number }, target: { x: number; z: number }): number {
-  const want = Math.atan2(target.x - p.x, target.z - p.z)
-  return Math.atan2(Math.sin(want - p.yaw), Math.cos(want - p.yaw))
-}
-
-async function face(page: Page, target: { x: number; z: number }) {
-  for (let i = 0; i < 30; i += 1) {
-    const d = headingError(await player(page), target)
-    if (Math.abs(d) < 0.2) return
-    const key = d > 0 ? 'a' : 'd'
-    await page.keyboard.down(key)
-    await page.waitForTimeout(Math.max(30, Math.min(400, (Math.abs(d) / BALANCE.player.TURN_SPEED_RAD) * 1000 * 0.6)))
-    await page.keyboard.up(key)
-    await page.waitForTimeout(SETTLE_MS)
-  }
-}
-
-async function steerTo(page: Page, target: { x: number; z: number }, arrived: () => Promise<boolean>, maxSteps = 150) {
-  for (let i = 0; i < maxSteps; i += 1) {
-    if (await arrived()) break
-    const p = await player(page)
-    if (Math.abs(headingError(p, target)) > 0.4) {
-      await page.keyboard.up('w')
-      await face(page, target)
-    }
-    await page.keyboard.down('w')
-    await page.waitForTimeout(SETTLE_MS)
-  }
-  await page.keyboard.up('w')
-}
-
-async function skipSpeech(page: Page, speaker: string) {
-  const dialogue = page.getByTestId('dialogue')
-  await expect(dialogue).toBeVisible()
-  if (speaker) await expect(page.getByTestId('dialogue-speaker')).toHaveText(speaker)
-  await page.keyboard.press('Escape')
-  await expect(dialogue).toBeHidden()
-}
-
-async function pollUntil(page: Page, check: () => Promise<boolean>, maxMs = 20_000) {
-  const start = Date.now()
-  while (Date.now() - start < maxMs) {
-    if (await check()) return
-    await page.waitForTimeout(50)
-  }
-}
-
-function solvePitch(v: number, g: number, r: number, dy: number): number | null {
-  if (r <= 0) return null
-  const a = (2 * v * v) / (g * r)
-  const disc = a * a - 4 * ((2 * v * v * dy) / (g * r * r) + 1)
-  if (disc < 0) return null
-  return Math.atan((a - Math.sqrt(disc)) / 2)
-}
-
-function aimMouse(page: Page, p: { x: number; z: number; yaw: number }, targetX: number, targetZ: number, pitch: number) {
-  const dx = targetX - p.x
-  const dz = targetZ - p.z
-  const desiredYaw = Math.atan2(dx, dz)
-  const yawError = Math.atan2(Math.sin(desiredYaw - p.yaw), Math.cos(desiredYaw - p.yaw))
-  const mx = Math.max(-1, Math.min(1, yawError / AIM.MOUSE_YAW_RAD))
-  const my = Math.max(-1, Math.min(1, pitch / AIM.MOUSE_PITCH_RAD))
-  const size = page.viewportSize()!
-  return page.mouse.move(((mx + 1) / 2) * size.width, ((1 - my) / 2) * size.height)
-}
-
-async function fireAt(page: Page, target: { x: number; z: number; y: number }) {
-  const p = await player(page)
-  const r = Math.hypot(target.x - p.x, target.z - p.z)
-  const pitch = solvePitch(BALANCE.arrow.SPEED, BALANCE.arrow.GRAVITY, r, target.y - AIM.MUZZLE_HEIGHT)
-  if (pitch === null) return
-  await aimMouse(page, p, target.x, target.z, pitch)
-  await page.mouse.down()
-  await pollUntil(page, () => page.evaluate((n) => window.__bk.world.draw.ticks >= n, BALANCE.arrow.DRAW_TICKS), 4000)
-  await page.mouse.up()
-  await pollUntil(page, () => page.evaluate(() => window.__bk.world.arrows.length === 0), 4000)
-}
-
-/** The single Manava astra charge — held back for Maricha alone; a rakshasa or Subahu never
- * gets it (arrows do that job). */
-async function castAstraAt(page: Page, target: { x: number; z: number; y: number }) {
-  const p = await player(page)
-  const pitch = Math.atan2(target.y - AIM.MUZZLE_HEIGHT, Math.hypot(target.x - p.x, target.z - p.z))
-  await aimMouse(page, await player(page), target.x, target.z, pitch)
+/** The single Manava astra charge, held back for Maricha alone. Manava is a cone ahead of Rama, so facing him is the aim. */
+async function castAstraAt(page: Page, target: Point) {
+  await face(page, target)
+  const s = await projectToScreen(page, target)
+  await page.mouse.move(s.x, s.y)
+  await waitFrames(page)
   // L5 unlocks both astras and selects Agneyastra first (game-state.ts unlockAstra); only Manava flings Maricha.
   await page.keyboard.press('Digit2')
   await page.keyboard.down('q')
@@ -243,8 +139,7 @@ test('Level 5 plays end to end: every rakshasa wave, then Subahu and Maricha', a
     if (target.kind === 'maricha') {
       await castAstraAt(page, { x: target.x, y: 0.9, z: target.z })
     } else {
-      await face(page, target)
-      await fireAt(page, { x: target.x, y: 0.9, z: target.z })
+      await fireAt(page, target)
     }
   }
 

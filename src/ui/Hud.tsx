@@ -9,6 +9,7 @@ import { useGame, useWorld } from './use-game'
 import { EnemyHealthBar } from './EnemyHealthBar'
 import { Crosshair } from './Crosshair'
 import { AstraButton } from './AstraButton'
+import { WaypointIndicator } from './WaypointIndicator'
 
 function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefined): string {
   if (!o || !p) return ''
@@ -113,6 +114,7 @@ export function Hud({ bow }: { bow: boolean }) {
           {prompt === 'pickup' ? UI['hud.pickup'] : UI['hud.interact']}
         </div>
       )}
+      <WaypointIndicator />
       {bow && <Crosshair />}
       <div className="hud-controls">{controlsText}</div>
     </div>

@@ -2,16 +2,19 @@
 // with an establishing move: wide and high over the scene, easing down into the follow pose.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef } from 'react'
-import { Vector3 } from 'three'
+import { Raycaster, Vector2, Vector3 } from 'three'
 import { BALANCE } from '@data/balance'
 import { SCENERY } from '@data/scenery'
 import { gameStore } from '@core/game-state'
 import { lerpAngle } from '@systems/locomotion/kinematic'
 import { world } from '@systems/world'
+import { platform } from '@platform/index'
 
 const CAM = BALANCE.camera
 const wanted = new Vector3()
 const look = new Vector3()
+const cursor = new Vector2()
+const ray = new Raycaster()
 
 /** Enclosed levels keep the camera inside their walls, so no wall stands between it and the player. */
 function clampToBounds(v: Vector3) {
@@ -48,6 +51,12 @@ export function FollowCamera() {
     camera.position.lerp(wanted, k)
     look.set(x, y + CAM.LOOK_HEIGHT, z)
     camera.lookAt(look)
+    camera.updateMatrixWorld()
+    // The cursor (already NDC) cast from this camera: systems/archery aims the bow along it on the next tick.
+    const m = platform.input.mouse()
+    ray.setFromCamera(cursor.set(m.x, m.y), camera)
+    const { origin: o, direction: d } = ray.ray
+    world.aimRay = { origin: [o.x, o.y, o.z], dir: [d.x, d.y, d.z] }
   })
   return null
 }

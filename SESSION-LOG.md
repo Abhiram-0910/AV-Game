@@ -2,6 +2,246 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-13 — Claude Code (Opus 5) — Six playtest failures: cursor aim, L4 retry, waypoint marker, talk, reticle, arc
+
+Branch `feat/visual-grandeur`. A human played the build and hit six failures that a green e2e suite missed, mostly
+because the specs aimed with a pitch solver instead of the mouse. For each one: reproduced in the preview build first
+(scratch Playwright probe, low tier, 1280×720), then fixed, then covered by the test that would have caught it.
+
+### 1. Arrows flew vertically
+- **Reproduced.** Launch pitch from the mouse: centre −0.047 rad, top edge **+0.469 rad (26.9°)**, bottom −0.497 rad,
+  left/right 0. Two causes:
+  - `systems/archery/step.ts` set pitch = the cursor's offset from the screen centre × `MOUSE_PITCH_RAD` 0.5. That has
+    nothing to do with the camera. Targets sit 100–160 px above the centre, so a player pointing at one launched +9…16°.
+  - `arrow.glb`'s node is rotated −90° about X, which puts the head at −Y. `ArrowPool` yawed and pitched that upright
+    model with Euler angles as if it lay along +Z, so every arrow flew standing up. XYZ order also pitched it about
+    world X once it was yawed.
+- **Fix.**
+  - `FollowCamera` writes `world.aimRay` (the cursor cast through the camera) every frame. `aimFromRay`
+    (`ballistics.ts`) takes pitch from the muzzle to where that ray meets the ground plane at the player's feet, capped at
+    `AIM_MAX_DIST` along the ray, and yaw toward the uncapped ground point. Gravity still drops the arrow; the arc shows
+    by how much.
+  - Arrows go through `render/arrow-model.ts`: the model is wrapped head-forward, and one quaternion turns it onto the
+    velocity.
+  - Astra hitscans cast along `world.aimRay`. The bow's `aimDir` is lifted for an arrow's drop, so an astra following it
+    passed over the target under the cursor.
+- **Aim limits, measured, not picked.** A sweep ran the real `aimFromRay`, `computeTrajectory` and aim assist at the
+  follow camera's settled pose (1280×720, FOV 45), with a 0.526 × 0.727 × 0.42 m box for `target.glb`. The shots were the
+  game's own: L2 left 12.6 m, L4 static 16.5 m, occluded 25.6 m (scale 0.6), long 44 m. Starting with the cursor on the
+  target's centre pixel, it raised the cursor 1 px at a time. On-screen target heights are 34.7 / 28.9 / 12.4 / 13.2 px.
+
+  | `AIM_MAX_DIST` | L2 12.6 m | L4 static 16.5 m | L4 occluded 25.6 m | L4 long 44 m | top-edge launch |
+  |---|---|---|---|---|---|
+  | 8 | −48 / 22 | −58 / 16 | −60 / 2 | never | 53.1° |
+  | 10 | −32 / 36 | −37 / 27 | −39 / 16 | −39 / 10 | 36.4° |
+  | 12 | −21 / 45 | −23 / 35 | −19 / 20 | −13 / 14 | 28.5° |
+  | **15** | **−11 / 55** | **−9 / 42** | **+0 / 25** | **+14 / 17** | 22.5° |
+  | 17.5 | −5 / 60 | −1 / 47 | +11 / 27 | +30 / 18 | 19.8° |
+  | 20 | +0 / 64 | +5 / 50 | +20 / 29 | +42 / 19 | 17.9° |
+  | 30 | +2 / 82 | +20 / 57 | +40 / 33 | +69 / 22 | 14.4° |
+  | 60 | +2 / 103 | +23 / 76 | +60 / 38 | +97 / 25 | 11.5° |
+  | 200 | +2 / 117 | +23 / 91 | +74 / 41 | +117 / 28 | — |
+
+  Cells are the first locking raise in px above the target centre (negative locks below it) / the lock band in px.
+  - **`AIM_MAX_DIST` 15.** It is the only value where the cursor on the target already locks L2, L4 static and L4
+    occluded, and the 44 m shot needs +14 px, one target height. Every lock band is at least as tall as its target on
+    screen. Smaller values shrink the bands and lob at the top edge. Larger values push the long shot to +42…+117 px, 3–9
+    target heights above it.
+  - **`AIM_MAX_UP` 0.15 rad.** The one limit not in the plan. At maxDist 15 the top edge still launched 22.5°, but the
+    real shots lock between −4.9° and +6.7°: L2 −4.9…0.8, static −2.7…1.8, occluded 0.7…3.2, long 5.2…6.7. A
+    full-draw arrow lands 44 m at 5.3°, 50 m at 6.5° and 60 m at 8.4° (0.147 rad). The farthest in-bounds shot is ~52 m
+    (L4 firing line to the far corner), so 0.15 rad reaches past every level and never lobs.
+  - **`AIM_MAX_DOWN` 0.25 rad.** A bottom-edge release lands 8.2 m ahead at 0.15, 5.4 m at 0.25, 4.0 m at 0.35 and
+    2.9 m at 0.5. A rakshasa box (0.55 × 1.95 × 0.35 m) at 1.6 and 2.5 m locks from the whole screen for every value
+    tried. At 4 m it locks from 126–718 px with ≤ 0.35 but only 126–390 px with ≥ 0.45; at 8 m, 174–312 px for all. 0.25
+    loses no close-range coverage and keeps bottom-screen shots 5.4 m out.
+  - **`AIM_MIN_DIST` 1 m.** 0.5, 1 and 2 gave identical results for every shot, edge and close enemy. It only picks
+    when yaw falls back to the camera heading: the bottom of the screen meets the ground 1.9 m behind Rama. 4 would
+    start to change the bottom-edge pitch (−0.325).
+- **Found by the e2e after the sweep.** The first version yawed at the capped point. The L4 long shot then never locked
+  in six tries. The sweep had faced every target dead on, but `face()`, like a player, stops within 0.2 rad. With the
+  camera 5.5 m behind Rama, the muzzle's line through a point 15 m up the ray diverges from the camera's line beyond it:
+  3.9 m sideways at 49 m and 11° off. Yaw first moved to the uncapped ground point, and a ±0.18 rad unit case (failed
+  before, passed after) covered it. The final suite then failed the same shot again once `face()` was allowed to stop
+  up to 0.5 rad off: a cursor raised just above a far target sends the ray past the horizon, so yaw fell back to the
+  camera heading and missed by ~2.7 m. **Yaw now makes the arrow cross the cursor ray where it comes down** (the
+  full-draw ground range at the chosen pitch), so a cursor on a target means the arrow lands on it whatever the facing.
+  The unit test covers ±0.5 rad on all four shots (failed before, passes after). Its edge check had an arbitrary
+  π/3 yaw bound, which now fails correctly: a near landing at the left screen edge is 61° off Rama's heading. It was
+  replaced by the real property: the landing is on screen, on the cursor's side, and more than 2 m ahead. Pitch, and so
+  the table, is unchanged. Partial-draw shots still come down short of the crossing; the arc shows it.
+- **Tests.**
+  - `tests/unit/cursor-aim.test.ts`: every edge and the centre launch inside the limits and land ≥ 2 m ahead; all four
+    real shots lock with at most a target-height raise, facing the target or 0.18 rad off; the head of `arrow.glb`,
+    rebuilt from the committed file, follows the velocity.
+  - **`tests/e2e/archery-mouse.spec.ts`** (the deliverable) uses raw `page.mouse` only: the centre and all four edges,
+    then cursor on the static target's pixels, raised until the arc locks, released, and a hit asserted. First run: top
+    edge 0.150 rad, centre and bottom −0.250, left and right −0.141.
+  - Every level spec now aims through `tests/e2e/play.ts`, which projects the target with `__bk.camera` and raises the
+    cursor until `crosshair[data-target-locked]`. `solvePitch` and `aimMouse` are gone from all five specs.
+
+### 2. Level 4 unfinishable after a loss
+- **Reproduced.** One target hit, then `arrowsOut`, then Retry: `hittable` 4, progress `[0,0,0,0]`. That target never
+  came back, so 5/5 was impossible.
+- **Cause.** `restartLevel` reset the store in place and a restart hook reset `world`, but a `Target` registers in
+  `world.hittable` only on mount and hides once it is out. L4's `useAstraLesson` ref, L3's Tataka and L5's waves had the
+  same stale-state problem.
+- **Fix.** Retry dispatches `RETRY` through the level machine (`fail → loading`). `levelStart` bumps
+  `gameStore.attempt`, and `App.tsx` keys the scene on it, so every entity remounts and re-registers in every level.
+  `loading + LOADED → play` when `ctx.retry`, so the intro narration is not replayed. `restartLevel` and
+  `registerRestartHook` are deleted.
+- **Tests.** Unit: RETRY gives fresh objectives and quiver, `attempt` 1, loading → play, and a new level returns to
+  attempt 0 with its intro; the level-machine table is updated. E2e `l4.spec.ts`: hit one target, empty the quiver into
+  the ground, Retry, then assert 5 hittable targets all visible, a full quiver, `attempt` 1 and no intro. Then the whole
+  trial with the mouse.
+
+### 3. No waypoint marker
+- `core/objectives.ts` `activeWaypoint` gives the current reach objective's waypoint.
+- `entities/WaypointMarker.tsx` is mounted once in `App.tsx` for every level and never hardcoded per level:
+  - A pulsing ground ring whose outer edge is `REACH_RADIUS`, so it marks exactly where arrival counts.
+  - A 16 m beam, additive with a vertex colour fading to black toward its top, with fog off so it reads across a level.
+  - It projects the spot each frame into `worldStore.waypoint`.
+- `ui/WaypointIndicator.tsx` is an edge arrow moved by a store subscription that writes style, with no per-frame
+  re-render.
+- **Checked on screen.** From the L1 entrance on high (`vis-after9-l1.png`) the beam reads as a gold column over the
+  throne; the ring is hidden behind Rama and the dais at that angle. After L4's talk (`l4-waypoint-offscreen.png`) the
+  edge arrow sits on the left edge, pointing toward the firing line.
+- **Tests.** Unit: all 6 reach objectives in the five levels get their waypoint, and other kinds get none. E2e:
+  - L1 marker on screen at spawn.
+  - L2 on screen at spawn.
+  - L3 active after the forest edge.
+  - L4 `offscreen` after the talk (the firing line is behind), `onscreen` once facing it, `none` at the targets.
+
+### 4. Talking to an NPC
+- **Reproduced.** In L1, on a 2 m ring around Vishwamitra, the prompt was null at 0/45/90/135/180/225° from his facing
+  (2.43–4.86 m from the throne). It appeared only at 270° and 315°, once the throne had been reached.
+- **Cause.** The radius was already symmetric. The prompt waited for the current objective to be the talk, and L1's
+  `reach throne` waypoint lies behind Vishwamitra.
+- **Fix.**
+  - `talkTarget` offers the first incomplete talk objective while only reach objectives stand before it, so walking up
+    to the next speaker counts as arriving. E completes those reaches, then opens the talk.
+  - `world.talkWith` is set when a talk opens. On the fixed tick Rama turns to the speaker and the speaker to him, at
+    `TURN_SPEED_RAD`. Seated NPCs (Dasharatha) do not turn, and other NPCs ease back to their authored yaw.
+- **Tests.** Unit:
+  - The prompt appears at 8 compass points at 0.95 R and never at 1.05 R.
+  - It is offered with a pending reach in front of the talk.
+  - Dasharatha is never offered before Vishwamitra has spoken.
+  - `turnToward` never overshoots.
+
+  E2e `l1.spec.ts`: walk straight at Vishwamitra from the entrance, still more than `REACH_RADIUS` from the throne, press
+  E, and assert both face each other within 0.2 rad and the throne objective is complete.
+
+### 5. Reticle stuck on Rama's back
+- **Reproduced.** The crosshair box was at (612, 332), 56 × 56, the exact screen centre. It rendered whenever the bow
+  was carried, and the follow camera looks at the player at +1.3 m, which is his shoulders.
+- **Fix.** The crosshair follows the cursor, where the bow now aims. The lock reticle renders only while drawing with the
+  arc on a target.
+- **Tests (e2e `archery-mouse`).** No reticle while walking, none while drawing at bare ground, then visible within 8 px
+  of the cursor and away from the screen centre once locked.
+
+### 6. Trajectory arc
+- The 1-px `Line` became an `InstancedMesh` of dots placed by `dotsAlongPath` on `computeTrajectory`'s own points. Size
+  tapers 1 → 0.35 and brightness 1 → 0.25 toward the landing point (additive, so it fades).
+- The landing marker (ring, centre dot, short upright tick) is merged into one mesh. The old arc was three meshes (line,
+  ring, dot); the new one is two.
+- **Tests.** Unit: the preview path is the fired arrow tick for tick up to landing, every dot lies on that path with the
+  last on the landing point, and the dot cap widens spacing instead of stopping short. E2e: every level spec releases on
+  the arc's lock, so each hit checks the preview against the real arrow.
+
+### What the e2e runs caught in the specs themselves (not game bugs)
+- **Lock read too early.** Even with the parallax fixed, L4's long shot still never locked. A probe in the build (firing
+  line, facing it dead on) showed the game was right: +0 px lands at 40.8 m, **+15 px locks and hits**, and +30 px lands
+  at 55.9 m. That is a ~15 px lock band, against the sweep's 17 px. `raiseUntilLocked` read the crosshair 3 frames after
+  each 4 px step, while the aim eases in over ticks, the cursor ray is a frame old and the lock reaches the DOM a render
+  later, so it stepped over the band. It now waits for `aimDir` to stop moving, plus two frames, and steps 3 px, as a
+  player watches the arc settle. Static targets' 42 px band had hidden this.
+- **L2 riverbank is behind the spawn**, not ahead: the spawn faces +Z and the riverbank is at z −18. The indicator said
+  `offscreen`, correctly; the spec asserted `onscreen`. Fixed in the spec.
+- **L1 approach path.** The bot overshot twice: 1.14 m, then 1.27 m from the throne when the prompt showed.
+  - The first time, Vishwamitra's bearing from the entrance was inside the helper's 0.4 rad re-face tolerance, so it
+    walked straight down x = 0, where his prompt zone and the throne's reach zone are ~0.6 m apart.
+  - The second time it came from a spot 3.5 m in front of him and still overshot. Under SwiftShader one steering poll
+    (evaluate + wait) takes long enough to walk through his whole 1.75 m prompt zone; the NPC push-out then slid it
+    around him onto the throne.
+  - The game was right both times. Rerunning the ring probe on the fixed build shows the prompt at **all 8 points** 2 m
+    around him while the throne objective is still pending (before the fix: only at 270° and 315°, after the throne).
+  - The spec now takes short W taps from the 3.5 m spot, checking the prompt after each, and asserts the throne
+    objective is still pending when the prompt shows.
+
+- **L3: the bot spun in place and died.** The full suite's L3 ended on "Try again" on the way to the clearing, twice.
+  The L3 probe (teleport, talk, walk) reached the clearing fine. The trace of the failed run shows why: from ~312 s into
+  the test the spec did nothing but alternate A and D taps. Under SwiftShader a key held for any part of a frame turns
+  that whole frame (up to ~0.6 rad at 5 fps), so `face()` overshot its 0.2 rad tolerance both ways forever while Tataka
+  closed in. The heavier clearing makes frames slow enough to trigger it. `face()` now stops once a turn has crossed
+  the heading and is within 0.5 rad, and `steerTo` re-faces only past 0.6 rad. The mouse still does the fine aim.
+- **L3: the player-like bot lost the melee race.** Once the walk was fixed, the fight began: shots 0–3 locked and hit
+  (Tataka 150 → 90). She reached melee and Rama died, after which the sim froze while the loop kept going. Each shot cost
+  the bot several seconds of game time (turn taps, then waiting for the aim to settle on every 3 px step), while a 60 fps
+  player shoots about once a second; Tataka's balance was tuned against a fast-firing spec (see the TODO entry on her
+  damage). `shoot` now lets go at once when the arc is already green with the cursor on the target (point-blank always
+  is) and sweeps only when it is not. The fight turns only when she is more than 0.5 rad off, and stops when play ends.
+- **A lost level hung the aim helper.** L5 ended on "Try again" mid-fight (it lost before this work too). The spec then
+  waited 20 minutes for a crosshair that was gone. `shoot` and `raiseUntilLocked` now stop when the phase leaves `play`,
+  and the lock read has a 2 s timeout, so the spec reports the real result.
+
+### Draw-call cost of the new renderables (measured, then fixed)
+- First after-run (shoot-levels at spawn, both tiers): the marker added **4** draw calls where a reach waypoint is on
+  screen (L1 high 89 → 93, low 42 → 46; L3 high 117 → 121, low 51 → 55) and 704 triangles. L2, L4 and L5 at spawn were
+  unchanged: L2's riverbank is behind the spawn, L4 opens on a talk and L5 has no reach.
+- The arc probe (L4, same pose, idle vs drawing) measured **+3** calls and +2,544 triangles on both tiers.
+- Both exceeded the planned 2. Cause: three.js draws a transparent `DoubleSide` material in two passes (back faces,
+  then front). Every one of these materials is additive, so order does not matter, and `forceSinglePass: true` now
+  draws each in one. The old arc's ring and dot used the same two-pass material, so it cost ~5 calls by that rule
+  (derived from the renderer, not measured).
+- **After the fix**, from `tools/shoot-levels.mjs` at each level's spawn. "Before" is this session's start (commit
+  731d04e). "After" for L1 and L3 is the final build. For L2, L4 and L5 it is the first after-run: the single-pass change
+  touches only the marker and arc, and neither renders at those spawns.
+
+  | level | tier | tris before | tris after | calls before | calls after | why |
+  |---|---|---|---|---|---|---|
+  | L1 | high | 177,290 | 177,642 | 89 | **91** | throne marker on screen (+2) |
+  | L2 | high | 291,007 | 291,007 | 106 | 106 | riverbank behind the spawn: marker culled |
+  | L3 | high | 291,158 | 291,510 | 117 | **119** | forest-edge marker on screen (+2) |
+  | L4 | high | 211,273 | 211,273 | 117 | 117 | opens on a talk: no marker |
+  | L5 | high | 147,336 | 147,336 | 119 | 119 | no reach objectives |
+  | L1 | low | 79,672 | 80,024 | 42 | **44** | +2 |
+  | L2 | low | 28,936 | 28,936 | 32 | 32 | |
+  | L3 | low | 77,019 | 77,371 | 51 | **53** | +2 |
+  | L4 | low | 31,275 | 31,275 | 36 | 36 | |
+  | L5 | low | 48,415 | 48,415 | 55 | 55 | |
+
+  Nothing got worse beyond the marker's planned 2 calls and 352 triangles, and only while a reach objective is on screen.
+- **Arc, after the fix** (`arc-cost` probe: L4, facing the static target, idle vs full draw, perf overlay). Drawing adds
+  **2 calls and 2,432 triangles** on both tiers: high 134 → 136, low 58 → 60. That is one instanced draw for up to
+  96 dots plus one merged landing marker, and it renders only while the bow is drawn.
+  Low stays under its 80-call budget at every spawn. These are spawn-pose numbers: the 141–156 calls recorded for L5
+  earlier were mid-fight, which this tool does not capture, and the marker never shows in L5.
+
+### Verification
+- `npm run typecheck` 0 errors, `eslint .` clean, `vitest run`: **131 passed, 1 skipped** (19 files; the skip is the
+  existing GLB clip test, which needs `raw/`).
+- **Full e2e suite, final aim code** (`npm run build` then `playwright test --workers=1`, SwiftShader, 13.8 min):
+
+  | spec | result |
+  |---|---|
+  | `archery-mouse.spec.ts` (#1, #5) | **pass**: top edge 0.150 rad, centre and bottom −0.250, left and right −0.141, raw-mouse hit |
+  | `l2.spec.ts` | **pass**: three mouse shots; riverbank edge arrow `offscreen` at spawn |
+  | `l3.spec.ts` | **pass**: forest-edge talk, Tataka defeated with 10 locked hits in 10 shots |
+  | `l4.spec.ts` (#2, #3, #6) | **pass**: one hit, `arrowsOut`, Retry restores 5 visible targets and a full quiver, edge arrow then marker, all four arrow targets including 44 m and lateral, astra |
+  | `l5.spec.ts` | **fail, as before this work**: the fight ends "Try again" (TODO) |
+  | `l1.spec.ts` (#3, #4) | timed out at its old 480 s budget during the third talk (it passed the previous full run in 5.4 min with the same helpers). Budget raised to 900 s, same as L2 and L3; **rerun passes in 5.0 min**: marker on screen at spawn, prompt in front of Vishwamitra with the throne still pending, both turn to face each other, all four talks. Court budget read on low: 42 calls, 79,672 triangles, peak 5 / 12 skinned |
+
+- **Suite history.** Four full runs, each red run fixed at its cause rather than loosened: the aim parallax (twice), the
+  e2e lock read, two wrong spec assumptions (L2's riverbank side, L1's path), `face()` overshoot, a lost level hanging
+  the helper, the bot's melee pace, and the draw-call double pass.
+
+### Balance changes (reasons)
+- `archeryAim.MOUSE_YAW_RAD` / `MOUSE_PITCH_RAD` removed; the mapping they tuned is gone.
+- `archeryAim.AIM_MAX_DIST` 15, `AIM_MIN_DIST` 1, `AIM_MAX_DOWN` 0.25, `AIM_MAX_UP` 0.15: measured, see the table above.
+- `archery.ARC_DOT_*`: new preview. `MAX` 96 covers the longest arc (90 steps at full draw, 63 m, at 0.7 m spacing).
+- `waypoint.*`: new marker. The ring width, beam size and pulse are look-only; the ring's outer radius is
+  `interaction.REACH_RADIUS`.
+
 ## 2026-09-13 — Claude Code (Opus 5) — Archery regression fixed, L2–L4 dressed, fake low tier removed
 
 Branch `feat/visual-grandeur`.

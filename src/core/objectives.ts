@@ -1,5 +1,5 @@
 // Objective progress: pure functions over a level's objective list.
-import type { EnemyKind, Objective } from '@data/levels'
+import type { EnemyKind, Objective, Vec3 } from '@data/levels'
 
 export interface ObjectiveProgress {
   done: boolean
@@ -85,3 +85,11 @@ export function currentObjectiveIndex(progress: readonly ObjectiveProgress[]): n
   return progress.findIndex((p) => !p.done)
 }
 
+/** Where the current objective sends the player, or null when it is not a 'reach'. Drives the waypoint marker. */
+export function activeWaypoint(
+  def: { objectives: readonly Objective[]; waypoints: Readonly<Record<string, Vec3>> },
+  progress: readonly ObjectiveProgress[],
+): Vec3 | null {
+  const o = def.objectives[currentObjectiveIndex(progress)]
+  return o?.kind === 'reach' ? (def.waypoints[o.waypoint] ?? null) : null
+}

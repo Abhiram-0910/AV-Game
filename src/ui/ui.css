@@ -609,3 +609,24 @@
   box-shadow: 0 0 4px #7ee787;
 }
 
+
+/* Screen-edge arrow toward the active waypoint while it is off camera (ui/WaypointIndicator.tsx). */
+.waypoint-indicator {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  pointer-events: none;
+  color: #ffcf6e;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
+  display: none;
+}
+.waypoint-indicator[data-state='offscreen'] {
+  display: block;
+}
+.waypoint-indicator svg {
+  width: 100%;
+  height: 100%;
+}

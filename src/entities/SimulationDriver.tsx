@@ -1,20 +1,20 @@
 // The one useFrame that advances the fixed 60 Hz loop. Everything gameplay happens in step();
 // entities only read world.* and interpolate with world.alpha.
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { BALANCE } from '@data/balance'
-import { gameStore, registerRestartHook } from '@core/game-state'
+import { gameStore } from '@core/game-state'
 import { currentObjectiveIndex } from '@core/objectives'
 import { levelDef } from '@core/progression'
 import { stepEnemy } from '@systems/ai/enemy-ai'
 import { stepAstra } from '@systems/astra/step'
 import { checkMeleeHit } from '@systems/combat-rules'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
-import { IDLE_INPUT, type MoveInput, stepLocomotion } from '@systems/locomotion/kinematic'
+import { IDLE_INPUT, type MoveInput, stepLocomotion, turnToward } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
-import { nearestPickupIndex, reachedWaypoint, talkTarget } from '@systems/interaction/interact'
+import { nearestPickupIndex, reachedWaypoint, type TalkTarget, talkTarget } from '@systems/interaction/interact'
 import { stepArchery } from '@systems/archery/step'
-import { resetWorld, world, worldStore } from '@systems/world'
+import { world, worldStore } from '@systems/world'
 import { platform } from '@platform/index'
 
 const KEY_E = 'KeyE'
@@ -37,12 +37,10 @@ function stepInteraction(): void {
   if (current?.kind === 'reach' && reachedWaypoint(x, z, def.waypoints[current.waypoint])) {
     s.progress({ kind: 'reach', waypoint: current.waypoint })
   }
-  const npc = talkTarget(current, world.npcs, x, z)
-  if (npc) {
-    worldStore.getState().setPrompt(npc.id)
-    if (current?.kind === 'talk' && platform.input.pressed(KEY_E)) {
-      worldStore.getState().openDialogue(current.dialogueKey as never)
-    }
+  const talk = talkTarget(def.objectives, gameStore.getState().objectives, world.npcs, x, z)
+  if (talk) {
+    worldStore.getState().setPrompt(talk.npc.id)
+    if (platform.input.pressed(KEY_E)) openTalk(def, talk)
     return
   }
   const pickup = nearestPickupIndex(world.arrowPickups, x, z)
@@ -50,6 +48,27 @@ function stepInteraction(): void {
   if (pickup >= 0 && platform.input.pressed(KEY_E)) {
     world.arrowPickups.splice(pickup, 1)
     s.pickupArrows()
+  }
+}
+
+/** Walking up to the next speaker counts as arriving: complete the reach objectives before the talk, then open it. */
+function openTalk(def: ReturnType<typeof levelDef>, talk: TalkTarget): void {
+  def.objectives.slice(0, talk.index).forEach((o, k) => {
+    if (o.kind === 'reach' && !gameStore.getState().objectives[k].done) gameStore.getState().progress({ kind: 'reach', waypoint: o.waypoint })
+  })
+  world.talkWith = talk.npc
+  worldStore.getState().openDialogue(talk.dialogueKey as never)
+}
+
+/** While a talk is open Rama turns to the speaker and the speaker to him; every other standing NPC eases back to its
+ * authored facing. Seated NPCs stay put. */
+function stepFacing(dt: number): void {
+  const step = BALANCE.player.TURN_SPEED_RAD * dt
+  const p = world.player
+  const partner = world.talkWith
+  if (partner) p.yaw = turnToward(p.yaw, Math.atan2(partner.x - p.x, partner.z - p.z), step)
+  for (const n of world.npcs) {
+    if (!n.seated) n.yaw = turnToward(n.yaw, n === partner ? Math.atan2(p.x - n.x, p.z - n.z) : n.homeYaw, step)
   }
 }
 
@@ -91,20 +110,12 @@ function stepEnemies(tick: number, dt: number, objective?: { x: number; z: numbe
 export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick: number) => void }) {
   const loop = useMemo(() => createFixedLoop(), [])
   const groundY = useMemo(() => createGroundProbe(() => world.ground), [])
-  useEffect(() => {
-    registerRestartHook(() => {
-      loop.reset()
-      const { level } = gameStore.getState()
-      const def = levelDef(level)
-      resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
-    })
-    return () => loop.reset()
-  }, [loop])
 
   useFrame((_, delta) => {
     const { phase, level } = gameStore.getState()
     const { dialogue, paused } = worldStore.getState()
     const talking = dialogue !== null
+    if (!talking) world.talkWith = null
     const def = levelDef(level)
     const bounds = def.id
     const altar = def.waypoints.altar
@@ -125,6 +136,7 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
       } else {
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })
       }
+      stepFacing(loop.dt)
       platform.input.endTick()
     })
   }, -1)

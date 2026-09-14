@@ -141,6 +141,13 @@ export const BALANCE = {
     MIN_DRAW: 0.2,
     /** Maximum steps to sample for trajectory preview raycast. */
     TRAJECTORY_MAX_STEPS: 90,
+    /** Preview arc: a dot every this many metres, this radius at the bow, shrinking to END_SCALE and dimming to
+     * END_BRIGHTNESS (additive, so it fades) at the landing point. MAX covers the longest arc (90 steps at full draw, 63 m). */
+    ARC_DOT_SPACING: 0.7,
+    ARC_DOT_RADIUS: 0.06,
+    ARC_DOT_END_SCALE: 0.35,
+    ARC_DOT_END_BRIGHTNESS: 0.25,
+    ARC_DOT_MAX: 96,
     /** Draw gauge width in px on the HUD overlay. */
     GAUGE_WIDTH: 64,
     /** Radius in metres for proximity magnetism/assist toward targets/enemies. 0.85 → 0.45 in the combat PR
@@ -156,9 +163,17 @@ export const BALANCE = {
   archeryAim: {
     /** Where the drawing hand sits relative to the head bone at full draw, metres (right, up, back). */
     CHEEK_OFFSET: [0.08, -0.05, 0.1],
-    /** Mouse offset from screen centre (−1..1) maps to this much yaw / pitch while drawing. */
-    MOUSE_YAW_RAD: 0.6,
-    MOUSE_PITCH_RAD: 0.5,
+    /** Cursor aim (ballistics.ts aimFromRay). Measured 2026-09-13 against L2 12.6 m and L4 16.5 / 25.6 / 44 m at 1280×720,
+     * table in SESSION-LOG. Metres along the camera ray before the aim point stops following the ground: 15 is the one value
+     * in 8–30 where the cursor on the target locks L2, L4 static and L4 occluded, and L4 long needs +14 px (one target height). */
+    AIM_MAX_DIST: 15,
+    /** Aim point closer than this ahead of the muzzle keeps the camera heading: the screen's bottom edge meets the ground behind Rama. */
+    AIM_MIN_DIST: 1,
+    /** Steepest launch, radians. Down 0.25: a rakshasa at 1.6, 2.5 and 4 m still locks from the whole lower screen and a
+     * bottom-edge release lands 5.4 m ahead. Up 0.15: real shots use at most 6.7° (L4 long) and 0.15 lands 60 m, past every
+     * level's bounds; without it the top edge launched at 22.5°. */
+    AIM_MAX_DOWN: 0.25,
+    AIM_MAX_UP: 0.15,
     /** Arrow leaves from this height above the feet, this far ahead. */
     MUZZLE_HEIGHT: 1.35,
     MUZZLE_FORWARD: 0.5,
@@ -231,6 +246,23 @@ export const BALANCE = {
     PICKUP_RADIUS: 2.2,
     /** Oldest pile is dropped once spent-arrow piles reach this count. */
     MAX_ARROW_PICKUPS: 10,
+  },
+
+  waypoint: {
+    /** Ground ring: its outer edge is interaction.REACH_RADIUS, so the ring shows exactly where arrival counts. */
+    RING_WIDTH: 0.35,
+    RING_LIFT: 0.04,
+    RING_OPACITY: 0.9,
+    /** Additive beam, fading out toward its top. */
+    BEAM_RADIUS: 0.35,
+    BEAM_HEIGHT: 16,
+    BEAM_OPACITY: 0.6,
+    PULSE_HZ: 1.2,
+    /** Fraction the ring shrinks at the bottom of each pulse. */
+    PULSE: 0.12,
+    /** The screen-edge arrow aims at this height above the spot, inset this many px from the edge. */
+    INDICATOR_HEIGHT: 1.5,
+    EDGE_MARGIN_PX: 40,
   },
 
   locomotion: {

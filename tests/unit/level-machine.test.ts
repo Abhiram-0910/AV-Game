@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { transition, type LevelEvent, type Phase } from '@core/level-machine'
 
 const EVENTS: LevelEvent[] = ['LOADED', 'INTRO_DONE', 'OBJECTIVES_MET', 'FAILED', 'RETRY', 'NEXT', 'QUIZ_DONE']
-const mid = { hasQuiz: true, isLastLevel: false }
-const last = { hasQuiz: false, isLastLevel: true }
+const mid = { hasQuiz: true, isLastLevel: false, retry: false }
+const last = { hasQuiz: false, isLastLevel: true, retry: false }
 
 describe('level machine', () => {
   it('walks the happy path with a quiz gate', () => {
@@ -19,14 +19,15 @@ describe('level machine', () => {
   })
 
   it('skips the quiz when there is no gate and completes on the last level', () => {
-    expect(transition('win', 'NEXT', { hasQuiz: false, isLastLevel: false })).toBe('transition')
+    expect(transition('win', 'NEXT', { ...mid, hasQuiz: false })).toBe('transition')
     expect(transition('win', 'NEXT', last)).toBe('complete')
-    expect(transition('quiz', 'QUIZ_DONE', { hasQuiz: true, isLastLevel: true })).toBe('complete')
+    expect(transition('quiz', 'QUIZ_DONE', { ...last, hasQuiz: true })).toBe('complete')
   })
 
-  it('fail → retry reloads the same level', () => {
+  it('fail → retry reloads the same level and skips the intro narration', () => {
     expect(transition('play', 'FAILED', mid)).toBe('fail')
     expect(transition('fail', 'RETRY', mid)).toBe('loading')
+    expect(transition('loading', 'LOADED', { ...mid, retry: true })).toBe('play')
   })
 
   it('returns null on every invalid edge', () => {

@@ -1,9 +1,10 @@
 // MAX_ARROWS arrow meshes reused for every shot. Hidden when not in flight.
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
-import { Group, type Object3D } from 'three'
+import { Group } from 'three'
 import { BALANCE } from '@data/balance'
 import { world } from '@systems/world'
+import { orientArrow, wrapArrowModel } from '@render/arrow-model'
 import { disposeTree } from '@render/dispose'
 import { loadGltf } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
@@ -18,8 +19,9 @@ export function ArrowPool({ tier }: { tier: ResolvedTier }) {
       if (!live) return
       group = new Group()
       for (let i = 0; i < BALANCE.player.MAX_ARROWS; i += 1) {
-        const arrow = gltf.scene.clone()
-        applyTierMaterials(arrow, tier)
+        const model = gltf.scene.clone()
+        applyTierMaterials(model, tier)
+        const arrow = wrapArrowModel(model)
         arrow.visible = false
         group.add(arrow)
       }
@@ -33,14 +35,12 @@ export function ArrowPool({ tier }: { tier: ResolvedTier }) {
 
   useFrame(() => {
     if (!pool) return
-    pool.children.forEach((mesh: Object3D, i) => {
+    pool.children.forEach((arrow, i) => {
       const a = world.arrows[i]
-      mesh.visible = a !== undefined
+      arrow.visible = a !== undefined
       if (!a) return
-      mesh.position.set(a.x, a.y, a.z)
-      mesh.rotation.y = Math.atan2(a.vx, a.vz)
-      mesh.rotation.x = Math.atan2(-a.vy, Math.hypot(a.vx, a.vz))
-      mesh.rotation.z = 0
+      arrow.position.set(a.x, a.y, a.z)
+      orientArrow(arrow, a.vx, a.vy, a.vz)
     })
   })
   return pool ? <primitive object={pool} /> : null

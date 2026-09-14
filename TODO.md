@@ -1,5 +1,24 @@
 # TODO
 
+## Playtest follow-ups (2026-09-13, Claude Code)
+
+Observed or measured while fixing the six playtest failures (SESSION-LOG 2026-09-13), not changed:
+- **Arrow length.** The arrow model is 1.46 m long in flight (`arrow.glb` bakes ×100 like the other props, and
+  `ArrowPool` applies no scale). A real arrow is ~0.75 m. Now that arrows fly head first, the length is easy to see.
+- **Dead band at the bottom of the screen.** The lower ~40 % of the screen clamps to `AIM_MAX_DOWN`, so every cursor
+  position there launches the same −0.25 rad. Nothing a player needs lies there (rakshasas at 1.6–4 m still lock), but
+  moving the mouse in that region changes nothing, which may read as broken.
+- **Sweep proxies.** The aim-limit sweep used boxes for `target.glb` and a rakshasa, not the real meshes, and only the
+  full-draw arc. Partial-draw shots were not measured.
+- **Cursor gauge overlap.** The draw gauge and lock reticle now sit at the cursor, which is on the target while aiming.
+  Not yet judged by a human for whether they hide a small far target (L4 long is 13 px tall).
+- **Talk objectives have no marker.** Only `reach` objectives get the ring, beam and edge arrow, as asked.
+- **Ring and edge arrow at once.** The edge arrow aims at a point 1.5 m above the waypoint's centre, so with the
+  waypoint just behind the camera (L4 right after the talk) the arrow shows while the ring's near edge is already on
+  screen. Harmless, but the indicator could test the ring's edge instead.
+- **Beam inside the palace.** The waypoint beam is 16 m tall; inside the L1 palace it runs through the ceiling. Unchecked
+  from outside angles.
+
 ## Visual follow-ups (2026-09-13, Claude Code)
 
 - Rama holds the sword upright behind his head while drawing the bow (seen from the L4 firing line on low). The
@@ -24,7 +43,14 @@ fix: 11 / 12.
 `syncLowTier()` deleted and the untracked `public/assets/low/` (49 MB) removed. `render/manifest.ts` still serves
 `high/` to both tiers; the KTX2 entry below still stands.
 
-## BROKEN — L5 e2e still loses; L4 fixed (updated 2026-09-13, Claude Code)
+## BROKEN — L5 e2e still loses (updated 2026-09-14, Claude Code)
+
+Still true after the playtest fixes. `l5.spec.ts` now shoots the way a player does: raw mouse coordinates, the arc's
+lock, and an immediate release when already locked (tests/e2e/play.ts). Three full-suite runs on the final aim code all
+ended "Try again". The spec now reports that instead of hanging on a gone crosshair. The four points below are still the
+next steps.
+
+## (history) BROKEN — L5 e2e still loses; L4 fixed (2026-09-13, Claude Code)
 
 L4 passes again: release origin back on the aim, aim assist 0.75 m / 0.3, and three stale spec assumptions fixed
 (see SESSION-LOG 2026-09-13). L5 still ends "Try again" after the budget, Maricha and Manava-key fixes. Next, in order:

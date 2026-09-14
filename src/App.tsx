@@ -12,6 +12,7 @@ import { PerfOverlay, PerfProbe } from '@render/perf-overlay'
 import { perfStats } from '@render/perf-stats'
 import { PostProcessing } from '@render/PostProcessing'
 import { isSoftwareRenderer, resolveTier } from '@render/quality-tier'
+import { WaypointMarker } from '@entities/WaypointMarker'
 import { L1Court } from '@scenes/L1Court'
 import { L2Forest } from '@scenes/L2Forest'
 import { L3Forest } from '@scenes/L3Forest'
@@ -54,15 +55,21 @@ async function boot(state: RootState, setTier: (t: ResolvedTier) => void): Promi
   setTier(decision.tier)
 }
 
+const SCENES = { l1: L1Court, l2: L2Forest, l3: L3Forest, l4: L4Range, l5: L5Yajna } as const
+
 function Level({ tier }: { tier: ResolvedTier }) {
   const level = useGame((s) => s.level)
+  // A retry remounts the scene, so every target, enemy and lesson re-registers from scratch.
+  const attempt = useGame((s) => s.attempt)
   const bow = levelDef(level).bow || DEBUG.bow
   if (DEBUG.lod) return <LodDebug tier={tier} />
-  if (level === 'l1') return <L1Court tier={tier} bow={bow} />
-  if (level === 'l2') return <L2Forest tier={tier} bow={bow} />
-  if (level === 'l3') return <L3Forest tier={tier} bow={bow} />
-  if (level === 'l4') return <L4Range tier={tier} bow={bow} />
-  return <L5Yajna tier={tier} bow={bow} />
+  const Scene = SCENES[level]
+  return (
+    <>
+      <Scene key={attempt} tier={tier} bow={bow} />
+      <WaypointMarker />
+    </>
+  )
 }
 
 export function App() {
@@ -70,9 +77,6 @@ export function App() {
   const screen = useScreen((s) => s.screen)
   useEffect(() => persistOnChange(), [])
   useEffect(() => initAudioDispatcher(), [])
-  useEffect(() => {
-    if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats } })
-  }, [])
   // The title screen shows before any level mounts, so no level assets load until the player
   // actually starts (DEBUG.lod bypasses it entirely — that view has no title of its own).
   const showLevel = tier && (screen === 'game' || DEBUG.lod)
@@ -82,7 +86,11 @@ export function App() {
         camera={{ fov: CAM.FOV, near: CAM.NEAR, far: CAM.FAR, position: [0, CAM.HEIGHT, CAM.DISTANCE] }}
         dpr={BALANCE.render.PIXEL_RATIO_LOW}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
-        onCreated={(state) => void boot(state, setTier)}
+        onCreated={(state) => {
+          // Read-only handles for the e2e; the camera lets a spec project a target to the pixels a player sees.
+          if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats, camera: state.camera } })
+          void boot(state, setTier)
+        }}
       >
         {showLevel && <Level tier={tier} />}
         {tier === 'high' && showLevel && <PostProcessing />}

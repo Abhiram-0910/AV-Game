@@ -7,7 +7,7 @@ import { BALANCE } from '@data/balance'
 import type { DialogueKey } from '@data/dialogue'
 import type { EnemyKind, NpcId } from '@data/levels'
 import { SCENERY } from '@data/scenery'
-import type { ArrowState } from './archery/ballistics'
+import type { AimRay, ArrowState } from './archery/ballistics'
 import { NO_DRAW, type DrawState } from './archery/draw'
 import type { EnemyRuntime } from './ai/enemy-ai'
 import { type LocomotionState, spawnState } from './locomotion/kinematic'
@@ -42,6 +42,9 @@ export interface WorldUi {
   hitFeedback: 'enemy' | 'target' | null
   /** Whether the Astra is unlocked and ready for summoning (Level 4 after 4 targets, or Level 5). */
   astraReady: boolean
+  /** The active reach waypoint on screen (entities/WaypointMarker projects it): a spot, or an edge point with the
+   * arrow angle when it is off camera. Null when no reach objective is active. */
+  waypoint: WaypointScreen | null
   setPrompt(p: NpcId | 'pickup' | null): void
   openDialogue(key: DialogueKey | null): void
   expect(n: number): void
@@ -51,6 +54,16 @@ export interface WorldUi {
   setAimState(isDrawing: boolean, hasTarget: boolean, drawStrength: number): void
   triggerHitFeedback(kind: 'enemy' | 'target'): void
   setAstraReady(ready: boolean): void
+  setWaypoint(w: WaypointScreen | null): void
+}
+
+export interface WaypointScreen {
+  onScreen: boolean
+  /** Pixels from the top-left of the viewport. */
+  x: number
+  y: number
+  /** Radians, screen space (y down): the way the edge arrow points. */
+  angle: number
 }
 
 export const worldStore = createStore<WorldUi>()((set) => ({
@@ -65,6 +78,7 @@ export const worldStore = createStore<WorldUi>()((set) => ({
   drawStrength: 0,
   hitFeedback: null,
   astraReady: false,
+  waypoint: null,
   setPrompt: (prompt) => set((s) => (s.prompt === prompt ? s : { prompt })),
   openDialogue: (dialogue) => set({ dialogue }),
   expect: (expected) => set({ expected, loaded: 0 }),
@@ -85,6 +99,14 @@ export const worldStore = createStore<WorldUi>()((set) => ({
     }, BALANCE.ui.HIT_FEEDBACK_MS)
   },
   setAstraReady: (astraReady) => set({ astraReady }),
+  // Written every frame; a store update (and the edge arrow's style write) only when it moved a pixel or changed state.
+  setWaypoint: (waypoint) =>
+    set((s) => {
+      const a = s.waypoint
+      if (a === waypoint) return s
+      if (a && waypoint && a.onScreen === waypoint.onScreen && Math.abs(a.x - waypoint.x) < 1 && Math.abs(a.y - waypoint.y) < 1) return s
+      return { waypoint }
+    }),
 }))
 
 export interface WorldSim {
@@ -93,6 +115,8 @@ export interface WorldSim {
   /** Blend weight of the aim pose, 0..1. */
   aimBlend: number
   aimDir: [number, number, number]
+  /** Camera ray through the cursor, written by FollowCamera every frame; the bow aims where it meets the ground. */
+  aimRay: AimRay
   arrows: ArrowState[]
   /** Spent-arrow landing spots a player can walk up to and press E to recover (Level 5's long
    * fight is the only level whose arrow economy needs this; see stepInteraction). */
@@ -105,6 +129,8 @@ export interface WorldSim {
   astraButtonHeld: boolean
   astraReady: boolean
   npcs: NpcPoint[]
+  /** The NPC whose talk is open, set when E opens it; hero and NPC turn to face each other until it closes. */
+  talkWith: NpcPoint | null
   ground: Object3D[]
   hittable: Object3D[]
   /** Enemy AI + combat runtime state, one entry per live Enemy entity. */
@@ -125,6 +151,7 @@ export const world: WorldSim = {
   draw: NO_DRAW,
   aimBlend: 0,
   aimDir: [0, 0, -1],
+  aimRay: { origin: [0, 0, 0], dir: [0, 0, -1] },
   arrows: [],
   arrowPickups: [],
   swordSlashUntilTick: 0,
@@ -132,6 +159,7 @@ export const world: WorldSim = {
   astraButtonHeld: false,
   astraReady: false,
   npcs: [],
+  talkWith: null,
   ground: [],
   hittable: [],
   enemies: [],
@@ -156,6 +184,7 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.astraCharge = NO_DRAW
   world.astraButtonHeld = false
   world.astraReady = false
+  world.talkWith = null
   world.alpha = 0
   world.tick = 0
   worldStore.setState({ prompt: null, dialogue: null, paused: false, isDrawing: false, hasTarget: false, drawStrength: 0, astraReady: false })

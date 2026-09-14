@@ -159,3 +159,38 @@ export function computeTrajectory(
   const last = points[points.length - 1]
   return { points, terminalPoint: last, terminalNormal: [0, 1, 0], isTarget: false, isGround: false, targetObject: null }
 }
+
+export interface ArcDot {
+  p: [number, number, number]
+  /** Fraction of the path length at this dot, 0 at the bow and 1 at the landing point. */
+  u: number
+}
+
+function dist(a: readonly number[], b: readonly number[]): number {
+  return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+}
+
+/** Evenly spaced dots along a sampled path (`spacing` metres apart, widened if `max` would not reach the end) plus one
+ * on its end point. Each dot lies on the path's own segments, so a dotted preview traces exactly what was sampled. Pure. */
+export function dotsAlongPath(points: readonly (readonly [number, number, number])[], spacing: number, max = Infinity): ArcDot[] {
+  let total = 0
+  for (let i = 1; i < points.length; i += 1) total += dist(points[i - 1], points[i])
+  if (total <= 0) return []
+  const step = Math.max(spacing, total / Math.max(1, max - 1))
+  const dots: ArcDot[] = []
+  let walked = 0
+  let next = step
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1]
+    const b = points[i]
+    const len = dist(a, b)
+    for (; next < walked + len && next < total - 1e-9; next += step) {
+      const f = (next - walked) / len
+      dots.push({ p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f], u: next / total })
+    }
+    walked += len
+  }
+  const end = points[points.length - 1]
+  dots.push({ p: [end[0], end[1], end[2]], u: 1 })
+  return dots
+}

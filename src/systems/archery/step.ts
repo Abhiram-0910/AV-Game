@@ -5,13 +5,14 @@ import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
 import { applyArrowHit } from '../ai/enemy-ai'
-import { grounded, launchArrow, muzzleOrigin, shouldFailArrowsOut, stepArrow } from './ballistics'
+import { aimFromRay, grounded, launchArrow, muzzleOrigin, shouldFailArrowsOut, stepArrow } from './ballistics'
 import { drawFraction, stepDraw } from './draw'
 import { createHitTester, resolveHitRoot } from './hit-test'
 import { playAudio } from '../audio'
 import { world, worldStore } from '../world'
 
 const AIM = BALANCE.archeryAim
+const AIM_LIMITS = { maxDist: AIM.AIM_MAX_DIST, minDist: AIM.AIM_MIN_DIST, maxDown: AIM.AIM_MAX_DOWN, maxUp: AIM.AIM_MAX_UP }
 const hitTest = createHitTester()
 const targetDir = new Vector3()
 const currentDir = new Vector3()
@@ -31,10 +32,8 @@ export function updateMovingTargets(tick: number): void {
 }
 
 function updateAimDir(): void {
-  const m = platform.input.mouse()
-  const yaw = world.player.yaw + m.x * AIM.MOUSE_YAW_RAD
-  const pitch = m.y * AIM.MOUSE_PITCH_RAD
-  targetDir.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize()
+  const { x, y, z } = world.player
+  targetDir.fromArray(aimFromRay(world.aimRay, x, y, z, AIM_LIMITS))
   currentDir.set(world.aimDir[0], world.aimDir[1], world.aimDir[2])
   currentDir.lerp(targetDir, AIM.SMOOTH_FACTOR).normalize()
   world.aimDir = [currentDir.x, currentDir.y, currentDir.z]

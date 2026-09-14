@@ -16,6 +16,8 @@ export type LevelEvent =
 export interface TransitionContext {
   hasQuiz: boolean
   isLastLevel: boolean
+  /** Re-entering the level after RETRY: the intro narration is not replayed. */
+  retry: boolean
 }
 
 export const FAIL_EVENT: Record<Exclude<FailCondition, 'none'>, LevelEvent> = {
@@ -28,7 +30,8 @@ export const FAIL_EVENT: Record<Exclude<FailCondition, 'none'>, LevelEvent> = {
 export function transition(phase: Phase, event: LevelEvent, ctx: TransitionContext): Phase | null {
   switch (phase) {
     case 'loading':
-      return event === 'LOADED' ? 'intro' : null
+      if (event !== 'LOADED') return null
+      return ctx.retry ? 'play' : 'intro'
     case 'intro':
       return event === 'INTRO_DONE' ? 'play' : null
     case 'play':

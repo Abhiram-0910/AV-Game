@@ -17,6 +17,8 @@ export interface QuizState { gate: GateId | null; index: number; answers: number
 export interface GameState {
   level: LevelId
   phase: Phase
+  /** Retries of this level so far. The scene is keyed on it, so a retry remounts every entity. */
+  attempt: number
   health: number
   playerInvulnUntil: number
   arrows: number
@@ -37,7 +39,6 @@ export interface GameState {
 
 export interface GameActions {
   startLevel(id: LevelId): void
-  restartLevel(): void
   dispatch(event: LevelEvent): void
   progress(e: ObjectiveEvent): void
   completeObjective(index?: number): void
@@ -62,15 +63,13 @@ export interface GameActions {
 
 export type GameStore = GameState & GameActions
 
-let restartHook: (() => void) | null = null
-export function registerRestartHook(fn: () => void) { restartHook = fn }
-
 type BaseState = Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier' | 'unlockedAstras' | 'selectedAstra'>
 
-function levelStart(id: LevelId): BaseState {
+function levelStart(id: LevelId, attempt = 0): BaseState {
   return {
     level: id,
     phase: 'loading',
+    attempt,
     health: BALANCE.player.MAX_HEALTH,
     playerInvulnUntil: 0,
     arrows: BALANCE.player.START_ARROWS,
@@ -101,26 +100,9 @@ function flowActions(set: Set, get: Get) {
   return {
     startLevel: (id: LevelId) => set(levelStart(id)),
 
-    restartLevel: () => {
-      const s = get()
-      const def = levelDef(s.level)
-      set({
-        phase: 'play',
-        health: BALANCE.player.MAX_HEALTH,
-        playerInvulnUntil: 0,
-        arrows: BALANCE.player.START_ARROWS,
-        astraCharges: BALANCE.astra.START_CHARGES,
-        astraCooldownUntil: 0,
-        yajnaIntegrity: BALANCE.yajna.MAX_INTEGRITY,
-        yajnaInvulnUntil: 0,
-        objectives: freshProgress(def.objectives),
-      })
-      restartHook?.()
-    },
-
     dispatch: (event: LevelEvent) => {
       const s = get()
-      const ctx = { hasQuiz: gateAfter(s.level) !== null, isLastLevel: isLastLevel(s.level) }
+      const ctx = { hasQuiz: gateAfter(s.level) !== null, isLastLevel: isLastLevel(s.level), retry: s.attempt > 0 }
       const phase = transition(s.phase, event, ctx)
       if (phase !== null) set(onEnterPhase(s, phase))
     },
@@ -288,8 +270,9 @@ function onEnterPhase(s: GameState, phase: Phase): Partial<GameState> {
   }
   if (phase === 'quiz') return { phase, quiz: { gate: gateAfter(s.level)?.id ?? null, index: 0, answers: [] } }
   if (phase === 'loading') {
-    const id = s.phase === 'transition' ? (nextLevel(s.level) ?? s.level) : s.level
-    return levelStart(id)
+    // RETRY bumps the attempt: App keys the level scene on it, so every entity remounts and re-registers.
+    if (s.phase === 'fail') return levelStart(s.level, s.attempt + 1)
+    return levelStart(s.phase === 'transition' ? (nextLevel(s.level) ?? s.level) : s.level)
   }
   return { phase }
 }

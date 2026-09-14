@@ -61,8 +61,18 @@ the gotchas that are not derivable from the tree.
   does nothing. Build a new texture and dispose the old one, which frees its cubemap (L3 curse lift,
   `entities/WildsDressing.tsx`).
 - **A failed level under e2e looks like a silent reset.** `ResultPanel` autofocuses Retry and the spec's next
-  `mouse.down/up` lands on it: objectives reset, arrows do not. Find out why the level failed (L4: `arrowsOut`)
-  before debugging the reset.
+  `mouse.down/up` or Enter can land on it, starting a new attempt (the scene remounts, everything resets). Find out why
+  the level failed (L4: `arrowsOut`) before debugging the reset.
 - **`mergeByMaterial` silently drops a bucket that mixes indexed and non-indexed geometry** (`mergeGeometries`
   returns null). Polyhedron geometries (Dodecahedron, Icosahedron) are non-indexed; give them their own material.
 - **No AI attribution trailers in commits**, ever (user rule, overrides tool defaults).
+- **The bow aims along the cursor ray, not the cursor's offset from the screen centre.** `FollowCamera` writes
+  `world.aimRay` every frame; `aimFromRay` (ballistics.ts) turns it into `world.aimDir`. The four `AIM_*` limits in
+  `balance.ts` were measured against the real target ranges (SESSION-LOG 2026-09-13); re-run that sweep before changing
+  them. Astra hitscans use `world.aimRay` directly.
+- **e2e specs aim like a player: `tests/e2e/play.ts`.** Project the target with `window.__bk.camera`, raise the cursor
+  until `crosshair[data-target-locked]` flips, release. Never reintroduce a pitch solver in a spec: it hid the vertical
+  launch for a whole release.
+- **Retry is a remount.** `RETRY` bumps `gameStore.attempt` and `App.tsx` keys the scene on it, so every entity
+  re-registers. Never reset level state in place; entities that register on mount (targets, enemies) will not come back.
+- **`arrow.glb` stands upright** (head at −Y). Orient arrows only through `render/arrow-model.ts`.

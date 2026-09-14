@@ -7,76 +7,22 @@ import { CODEX } from '../../src/data/codex'
 import { DIALOGUE, UI } from '../../src/data/dialogue'
 import { LEVELS } from '../../src/data/levels'
 import { SCENERY } from '../../src/data/scenery'
-
-declare global {
-  interface Window {
-    __bk: { world: { player: { x: number; z: number; yaw: number }; hittable: readonly unknown[]
-        arrowPickups: readonly { x: number; z: number }[]; enemies: readonly { x: number; z: number; health: number; state: string; kind: string }[]; tick: number; arrows: readonly unknown[]; draw: { drawing: boolean; ticks: number }; astraCharge: { drawing: boolean; ticks: number } } }
-  }
-}
+import { answerQuiz, face, headingError, player, pollUntil, skipSpeech, steerTo } from './play'
 
 const L1 = LEVELS[0]
 const SCENE = SCENERY.l1!
 const TRIANGLE_BUDGET = 120_000
 const DRAW_CALL_BUDGET = 80
-const SETTLE_MS = 80
 
-// SwiftShader on WSL runs the whole level at ~5–10 fps; a real GPU finishes in well under a minute.
-test.setTimeout(480_000)
-
-async function player(page: Page) {
-  return page.evaluate(() => {
-    const p = window.__bk.world.player
-    return { x: p.x, z: p.z, yaw: p.yaw }
-  })
-}
-
-function headingError(p: { x: number; z: number; yaw: number }, target: { x: number; z: number }): number {
-  const want = Math.atan2(target.x - p.x, target.z - p.z)
-  return Math.atan2(Math.sin(want - p.yaw), Math.cos(want - p.yaw))
-}
-
-/** Tap A/D for roughly the time the turn needs; the sim runs near real time under SwiftShader. */
-async function face(page: Page, target: { x: number; z: number }) {
-  for (let i = 0; i < 30; i += 1) {
-    const d = headingError(await player(page), target)
-    if (Math.abs(d) < 0.2) return
-    const key = d > 0 ? 'a' : 'd'
-    await page.keyboard.down(key)
-    await page.waitForTimeout(Math.max(30, Math.min(400, (Math.abs(d) / BALANCE.player.TURN_SPEED_RAD) * 1000 * 0.6)))
-    await page.keyboard.up(key)
-    await page.waitForTimeout(SETTLE_MS)
-  }
-}
-
-/** Face the target, then walk toward it, re-facing if the heading drifts, until `arrived`. */
-async function steerTo(page: Page, target: { x: number; z: number }, arrived: () => Promise<boolean>) {
-  for (let i = 0; i < 300; i += 1) {
-    if (await arrived()) break
-    const p = await player(page)
-    if (Math.abs(headingError(p, target)) > 0.4) {
-      await page.keyboard.up('w')
-      await face(page, target)
-    }
-    await page.keyboard.down('w')
-    await page.waitForTimeout(SETTLE_MS)
-  }
-  await page.keyboard.up('w')
-  expect(await arrived()).toBe(true)
-}
-
-async function skipSpeech(page: Page, speaker: string) {
-  const dialogue = page.getByTestId('dialogue')
-  await expect(dialogue).toBeVisible()
-  if (speaker) await expect(page.getByTestId('dialogue-speaker')).toHaveText(speaker)
-  await page.keyboard.press('Escape')
-  await expect(dialogue).toBeHidden()
-}
+// SwiftShader on WSL runs the whole level at ~5–10 fps; a real GPU finishes in well under a minute. The spec now walks up
+// to each speaker's face in short steps and waits for both to turn, and one run with identical helpers took 5.4 min
+// while the next ran past 8, so it gets the same 900 s as L2 and L3.
+test.setTimeout(900_000)
 
 async function talkTo(page: Page, npc: (typeof SCENE.npcs)[number]['npc'], dialogueKey: keyof typeof DIALOGUE) {
   const spot = SCENE.npcs.find((n) => n.npc === npc)!
   const prompt = page.getByTestId('hud-prompt')
-  await steerTo(page, { x: spot.pos[0], z: spot.pos[2] }, () => prompt.isVisible())
+  expect(await steerTo(page, { x: spot.pos[0], z: spot.pos[2] }, () => prompt.isVisible())).toBe(true)
   await page.keyboard.press('e')
   await skipSpeech(page, UI[`name.${npc}`])
   // The objective advances, or the level is won and the HUD is gone.
@@ -84,16 +30,6 @@ async function talkTo(page: Page, npc: (typeof SCENE.npcs)[number]['npc'], dialo
     .poll(async () => ((await page.getByTestId('result').isVisible()) ? '' : ((await page.getByTestId('hud-objective').textContent()) ?? '')))
     .not.toContain(UI[`name.${npc}`])
   return dialogueKey
-}
-
-/** Picks the first option each question — wrong answers still advance (see quiz.ts: the gate
- * teaches, never blocks) — then confirms through the feedback until the gate closes. */
-async function answerQuiz(page: Page) {
-  await expect(page.getByTestId('quiz')).toBeVisible()
-  for (let i = 0; i < 3; i += 1) {
-    await page.getByTestId('quiz-option-0').click()
-    await page.getByTestId('quiz-next').click()
-  }
 }
 
 test('Level 1 plays end to end on real assets', async ({ page }) => {
@@ -119,13 +55,52 @@ test('Level 1 plays end to end on real assets', async ({ page }) => {
   await expect(page.getByTestId('pause')).toBeHidden()
   expect(await player(page)).toEqual(before)
 
-  // Walk to the throne.
-  const throne = L1.waypoints.throne
-  await steerTo(page, { x: throne[0], z: throne[2] }, () => objective.textContent().then((t) => !t?.includes(UI['objective.reach'])))
-  await expect(objective).toContainText(UI['name.vishwamitra'])
+  // The throne is marked from the entrance: the ring and beam are on screen.
+  await expect(page.getByTestId('waypoint-indicator')).toHaveAttribute('data-state', 'onscreen')
+  await page.screenshot({ path: 'docs/screenshots/l1-waypoint.png' })
+
+  // Walk straight at Vishwamitra, not the throne. The throne waypoint lies behind him; the prompt must still show in
+  // front of him, and E must work there (the playtester only got it after walking past and behind him).
+  const vish = SCENE.npcs.find((n) => n.npc === 'vishwamitra')!
+  const prompt = page.getByTestId('hud-prompt')
+  // Come at him from the front, as a player does: a spot 3.5 m ahead of him along his facing, then in short steps, so
+  // SwiftShader's slow polls cannot carry the bot through his prompt zone and around him onto the throne.
+  const front = { x: vish.pos[0] + Math.sin(vish.yaw) * 3.5, z: vish.pos[2] + Math.cos(vish.yaw) * 3.5 }
+  expect(await steerTo(page, front, async () => { const q = await player(page); return Math.hypot(q.x - front.x, q.z - front.z) < 0.8 })).toBe(true)
+  for (let step = 0; step < 40 && !(await prompt.isVisible()); step += 1) {
+    await face(page, { x: vish.pos[0], z: vish.pos[2] })
+    await page.keyboard.down('w')
+    await page.waitForTimeout(120)
+    await page.keyboard.up('w')
+    await page.waitForTimeout(250)
+  }
+  await expect(prompt).toBeVisible()
+  expect(await page.evaluate(() => window.__bk.game.getState().objectives[0].done), 'the throne is still ahead').toBe(false)
+  const there = await player(page)
+  expect(Math.hypot(there.x - L1.waypoints.throne[0], there.z - L1.waypoints.throne[2])).toBeGreaterThan(BALANCE.interaction.REACH_RADIUS)
+  await page.keyboard.press('e')
+  await expect(page.getByTestId('dialogue')).toBeVisible()
+  // Hero and NPC turn to face each other while they talk.
+  const facing = () =>
+    page.evaluate(() => {
+      const p = window.__bk.world.player
+      const n = window.__bk.world.npcs.find((k) => k.id === 'vishwamitra')!
+      return { p: { x: p.x, z: p.z, yaw: p.yaw }, n: { x: n.x, z: n.z, yaw: n.yaw } }
+    })
+  await pollUntil(page, async () => {
+    const f = await facing()
+    return Math.abs(headingError(f.p, f.n)) < 0.2 && Math.abs(headingError(f.n, f.p)) < 0.2
+  }, 10_000)
+  const f = await facing()
+  expect(Math.abs(headingError(f.p, f.n)), 'Rama faces Vishwamitra').toBeLessThan(0.2)
+  expect(Math.abs(headingError(f.n, f.p)), 'Vishwamitra faces Rama').toBeLessThan(0.2)
+  expect(await page.evaluate(() => window.__bk.game.getState().objectives[0].done), 'arriving at him counts as the throne').toBe(true)
+  await page.screenshot({ path: 'docs/screenshots/l1-talk-facing.png' })
+  await skipSpeech(page, UI['name.vishwamitra'])
+  await expect(objective).toContainText(UI['name.dasharatha'])
   await page.screenshot({ path: 'docs/screenshots/l1-court.png' })
 
-  // Budgets, read from the overlay while the whole court is on screen.
+  // Budgets, read from the overlay with the court in view.
   const num = async (id: string) => Number(await page.getByTestId(id).textContent())
   const stats = {
     triangles: await num('perf-triangles'),
@@ -141,8 +116,8 @@ test('Level 1 plays end to end on real assets', async ({ page }) => {
   expect(stats.triangles).toBeLessThanOrEqual(TRIANGLE_BUDGET)
   expect(stats.calls).toBeLessThanOrEqual(DRAW_CALL_BUDGET)
 
-  // The four conversations, in the authored order.
-  for (const o of L1.objectives) {
+  // The remaining three conversations, in the authored order.
+  for (const o of L1.objectives.slice(2)) {
     if (o.kind === 'talk') await talkTo(page, o.npc as (typeof SCENE.npcs)[number]['npc'], o.dialogueKey as keyof typeof DIALOGUE)
   }
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
-import { createGameStore, registerRestartHook } from '@core/game-state'
+import { createGameStore } from '@core/game-state'
 import { worldStore } from '@systems/world'
 
 let store: ReturnType<typeof createGameStore>
@@ -198,22 +198,29 @@ describe('game state', () => {
     expect(worldStore.getState().astraReady).toBe(false)
   })
 
-  it('restartLevel resets phase to play, resources, and fires restartHook', () => {
-    enterPlay('l5')
-    let hookFired = false
-    registerRestartHook(() => {
-      hookFired = true
-    })
-    s().damagePlayer(50, 0)
-    s().damageYajna(40, 0)
-    store.setState({ phase: 'fail', arrows: 0, astraCharges: 0 })
-    s().restartLevel()
-    expect(s().phase).toBe('play')
-    expect(s().health).toBe(BALANCE.player.MAX_HEALTH)
-    expect(s().yajnaIntegrity).toBe(BALANCE.yajna.MAX_INTEGRITY)
+  it('RETRY reloads the level as a new attempt: fresh objectives and resources, no intro', () => {
+    enterPlay('l4')
+    s().progress({ kind: 'talk', dialogueKey: 'l4.vishwamitra.astras' })
+    s().progress({ kind: 'reach', waypoint: 'firingLine' })
+    s().progress({ kind: 'hitTargets' })
+    s().fireArrow()
+    s().fail('arrowsOut')
+    expect(s().phase).toBe('fail')
+    expect(s().attempt).toBe(0)
+    s().dispatch('RETRY')
+    // The attempt change is what remounts the scene (App.tsx keys it), so targets re-register.
+    expect(s().attempt).toBe(1)
+    expect(s().phase).toBe('loading')
+    expect(s().objectives.every((o) => !o.done && o.progress === 0)).toBe(true)
     expect(s().arrows).toBe(BALANCE.player.START_ARROWS)
-    expect(s().astraCharges).toBe(BALANCE.astra.START_CHARGES)
-    expect(hookFired).toBe(true)
+    s().dispatch('LOADED')
+    expect(s().phase).toBe('play')
+    // A new level starts back at attempt 0 with its intro.
+    store.setState({ phase: 'transition' })
+    s().dispatch('NEXT')
+    expect(s().attempt).toBe(0)
+    s().dispatch('LOADED')
+    expect(s().phase).toBe('intro')
   })
 
   it('dual astra: unlock, select, cast, and persistence', () => {

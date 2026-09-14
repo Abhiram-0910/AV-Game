@@ -5,6 +5,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
+import type { Group } from 'three'
 import { DIALOGUE } from '@data/dialogue'
 import type { NpcPlacement } from '@data/scenery'
 import { world, worldStore } from '@systems/world'
@@ -41,21 +42,27 @@ export function NpcCharacter({ placement, tier }: { placement: NpcPlacement; tie
   const speakingNow = useStore(worldStore, (s) => s.dialogue !== null && DIALOGUE[s.dialogue].speaker === placement.npc)
   const built = useNpc(placement.npc, tier, tier === 'low' && !speakingNow ? 'low' : 'high')
   const pointRef = useRef<NpcPoint | null>(null)
+  const body = useRef<Group>(null)
 
   useEffect(() => {
-    const point = { id: placement.npc, x: placement.pos[0], z: placement.pos[2] }
+    const seated = SEATED.has(placement.idle)
+    const point: NpcPoint = { id: placement.npc, x: placement.pos[0], z: placement.pos[2], yaw: placement.yaw, homeYaw: placement.yaw, seated }
     pointRef.current = point
     world.npcs.push(point)
     return () => {
       pointRef.current = null
       world.npcs = world.npcs.filter((n) => n !== point)
     }
-  }, [placement.npc, placement.pos])
+  }, [placement.npc, placement.pos, placement.yaw, placement.idle])
 
   useFrame((_, delta) => {
-    if (pointRef.current) {
-      pointRef.current.x = placement.pos[0]
-      pointRef.current.z = placement.pos[2]
+    const point = pointRef.current
+    if (point) {
+      point.x = placement.pos[0]
+      point.z = placement.pos[2]
+      point.homeYaw = placement.yaw
+      // SimulationDriver turns point.yaw on the fixed tick (toward Rama while they talk).
+      if (body.current) body.current.rotation.y = point.yaw
     }
     if (!built) return
     const key = worldStore.getState().dialogue
@@ -65,7 +72,7 @@ export function NpcCharacter({ placement, tier }: { placement: NpcPlacement; tie
     built.controller.update(delta)
   })
   return (
-    <group position={[placement.pos[0], placement.pos[1], placement.pos[2]]} rotation-y={placement.yaw}>
+    <group ref={body} position={[placement.pos[0], placement.pos[1], placement.pos[2]]} rotation-y={placement.yaw}>
       {built && <primitive object={built.root} position={[0, 0, 0]} />}
       <BlobShadow />
     </group>

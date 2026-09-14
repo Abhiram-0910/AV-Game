@@ -39,9 +39,11 @@ function findProximityHit(rayOrigin: Vector3, rayDir: Vector3, maxDist: number, 
   return bestTarget
 }
 
+/** An astra is a hitscan, so it lands on what the cursor is over: cast along the camera's cursor ray (world.aimRay), not
+ * the bow's aimDir, which is lifted for an arrow's drop. */
 function resolveImpactPoint(): Vector3 {
-  origin.set(world.player.x, BALANCE.archeryAim.MUZZLE_HEIGHT, world.player.z)
-  dir.set(world.aimDir[0], world.aimDir[1], world.aimDir[2])
+  origin.fromArray(world.aimRay.origin)
+  dir.fromArray(world.aimRay.dir)
   ray.set(origin, dir)
   ray.far = BALANCE.combat.MAX_HIT_RANGE
 
@@ -52,9 +54,9 @@ function resolveImpactPoint(): Vector3 {
     hitObj.getWorldPosition(tempPos)
     return tempPos.clone()
   }
-  // Default to point forward on the ground or ray trajectory
-  const dist = 18
-  return new Vector3(world.player.x + dir.x * dist, Math.max(0, origin.y + dir.y * dist), world.player.z + dir.z * dist)
+  // Nothing under the cursor: where the ray meets the ground, or 18 m along it.
+  const dist = dir.y < -1e-6 ? Math.min(18, -origin.y / dir.y) : 18
+  return new Vector3(origin.x + dir.x * dist, Math.max(0, origin.y + dir.y * dist), origin.z + dir.z * dist)
 }
 
 function applyDamageToEnemy(enemy: (typeof world.enemies)[number], dmg: number, tick: number, stunTicks?: number): void {

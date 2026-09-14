@@ -1,11 +1,11 @@
-import { Object3D } from 'three'
+import { Line3, Object3D, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
 import { grounded, launchArrow, muzzleOrigin, sampleTrajectoryPath, shouldFailArrowsOut, stepArrow } from '@systems/archery/ballistics'
 import { NO_DRAW, drawFraction, isDrawing, stepDraw } from '@systems/archery/draw'
 import { createHitTester } from '@systems/archery/hit-test'
 import { updateMovingTargets } from '@systems/archery/step'
-import { computeTrajectory } from '@systems/archery/trajectory'
+import { computeTrajectory, dotsAlongPath } from '@systems/archery/trajectory'
 import { castAgneyastra, castAstra } from '@systems/astra/step'
 import { spawnEnemy } from '@systems/ai/enemy-ai'
 import { gameStore } from '@core/game-state'
@@ -158,7 +158,7 @@ describe('trajectory sampling and preview', () => {
   it('castAstra executes onHit callback on target and clears it from hittable', () => {
     world.player.x = 0
     world.player.z = 0
-    world.aimDir = [0, 0, 1]
+    world.aimRay = { origin: [0, BALANCE.archeryAim.MUZZLE_HEIGHT, 0], dir: [0, 0, 1] }
     const target = new Object3D()
     target.position.set(0, 1.35, 10)
     let hitCalled = false
@@ -185,7 +185,7 @@ describe('Agneyastra spares Maricha', () => {
   it('burns a rakshasa at the impact point but leaves Maricha untouched (he is flung, never killed)', () => {
     world.player.x = 0
     world.player.z = 0
-    world.aimDir = [0, 0, 1]
+    world.aimRay = { origin: [0, BALANCE.archeryAim.MUZZLE_HEIGHT, 0], dir: [0, 0, 1] }
     world.hittable = []
     // No hittable in the way, so the impact lands 18 m straight ahead (resolveImpactPoint).
     const maricha = spawnEnemy('maricha', [0, 0, 18], null)
@@ -194,5 +194,51 @@ describe('Agneyastra spares Maricha', () => {
     expect(maricha.health).toBe(BALANCE.enemies.maricha.HEALTH)
     expect(maricha.state).not.toBe('dead')
     expect(rakshasa.health).toBeLessThan(BALANCE.enemies.rakshasa.HEALTH)
+  })
+})
+
+describe('trajectory arc dots (the preview a player reads)', () => {
+  const dir: [number, number, number] = [0, Math.sin(0.06), Math.cos(0.06)]
+  const origin = muzzleOrigin(0, 0, 0, dir)
+
+  it('samples the fired arrow itself, tick for tick, up to the landing point', () => {
+    const sample = computeTrajectory(origin, dir, 0.8, [], [])
+    let a = launchArrow(origin, dir, 0.8)
+    expect(sample.points[0]).toEqual(origin)
+    for (let i = 1; i < sample.points.length - 1; i += 1) {
+      a = stepArrow(a, dt)
+      expect(sample.points[i][0]).toBeCloseTo(a.x, 9)
+      expect(sample.points[i][1]).toBeCloseTo(a.y, 9)
+      expect(sample.points[i][2]).toBeCloseTo(a.z, 9)
+    }
+  })
+
+  it('puts every dot on that path, the last on the landing point, fading in order toward it', () => {
+    const sample = computeTrajectory(origin, dir, 1, [], [])
+    const dots = dotsAlongPath(sample.points, BALANCE.archery.ARC_DOT_SPACING, BALANCE.archery.ARC_DOT_MAX)
+    expect(dots.length).toBeGreaterThan(10)
+    expect(dots.length).toBeLessThanOrEqual(BALANCE.archery.ARC_DOT_MAX)
+    const pts = sample.points.map((p) => new Vector3(p[0], p[1], p[2]))
+    const seg = new Line3()
+    const closest = new Vector3()
+    for (const d of dots) {
+      const v = new Vector3(d.p[0], d.p[1], d.p[2])
+      let best = Infinity
+      for (let i = 1; i < pts.length; i += 1) {
+        seg.set(pts[i - 1], pts[i])
+        best = Math.min(best, seg.closestPointToPoint(v, true, closest).distanceTo(v))
+      }
+      expect(best).toBeLessThan(1e-6)
+    }
+    expect(dots[dots.length - 1].p).toEqual(sample.terminalPoint)
+    expect(dots[dots.length - 1].u).toBe(1)
+    for (let i = 1; i < dots.length; i += 1) expect(dots[i].u).toBeGreaterThan(dots[i - 1].u)
+  })
+
+  it('widens the spacing rather than stop short when the cap would not reach the end', () => {
+    const line: [number, number, number][] = [[0, 1, 0], [0, 1, 100]]
+    const dots = dotsAlongPath(line, 0.5, 20)
+    expect(dots.length).toBeLessThanOrEqual(20)
+    expect(dots[dots.length - 1].p).toEqual([0, 1, 100])
   })
 })
