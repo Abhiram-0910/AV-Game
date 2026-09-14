@@ -66,8 +66,8 @@ export function applyArrowHit(e: EnemyRuntime, tick: number, distance: number): 
  * One fixed tick of movement and state. Mutates `e` in place; sets `e.didAttack` /
  * `e.attackedObjective` on the tick a hit lands. Without `objective` this is Phase D's
  * player-only chase (Tataka). With one (Level 5's altar), the enemy paths toward the
- * objective by default, but attacks the player instead whenever the player is the one
- * actually in reach — "stand between them and the fire".
+ * objective by default, but turns on the player whenever he stands in its way: in reach, or
+ * nearer to it than the objective and within yajna.ENGAGE_RADIUS — "stand between them and the fire".
  */
 export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tick: number, dt: number, objective?: { x: number; z: number }): void {
   e.didAttack = false
@@ -78,12 +78,13 @@ export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tic
   const dzPlayer = player.z - e.z
   const distPlayer = Math.hypot(dxPlayer, dzPlayer)
   const goal = objective ?? player
-  const dxGoal = goal.x - e.x
-  const dzGoal = goal.z - e.z
-  const distGoal = Math.hypot(dxGoal, dzGoal)
-  const targetIsPlayer = !objective || distPlayer <= stats.REACH
+  const distGoal = Math.hypot(goal.x - e.x, goal.z - e.z)
+  const blocking = distPlayer <= BALANCE.yajna.ENGAGE_RADIUS && distPlayer < distGoal
+  const targetIsPlayer = !objective || distPlayer <= stats.REACH || blocking
   const dist = targetIsPlayer ? distPlayer : distGoal
-  const facing = Math.atan2(targetIsPlayer ? dxPlayer : dxGoal, targetIsPlayer ? dzPlayer : dzGoal)
+  const dx = targetIsPlayer ? dxPlayer : goal.x - e.x
+  const dz = targetIsPlayer ? dzPlayer : goal.z - e.z
+  const facing = Math.atan2(dx, dz)
 
   if (e.state === 'stagger') {
     if (tick >= e.stateUntil) e.state = 'chase'
@@ -114,7 +115,7 @@ export function stepEnemy(e: EnemyRuntime, player: { x: number; z: number }, tic
     // else: in reach but on cooldown — hold ground, keep facing (set above).
   } else {
     const step = stats.SPEED * dt
-    e.x += (dxGoal / distGoal) * step
-    e.z += (dzGoal / distGoal) * step
+    e.x += (dx / dist) * step
+    e.z += (dz / dist) * step
   }
 }

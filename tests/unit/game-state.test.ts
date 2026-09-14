@@ -24,6 +24,23 @@ describe('game state', () => {
     expect(s().arrows).toBe(BALANCE.player.START_ARROWS)
   })
 
+  it('regenerates health only after REGEN_DELAY_TICKS without a hit, never past max', () => {
+    enterPlay('l3')
+    const { INVULN_TICKS, REGEN_DELAY_TICKS, REGEN_PER_TICK, MAX_HEALTH } = BALANCE.player
+    s().damagePlayer(10, 1000)
+    const hurt = s().health
+    s().regenHealth(1000 + REGEN_DELAY_TICKS - 1)
+    expect(s().health).toBe(hurt)
+    s().regenHealth(1000 + REGEN_DELAY_TICKS)
+    expect(s().health).toBeCloseTo(hurt + REGEN_PER_TICK)
+    s().damagePlayer(5, 1000 + INVULN_TICKS + 1) // a new hit restarts the delay
+    const again = s().health
+    s().regenHealth(1000 + REGEN_DELAY_TICKS + 10)
+    expect(s().health).toBe(again)
+    for (let t = 0; t < 1000; t += 1) s().regenHealth(5000 + t)
+    expect(s().health).toBe(MAX_HEALTH)
+  })
+
   it('ignores invalid phase events', () => {
     s().dispatch('QUIZ_DONE')
     expect(s().phase).toBe('loading')

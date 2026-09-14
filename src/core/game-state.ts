@@ -45,6 +45,7 @@ export interface GameActions {
   completeObjective(index?: number): void
   checkLevelObjectives(): boolean
   damagePlayer(amount: number, tick: number): void
+  regenHealth(tick: number): void
   damageYajna(amount: number, tick: number): void
   fireArrow(): boolean
   pickupArrows(): void
@@ -216,6 +217,18 @@ function resourceActions(set: Set, get: Get) {
   }
 }
 
+function regenActions(set: Set, get: Get) {
+  return {
+    // Out of combat health creeps back: no hit for REGEN_DELAY_TICKS (the last hit was playerInvulnUntil - INVULN_TICKS).
+    regenHealth: (tick: number) => {
+      const s = get()
+      const { MAX_HEALTH, INVULN_TICKS, REGEN_DELAY_TICKS, REGEN_PER_TICK } = BALANCE.player
+      if (s.phase !== 'play' || s.health >= MAX_HEALTH || tick < s.playerInvulnUntil - INVULN_TICKS + REGEN_DELAY_TICKS) return
+      set({ health: Math.min(MAX_HEALTH, s.health + REGEN_PER_TICK) })
+    },
+  }
+}
+
 function persistenceActions(set: Set, get: Get) {
   return {
     setSettings: (patch: Partial<Settings>) => set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -260,6 +273,7 @@ export function createGameStore() {
     ...flowActions(set, get),
     ...objectiveActions(set, get),
     ...resourceActions(set, get),
+    ...regenActions(set, get),
     ...persistenceActions(set, get),
   }))
 }

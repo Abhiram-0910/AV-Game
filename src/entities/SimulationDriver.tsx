@@ -127,6 +127,7 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
         stepInteraction()
         stepEnemies(tick, loop.dt, objective)
+        gameStore.getState().regenHealth(tick)
         onTick?.(tick)
         if (bow) {
           stepArchery(loop.dt)
