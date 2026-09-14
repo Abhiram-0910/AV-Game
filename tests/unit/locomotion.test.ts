@@ -21,6 +21,13 @@ describe('kinematic locomotion', () => {
     expect(jog.speed).toBeCloseTo(BALANCE.player.JOG_SPEED)
   })
 
+  it('adds mouse-look yaw on top of the keys, once per tick it is given', () => {
+    const looked = stepLocomotion(spawnState([0, 0, 0], 0), { forward: 0, turn: 0, run: false, yaw: 0.4 }, dt, flat)
+    expect(looked.yaw).toBeCloseTo(0.4)
+    const both = stepLocomotion(looked, { forward: 0, turn: 1, run: false, yaw: -0.1 }, dt, flat)
+    expect(both.yaw).toBeCloseTo(0.3 + BALANCE.player.TURN_SPEED_RAD * dt)
+  })
+
   it('turns with A/D at TURN_SPEED_RAD and moves backward slower', () => {
     const turned = run(60, { forward: 0, turn: 1, run: false })
     expect(turned.yaw).toBeCloseTo(BALANCE.player.TURN_SPEED_RAD)

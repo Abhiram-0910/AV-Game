@@ -11,6 +11,8 @@ import { Crosshair } from './Crosshair'
 import { AstraButton } from './AstraButton'
 import { WaypointIndicator } from './WaypointIndicator'
 import { Frame } from './Frame'
+import { MouseMode } from './MouseMode'
+import { AstraConeLabel } from './AstraConeLabel'
 
 function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefined): string {
   if (!o || !p) return ''
@@ -118,6 +120,8 @@ export function Hud({ bow }: { bow: boolean }) {
       )}
       <WaypointIndicator />
       {bow && <Crosshair />}
+      <MouseMode />
+      <AstraConeLabel />
       <div className="hud-controls">{controlsText}</div>
     </div>
   )

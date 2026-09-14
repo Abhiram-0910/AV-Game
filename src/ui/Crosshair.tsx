@@ -1,34 +1,35 @@
 // Draw feedback at the cursor, which is where the bow aims (FollowCamera casts the cursor ray). Nothing sits at the
 // screen centre: the follow camera looks at Rama's shoulders, so the old fixed reticle sat on his back all level.
-// The lock reticle shows only while the drawn arc lands on a target; the gauge only while drawing.
-import { useEffect, useRef } from 'react'
+// The lock reticle shows only while the drawn arc lands on a target; the gauge only while drawing. Under pointer lock
+// the cursor is FollowCamera's virtual one, so the position comes from the input adapter, not from mouse events.
+import { useEffect, useRef, useState } from 'react'
 import { BALANCE } from '@data/balance'
+import { platform } from '@platform/index'
 import { useWorld } from './use-game'
 
-/** Tracked from load, not from mount, so the first draw after a dialogue already knows where the cursor is. */
-const cursor = { x: 0, y: 0 }
-if (typeof window !== 'undefined') {
-  cursor.x = window.innerWidth / 2
-  cursor.y = window.innerHeight / 2
-  window.addEventListener('mousemove', (e) => {
-    cursor.x = e.clientX
-    cursor.y = e.clientY
-  })
-}
-
+/** Follows the input adapter's cursor every frame (a mouse event only moves the real cursor); a style write only when it moved. */
 function useFollowCursor() {
   const ref = useRef<HTMLDivElement>(null)
+  const [locked, setLocked] = useState(platform.input.lock.locked())
+  useEffect(() => platform.input.lock.onChange(() => setLocked(platform.input.lock.locked())), [])
   useEffect(() => {
+    let frame = 0
+    let last = ''
     const place = () => {
-      if (!ref.current) return
-      ref.current.style.left = `${cursor.x}px`
-      ref.current.style.top = `${cursor.y}px`
+      const m = platform.input.mouse()
+      const at = `${((m.x + 1) / 2) * window.innerWidth}px,${((1 - m.y) / 2) * window.innerHeight}px`
+      if (ref.current && at !== last) {
+        last = at
+        const [left, top] = at.split(',')
+        ref.current.style.left = left
+        ref.current.style.top = top
+      }
+      frame = requestAnimationFrame(place)
     }
     place()
-    window.addEventListener('mousemove', place)
-    return () => window.removeEventListener('mousemove', place)
+    return () => cancelAnimationFrame(frame)
   }, [])
-  return ref
+  return { ref, locked }
 }
 
 function LockReticle() {
@@ -89,11 +90,12 @@ function DrawGaugeMeter({ isDrawing, drawStrength }: { isDrawing: boolean; drawS
 }
 
 export function Crosshair() {
-  const ref = useFollowCursor()
+  const { ref, locked } = useFollowCursor()
   const isDrawing = useWorld((s) => s.isDrawing)
   const hasTarget = useWorld((s) => s.hasTarget)
   const drawStrength = useWorld((s) => s.drawStrength)
   const hitFeedback = useWorld((s) => s.hitFeedback)
+  const astraCharging = useWorld((s) => s.astraCharging)
 
   const hitClass =
     hitFeedback === 'enemy' ? 'crosshair--hit-enemy' : hitFeedback === 'target' ? 'crosshair--hit-target' : ''
@@ -109,6 +111,7 @@ export function Crosshair() {
       data-hit-feedback={hitFeedback ?? 'none'}
     >
       {isDrawing && hasTarget && <LockReticle />}
+      {locked && (isDrawing || astraCharging) && !hasTarget && <span className="crosshair-dot" data-testid="crosshair-dot" />}
       <HitMarkerSvg hitFeedback={hitFeedback} />
       <DrawGaugeMeter isDrawing={isDrawing} drawStrength={drawStrength} />
     </div>

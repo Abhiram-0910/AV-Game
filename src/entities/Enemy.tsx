@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { type Group, type Material } from 'three'
 import { BALANCE } from '@data/balance'
 import type { EnemyKind, Vec3 } from '@data/levels'
+import { ASTRA_LOOK } from '@data/scenery'
 import { playAudio } from '@systems/audio'
 import { spawnEnemy, type EnemyRuntime } from '@systems/ai/enemy-ai'
 import { world, worldStore } from '@systems/world'
@@ -15,6 +16,17 @@ import { buildCharacter, type BuiltCharacter } from '@render/character-factory'
 import type { ResolvedTier } from '@render/manifest'
 
 const CLIP_FOR_STATE = { idle: 'IDLE', chase: 'WALK', attack: 'THROW', stagger: 'HIT', dead: 'DEATH' } as const
+const FLING = ASTRA_LOOK.FLING
+
+/** Maricha flung by Manavastra (the text: flung, not killed): carried up and away, tumbling, then gone. Render only. */
+function flingAway(g: Group, dir: { x: number; z: number }, seconds: number): void {
+  const u = Math.min(1, seconds / FLING.SEC)
+  g.position.x += dir.x * FLING.DIST * u * u
+  g.position.z += dir.z * FLING.DIST * u * u
+  g.position.y += FLING.HEIGHT * u
+  g.rotation.x = -u * FLING.TUMBLE
+  g.visible = u < 1
+}
 
 function setOpacity(mesh: { material: Material | Material[] }, opacity: number): void {
   const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
@@ -121,6 +133,7 @@ export function Enemy({
   const wrapper = useRef<Group>(null)
   const lastHealthRef = useRef<number | null>(null)
   const playedDeathRef = useRef(false)
+  const flungFor = useRef(0)
 
   useEffect(
     // `boss` deliberately excluded: toggling it must not tear down and rebuild the character
@@ -135,6 +148,7 @@ export function Enemy({
     if (!runtime) return
     wrapper.current.position.set(runtime.x, 0, runtime.z)
     wrapper.current.rotation.y = runtime.yaw
+    if (runtime.flung) flingAway(wrapper.current, runtime.flung, (flungFor.current += delta))
     built.controller.play(CLIP_FOR_STATE[runtime.state], { loop: runtime.state === 'idle' || runtime.state === 'chase' })
     built.controller.update(delta)
     updateBossAndDissolve(runtime, built, kind, boss, lastHealthRef, playedDeathRef)

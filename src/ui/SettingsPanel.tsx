@@ -2,6 +2,8 @@
 // The quality tier is applied on the next load (resolveTier runs once at boot) — changing it
 // here sets the saved preference; the note under it says what is running now and offers a restart.
 import type { QualityTier, Settings } from '@core/save'
+import { BALANCE } from '@data/balance'
+import { CONTROLS_TEXT as T, type ControlsTextKey } from '@data/controls-text'
 import { UI } from '@data/dialogue'
 import { gameStore } from '@core/game-state'
 import { platform } from '@platform/index'
@@ -93,6 +95,50 @@ function SubtitlesRow({ subtitles }: { subtitles: boolean }) {
   )
 }
 
+function ChoiceRow<K extends keyof Settings>({ field, label, options }: { field: K; label: ControlsTextKey; options: readonly Settings[K][] }) {
+  const current = useGame((s) => s.settings[field])
+  return (
+    <div className="settings-row">
+      <span className="hud-label">{T[label]}</span>
+      <div className="settings-options">
+        {options.map((o) => (
+          <button
+            key={String(o)}
+            type="button"
+            className="btn btn-choice"
+            aria-pressed={current === o}
+            data-testid={`settings-${field}-${String(o)}`}
+            onClick={() => gameStore.getState().setSettings({ [field]: o } as Partial<Settings>)}
+          >
+            {T[`${label}.${String(o)}` as ControlsTextKey]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SensitivityRow({ field }: { field: 'mouseSensitivity' | 'trackpadSensitivity' }) {
+  const value = useGame((s) => s.settings[field])
+  return (
+    <div className="settings-row">
+      <label className="hud-label" htmlFor={`settings-${field}`}>
+        {T[`settings.${field}`]}
+      </label>
+      <input
+        id={`settings-${field}`}
+        type="range"
+        min={BALANCE.mouseLook.SENS_MIN}
+        max={BALANCE.mouseLook.SENS_MAX}
+        step={0.05}
+        value={value}
+        data-testid={`settings-${field}`}
+        onChange={(e) => gameStore.getState().setSettings({ [field]: Number(e.target.value) })}
+      />
+    </div>
+  )
+}
+
 export function SettingsPanel({ onBack }: { onBack: () => void }) {
   const settings: Settings = useGame((s) => s.settings)
   return (
@@ -103,6 +149,10 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
         <ActiveTierNote current={settings.qualityTier} />
         <VolumeRow volume={settings.volume} />
         <SubtitlesRow subtitles={settings.subtitles} />
+        <ChoiceRow field="cameraMode" label="settings.mouseMode" options={['look', 'aim']} />
+        <ChoiceRow field="pointer" label="settings.pointer" options={['mouse', 'trackpad']} />
+        <SensitivityRow field="mouseSensitivity" />
+        <SensitivityRow field="trackpadSensitivity" />
         <button type="button" className="btn" data-testid="settings-back" onClick={onBack}>
           {UI['settings.back']}
         </button>

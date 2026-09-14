@@ -1,8 +1,10 @@
 // Which overlay each level phase shows, and the events that move the machine along.
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { BALANCE } from '@data/balance'
 import { DIALOGUE, type DialogueKey } from '@data/dialogue'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
+import { lastAstraCastAt } from '@systems/astra/vfx-state'
 import { worldStore } from '@systems/world'
 import { DialoguePanel } from './DialoguePanel'
 import { EndingScreen } from './EndingScreen'
@@ -12,6 +14,7 @@ import { PauseMenu } from './PauseMenu'
 import { QuizPanel } from './QuizPanel'
 import { ResultPanel } from './ResultPanel'
 import { useGame, useWorld } from './use-game'
+import { pausedByLockLoss } from './use-mouse-look'
 
 function Narration({ dialogueKey, event }: { dialogueKey: string; event: 'INTRO_DONE' | 'NEXT' }) {
   const onDone = useCallback(() => gameStore.getState().dispatch(event), [event])
@@ -32,11 +35,24 @@ function usePauseToggle(active: boolean) {
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') worldStore.getState().setPaused(!worldStore.getState().paused)
+      // A browser that drops the lock on Escape and also delivers the key would otherwise pause and resume at once.
+      if (e.code === 'Escape' && !pausedByLockLoss(performance.now())) worldStore.getState().setPaused(!worldStore.getState().paused)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [active])
+}
+
+/** L4 is won in the astra's cast tick: keep the HUD (and the strike) on screen until the sky has mostly cleared. */
+function ResultAfterAstra({ bow }: { bow: boolean }) {
+  const wait = () => BALANCE.ui.RESULT_AFTER_ASTRA_MS - (performance.now() - lastAstraCastAt())
+  const [ready, setReady] = useState(() => wait() <= 0)
+  useEffect(() => {
+    if (ready) return
+    const id = setTimeout(() => setReady(true), wait())
+    return () => clearTimeout(id)
+  }, [ready])
+  return ready ? <ResultPanel /> : <Hud bow={bow} />
 }
 
 export function Flow() {
@@ -66,6 +82,6 @@ export function Flow() {
     case 'complete':
       return <EndingScreen />
     default:
-      return <ResultPanel />
+      return <ResultAfterAstra bow={def.bow} />
   }
 }

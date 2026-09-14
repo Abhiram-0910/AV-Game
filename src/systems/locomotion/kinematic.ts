@@ -21,6 +21,8 @@ export interface MoveInput {
   /** 1 turns left (counter-clockwise from above), −1 right. */
   turn: -1 | 0 | 1
   run: boolean
+  /** Radians added to the yaw this tick from mouse look (+ turns left, like A). Absent for keyboard-only input. */
+  yaw?: number
 }
 
 export interface Obstacle {
@@ -72,7 +74,7 @@ function pushOut(x: number, z: number, obstacles: readonly Obstacle[]): [number,
 }
 
 export function stepLocomotion(s: LocomotionState, input: MoveInput, dt: number, world: WorldQuery): LocomotionState {
-  const yaw = s.yaw + input.turn * BALANCE.player.TURN_SPEED_RAD * dt
+  const yaw = s.yaw + input.turn * BALANCE.player.TURN_SPEED_RAD * dt + (input.yaw ?? 0)
   const speed = approach(s.speed, targetSpeed(input), BALANCE.locomotion.ACCEL * dt)
   const r = BALANCE.locomotion.CAPSULE_RADIUS
   const { minX, maxX, minZ, maxZ } = world.bounds

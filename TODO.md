@@ -52,6 +52,28 @@ SESSION-LOG 2026-09-14, "L5: interception, dead regen wired". Observed, not chan
   this task's files; the L5 bot keeps the sword off him.
 - **Regen was dead code** (`player.REGEN_PER_TICK`, `REGEN_DELAY_TICKS`): now wired, lines in the SESSION-LOG entry.
   Tataka's cadence (198 ticks) is under the 240-tick delay, so it does nothing during her fight.
+## Open after mouse look and the staged astra (2026-09-14, Claude Code)
+
+Done on `feat/astra-and-look` (SESSION-LOG 2026-09-14, "Mouse look … and the staged astra"). Open:
+- **Human checks headless cannot do.**
+  - Real Chrome's own Escape and a tab switch dropping the lock (should pause, Resume relocks).
+  - Trackpad feel and both default sensitivities on the laptop.
+  - Pointer lock in the Electron shell.
+  - The synth charge rise, thunder and gale by ear.
+- **Maricha on screen.** Two things are covered only by unit tests and the code path, never seen in a browser: the "Maricha is in / outside
+  the wind's path" label with Maricha actually in the cone, and the render-side fling. The SwiftShader run that was
+  photographing them was killed at ~16 min (SESSION-LOG). Next L5 play: watch both.
+- **No "before" frame of the old astra** (two spheres and a beam) in the sheets: the old-build capture was cut.
+- **Before this merges: fold two new files into the files other agents own today.**
+  - `src/data/controls-text.ts` goes into `dialogue.ts` `UI`.
+  - `src/ui/mouse-mode.css` goes into `ui.css`.
+- **Settings rows** for mouse mode, device and the two sensitivities use the plain `settings-row` look. Royal-ui may restyle.
+- **L4 e2e fails on this branch: "the lateral target was never hit".** The HEAD baseline failed the same way before any
+  change (6 browsers in parallel). The branch run was single-worker, but another agent's SwiftShader L5 run was loading
+  the CPU. A clean single-worker L4 on HEAD and on this branch, with nothing else running, is still owed before merging.
+- **L3 and L5 e2e were not re-run on this branch** (known failures, budget).
+- **Agneyastra's bolt reads white-gold on high**, not deep fire: bloom lifts it. Tried as is. If it should read as fire,
+  lower `ASTRA_LOOK.AGNEYA_COLOR`'s blue and green, not the bloom.
 
 ## Open after the court defects pass (2026-09-14, Claude Code)
 

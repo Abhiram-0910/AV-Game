@@ -9,11 +9,20 @@ export type QualityTier = 'auto' | 'low' | 'high'
 /** What the one-time hardware benchmark decided; null until it has run on this machine. */
 export type BenchmarkTier = Exclude<QualityTier, 'auto'> | null
 
+/** 'look': a locked mouse turns the camera (default). 'aim': the free cursor aims the bow, the pre-2026-09-14 behaviour. */
+export type CameraMode = 'look' | 'aim'
+export type PointerDevice = 'mouse' | 'trackpad'
+
 export interface Settings {
   qualityTier: QualityTier
   /** 0..1 */
   volume: number
   subtitles: boolean
+  cameraMode: CameraMode
+  pointer: PointerDevice
+  /** Multipliers on BALANCE.mouseLook's radians per px, one per device. */
+  mouseSensitivity: number
+  trackpadSensitivity: number
 }
 
 export type AstraId = 'agneyastra' | 'manavastra'
@@ -42,7 +51,7 @@ export interface Save extends SaveBody {
   benchmarkTier: BenchmarkTier
 }
 
-export const DEFAULT_SETTINGS: Settings = { qualityTier: 'auto', volume: 0.8, subtitles: true }
+export const DEFAULT_SETTINGS: Settings = { qualityTier: 'auto', volume: 0.8, subtitles: true, cameraMode: 'look', pointer: 'mouse', mouseSensitivity: 1, trackpadSensitivity: 1 }
 
 export const DEFAULT_SAVE: Save = {
   version: SAVE_VERSION,
@@ -70,13 +79,24 @@ function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === 'string')
 }
 
+const sensitivity = (v: unknown) => (typeof v === 'number' && v > 0 && v <= 10 ? v : 1)
+
+/** The mouse fields arrived after v2 shipped: missing or invalid ones take their defaults and never reject the save. */
 function parseSettings(v: unknown): Settings | null {
   if (!isRecord(v)) return null
   const { qualityTier, volume, subtitles } = v
   if (!TIERS.includes(qualityTier as QualityTier)) return null
   if (typeof volume !== 'number' || !(volume >= 0 && volume <= 1)) return null
   if (typeof subtitles !== 'boolean') return null
-  return { qualityTier: qualityTier as QualityTier, volume, subtitles }
+  return {
+    qualityTier: qualityTier as QualityTier,
+    volume,
+    subtitles,
+    cameraMode: v.cameraMode === 'aim' ? 'aim' : 'look',
+    pointer: v.pointer === 'trackpad' ? 'trackpad' : 'mouse',
+    mouseSensitivity: sensitivity(v.mouseSensitivity),
+    trackpadSensitivity: sensitivity(v.trackpadSensitivity),
+  }
 }
 
 function parseBody(raw: Record<string, unknown>): SaveBody | null {

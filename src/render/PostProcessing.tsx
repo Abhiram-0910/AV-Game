@@ -11,10 +11,20 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js'
 import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js'
 import { POST } from '@data/scenery'
+import { postStorm } from './post-storm'
 
 /** MSAA samples on the composer's scene target. */
 const MSAA_SAMPLES = 4
 const AO = POST.AO
+
+function applyStorm(b: ComposerBundle): void {
+  const s = postStorm.storm
+  const [r, g, bl] = POST.GRADE_MUL
+  const [sr, sg, sb] = POST.STORM.GRADE_MUL
+  b.grade.uniforms['mulRGB'].value.set(r + (sr - r) * s, g + (sg - g) * s, bl + (sb - bl) * s)
+  b.vignette.uniforms['darkness'].value = POST.VIGNETTE_DARKNESS + POST.STORM.VIGNETTE_ADD * s
+  b.bloom.strength = POST.BLOOM_STRENGTH + POST.STORM.BLOOM_FLASH * postStorm.flash
+}
 
 interface ComposerBundle {
   composer: EffectComposer
@@ -131,6 +141,7 @@ export function PostProcessing({ ao }: { ao: boolean }) {
 
   useFrame((state, delta) => {
     state.gl.info.reset()
+    applyStorm(bundle)
     bundle.composer.render(delta)
   }, 1)
 

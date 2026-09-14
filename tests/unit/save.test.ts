@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SAVE, deserializeSave, parseSave, serializeSave, type Save, type SaveV1 } from '@core/save'
+import { DEFAULT_SAVE, DEFAULT_SETTINGS, deserializeSave, parseSave, serializeSave, type Save, type SaveV1 } from '@core/save'
+
+const settings = { qualityTier: 'low', volume: 0.5, subtitles: false, cameraMode: 'aim', pointer: 'trackpad', mouseSensitivity: 1.5, trackpadSensitivity: 0.5 } as const
 
 const good: Save = {
   version: 2,
@@ -7,7 +9,7 @@ const good: Save = {
   completed: ['l1', 'l2'],
   codex: ['vishwamitra', 'yajna'],
   quiz: { gate1: 2 },
-  settings: { qualityTier: 'low', volume: 0.5, subtitles: false },
+  settings,
   benchmarkTier: 'high',
 }
 
@@ -17,10 +19,19 @@ const v1: SaveV1 = {
   completed: ['l1', 'l2'],
   codex: ['vishwamitra', 'yajna'],
   quiz: { gate1: 2 },
-  settings: { qualityTier: 'low', volume: 0.5, subtitles: false },
+  settings,
 }
 
 describe('save', () => {
+  it('fills the mouse settings a pre-mouse-look save lacks, and replaces invalid ones, keeping the progress', () => {
+    const old = { ...good, settings: { qualityTier: 'low', volume: 0.5, subtitles: false } }
+    const { cameraMode, pointer, mouseSensitivity, trackpadSensitivity } = DEFAULT_SETTINGS
+    expect(parseSave(old)).toEqual({ ...good, settings: { ...old.settings, cameraMode, pointer, mouseSensitivity, trackpadSensitivity } })
+    const bad = parseSave({ ...good, settings: { ...settings, cameraMode: 'orbit', pointer: 7, mouseSensitivity: -1, trackpadSensitivity: 'x' } })
+    expect(bad.settings).toEqual({ ...settings, cameraMode: 'look', pointer: 'mouse', mouseSensitivity: 1, trackpadSensitivity: 1 })
+    expect(bad.completed).toEqual(['l1', 'l2'])
+  })
+
   it('round-trips a valid v2 save', () => {
     expect(deserializeSave(serializeSave(good))).toEqual(good)
   })

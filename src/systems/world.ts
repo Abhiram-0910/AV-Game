@@ -42,6 +42,10 @@ export interface WorldUi {
   hitFeedback: 'enemy' | 'target' | null
   /** Whether the Astra is unlocked and ready for summoning (Level 4 after 4 targets, or Level 5). */
   astraReady: boolean
+  /** A castable astra charge is being held (the mouse aims it; the HUD says so). */
+  astraCharging: boolean
+  /** While charging Manavastra with Maricha alive: whether he stands in the cone. Null otherwise. */
+  astraMaricha: 'in' | 'out' | null
   /** The active reach waypoint on screen (entities/WaypointMarker projects it): a spot, or an edge point with the
    * arrow angle when it is off camera. Null when no reach objective is active. */
   waypoint: WaypointScreen | null
@@ -54,6 +58,7 @@ export interface WorldUi {
   setAimState(isDrawing: boolean, hasTarget: boolean, drawStrength: number): void
   triggerHitFeedback(kind: 'enemy' | 'target'): void
   setAstraReady(ready: boolean): void
+  setAstraAim(charging: boolean, maricha: 'in' | 'out' | null): void
   setWaypoint(w: WaypointScreen | null): void
 }
 
@@ -78,6 +83,8 @@ export const worldStore = createStore<WorldUi>()((set) => ({
   drawStrength: 0,
   hitFeedback: null,
   astraReady: false,
+  astraCharging: false,
+  astraMaricha: null,
   waypoint: null,
   setPrompt: (prompt) => set((s) => (s.prompt === prompt ? s : { prompt })),
   openDialogue: (dialogue) => set({ dialogue }),
@@ -99,6 +106,8 @@ export const worldStore = createStore<WorldUi>()((set) => ({
     }, BALANCE.ui.HIT_FEEDBACK_MS)
   },
   setAstraReady: (astraReady) => set({ astraReady }),
+  setAstraAim: (astraCharging, astraMaricha) =>
+    set((s) => (s.astraCharging === astraCharging && s.astraMaricha === astraMaricha ? s : { astraCharging, astraMaricha })),
   // Written every frame; a store update (and the edge arrow's style write) only when it moved a pixel or changed state.
   setWaypoint: (waypoint) =>
     set((s) => {
@@ -117,6 +126,10 @@ export interface WorldSim {
   aimDir: [number, number, number]
   /** Camera ray through the cursor, written by FollowCamera every frame; the bow aims where it meets the ground. */
   aimRay: AimRay
+  /** Mouse-look turn (radians) FollowCamera has gathered since the last tick; the next locomotion tick consumes it. */
+  lookYaw: number
+  /** Mouse-look camera tilt, radians (systems/camera/mouse-look.ts). */
+  cameraPitch: number
   arrows: ArrowState[]
   /** Spent-arrow landing spots a player can walk up to and press E to recover (Level 5's long
    * fight is the only level whose arrow economy needs this; see stepInteraction). */
@@ -128,6 +141,10 @@ export interface WorldSim {
   /** Whether the on-screen Astra button is being held down. */
   astraButtonHeld: boolean
   astraReady: boolean
+  /** Agneyastra's strike point while a castable charge is held (systems/astra/step.ts); `target` when it lands on one. */
+  astraAim: { point: [number, number, number]; target: boolean } | null
+  /** Enemies inside Manavastra's cone whenever it is selected and castable. */
+  astraCone: EnemyRuntime[]
   npcs: NpcPoint[]
   /** The NPC whose talk is open, set when E opens it; hero and NPC turn to face each other until it closes. */
   talkWith: NpcPoint | null
@@ -152,12 +169,16 @@ export const world: WorldSim = {
   aimBlend: 0,
   aimDir: [0, 0, -1],
   aimRay: { origin: [0, 0, 0], dir: [0, 0, -1] },
+  lookYaw: 0,
+  cameraPitch: 0,
   arrows: [],
   arrowPickups: [],
   swordSlashUntilTick: 0,
   astraCharge: NO_DRAW,
   astraButtonHeld: false,
   astraReady: false,
+  astraAim: null,
+  astraCone: [],
   npcs: [],
   talkWith: null,
   ground: [],
@@ -178,14 +199,18 @@ export function resetWorld(pos: readonly [number, number, number], yaw: number):
   world.player = spawnState(pos, yaw)
   world.draw = NO_DRAW
   world.aimBlend = 0
+  world.lookYaw = 0
+  world.cameraPitch = 0
   world.arrows = []
   world.arrowPickups = []
   world.swordSlashUntilTick = 0
   world.astraCharge = NO_DRAW
   world.astraButtonHeld = false
   world.astraReady = false
+  world.astraAim = null
+  world.astraCone = []
   world.talkWith = null
   world.alpha = 0
   world.tick = 0
-  worldStore.setState({ prompt: null, dialogue: null, paused: false, isDrawing: false, hasTarget: false, drawStrength: 0, astraReady: false })
+  worldStore.setState({ prompt: null, dialogue: null, paused: false, isDrawing: false, hasTarget: false, drawStrength: 0, astraReady: false, astraCharging: false, astraMaricha: null })
 }

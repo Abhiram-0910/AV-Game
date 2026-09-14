@@ -25,7 +25,14 @@ function readMove(): MoveInput {
   const { input } = platform
   const forward = input.isDown('KeyW') || input.isDown('ArrowUp') ? 1 : input.isDown('KeyS') || input.isDown('ArrowDown') ? -1 : 0
   const turn = input.isDown('KeyA') || input.isDown('ArrowLeft') ? 1 : input.isDown('KeyD') || input.isDown('ArrowRight') ? -1 : 0
-  return { forward, turn, run: input.isDown('ShiftLeft') || input.isDown('ShiftRight') }
+  return { forward, turn, run: input.isDown('ShiftLeft') || input.isDown('ShiftRight'), yaw: takeLookYaw() }
+}
+
+/** The mouse-look turn gathered since the last tick; the first tick of a frame takes all of it. */
+function takeLookYaw(): number {
+  const yaw = world.lookYaw
+  world.lookYaw = 0
+  return yaw
 }
 
 function stepInteraction(): void {
@@ -135,6 +142,7 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
           stepAstraCombat(tick)
         }
       } else {
+        takeLookYaw()
         world.player = stepLocomotion(world.player, IDLE_INPUT, loop.dt, { bounds: sceneBounds(bounds), obstacles: [], groundY })
       }
       stepFacing(loop.dt)

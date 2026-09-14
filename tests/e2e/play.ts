@@ -41,10 +41,11 @@ const SETTLE_MS = 80
 const ORDER: readonly LevelId[] = ['l1', 'l2', 'l3', 'l4', 'l5']
 const CARDS = ['vishwamitra', 'yajna', 'tataka', 'astra']
 
-/** Start on `level` with every earlier level already completed. */
-export async function seedSave(page: Page, level: LevelId) {
+/** Start on `level` with every earlier level already completed. The level specs drive absolute cursor coordinates, which
+ * only mean something to an unlocked cursor, so they play in 'aim' mode; mouse-look.spec.ts covers the default 'look'. */
+export async function seedSave(page: Page, level: LevelId, cameraMode: 'look' | 'aim' = 'aim') {
   const i = ORDER.indexOf(level)
-  const save = { version: SAVE_VERSION, level, completed: ORDER.slice(0, i), codex: CARDS.slice(0, i), quiz: {}, settings: { qualityTier: 'auto', volume: 0.8, subtitles: true }, benchmarkTier: null }
+  const save = { version: SAVE_VERSION, level, completed: ORDER.slice(0, i), codex: CARDS.slice(0, i), quiz: {}, settings: { qualityTier: 'auto', volume: 0.8, subtitles: true, cameraMode }, benchmarkTier: null }
   await page.addInitScript(([key, json]) => window.localStorage.setItem(key as string, json as string), ['bala-kanda.save', JSON.stringify(save)])
 }
 

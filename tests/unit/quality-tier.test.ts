@@ -2,13 +2,13 @@
 // heuristic is visible and overridable instead of silently serving low to a real GPU.
 import { describe, expect, it } from 'vitest'
 import type { WebGLRenderer } from 'three'
-import { deserializeSave } from '@core/save'
+import { DEFAULT_SETTINGS, deserializeSave } from '@core/save'
 import { resolveTier } from '@render/quality-tier'
 
 const renderer = (name: string) => ({ getContext: () => ({ getExtension: () => null, getParameter: () => name, RENDERER: 0 }) }) as unknown as WebGLRenderer
 
 function save(qualityTier: 'auto' | 'low' | 'high', benchmarkTier: 'low' | 'high' | null = null, benchmarkRenderer?: string) {
-  return { ...deserializeSave(null), settings: { qualityTier, volume: 1, subtitles: true }, benchmarkTier, ...(benchmarkRenderer ? { benchmarkRenderer } : {}) }
+  return { ...deserializeSave(null), settings: { ...DEFAULT_SETTINGS, qualityTier, volume: 1, subtitles: true }, benchmarkTier, ...(benchmarkRenderer ? { benchmarkRenderer } : {}) }
 }
 
 describe('resolveTier', () => {

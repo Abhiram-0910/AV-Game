@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { UI } from '@data/dialogue'
 import { gameStore } from '@core/game-state'
 import { worldStore } from '@systems/world'
+import { platform } from '@platform/index'
 import { CodexPanel } from './CodexPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { screenStore } from './screen-store'
@@ -14,6 +15,12 @@ type View = 'menu' | 'settings' | 'codex'
 
 function resume() {
   worldStore.getState().setPaused(false)
+}
+
+/** The Resume click is the gesture a pointer lock needs: go straight back to looking around. */
+function resumeLooking() {
+  resume()
+  if (gameStore.getState().settings.cameraMode === 'look') platform.input.lock.request()
 }
 
 export function PauseMenu() {
@@ -27,7 +34,7 @@ export function PauseMenu() {
       <Panel>
         <h1>{UI['pause.title']}</h1>
         <div className="title-actions">
-          <button type="button" className="btn" data-testid="pause-resume" onClick={resume} autoFocus>
+          <button type="button" className="btn" data-testid="pause-resume" onClick={resumeLooking} autoFocus>
             {UI['pause.resume']}
           </button>
           <button
