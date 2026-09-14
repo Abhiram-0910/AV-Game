@@ -1,15 +1,34 @@
 # TODO
 
+## Open after the court defects pass (2026-09-14, Claude Code)
+
+Glass, platform and stencil are done (SESSION-LOG 2026-09-14, "L1 court defects"). Open, observed but not changed:
+- **Rama casts no visible shadow on L1 from the follow camera. Not fixable by moving the key light.** The shadow is
+  real (visible from any side view), but the key (`dir [3,5,10]`) sits behind the camera, so it falls behind his body
+  onto the dark carpet. Evidence, all shot on the 4050 from spawn and the throne approach (`gpu-key12-*.png`):
+
+  | candidate | key dir | Rama's shadow | cost to the room |
+  |---|---|---|---|
+  | A (current) | [3, 5, 10] | not readable | — |
+  | B right 35° | [7, 5, 10] | not readable | column shadows turn |
+  | C left 35° | [−7, 5, 10] | not readable | column shadows swing to the other side |
+  | D low sun | [3, 3, 10] | not readable | columns and walls darken |
+  | E right 55° | [10, 6, 6] | not readable | arcade darker and flatter |
+
+  A lighter carpet field (#b43540) was tried and reverted: no shadow from spawn, and the corridor lost its royal
+  crimson. Light and carpet stay as they are. Do not reopen without a new idea that costs the room nothing.
+- **Wall stencil** is less regular but still one 2.4 m tile; a second panel variant (a two-tile canvas, ~8 MB more on
+  both tiers) is the next step if it still reads as repeated.
+- **Glass** has no coloured light on the floor (unchanged from the entry below).
+- **L3 e2e** still loses the melee race (below); L5 e2e is a known failure.
+
+
 ## Open after phases 4–6 (2026-09-14, Claude Code)
 
 Phases 4, 5 and 6 are done (SESSION-LOG 2026-09-14, "L1 reads as a Rajput court"). What is still open, observed but not
 changed:
-- **A human has not yet judged L1 against the reference photographs.** From spawn, the front-row columns stand 2 m from
-  the camera and fill a third of the frame, and the arch screens frame the throne tightly. That may read as grand or
-  as cramped.
-- **The right-side platform (x 5.9–10, z 2.9–10.5) is kept from palace.glb** and still carries crumpled ornament shells
-  (the steps and the object near (9.5, 6.75)). They are visible on the right of the spawn view. Cutting them needs its
-  own measured boxes and gate.
+- ~~A human has not yet judged L1~~: judged a large improvement (2026-09-14); the front columns read as framing.
+- ~~The right-side platform's crumpled ornament~~: cut, deck and steps kept (2026-09-14).
 - **GTAO is subtle** at radius 1.6. Its frame cost could not be resolved on the 4050 because the 144 Hz display caps the
   metric, and full-resolution AO was not measured. A GPU timer query, or a 60 Hz run with vsync off, would give the
   real cost.

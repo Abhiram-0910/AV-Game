@@ -12,6 +12,9 @@ type V3 = readonly [number, number, number]
 export interface Box {
   readonly min: V3
   readonly max: V3
+  /** Flat (up- or down-facing) triangles with every vertex below this survive the box: the deck under the platform's
+   * rug-disc rims shares their footprint and height. */
+  readonly keepFlatBelow?: number
 }
 export interface CarveOptions {
   cuts: readonly Box[]
@@ -43,10 +46,12 @@ function faceNormal(p: number[], vn: number[] | null): [number, number, number] 
 
 const isFloor = (p: number[], n: readonly number[], o: CarveOptions) => Math.abs(n[1]) > 0.9 && p[1] < o.floorGuardY && p[4] < o.floorGuardY && p[7] < o.floorGuardY
 
+const keptFlat = (b: Box, p: number[], n: readonly number[]) => b.keepFlatBelow !== undefined && Math.abs(n[1]) > 0.9 && Math.max(p[1], p[4], p[7]) < b.keepFlatBelow
+
 /** Cut only when all three vertices lie in one box: a wide face crossing a box edge (the platform beside the right
  * side columns, the beam soffit) stays. */
 function isCut(p: number[], n: readonly number[], o: CarveOptions): boolean {
-  return !isFloor(p, n, o) && o.cuts.some((b) => inBox(b, p, 0) && inBox(b, p, 3) && inBox(b, p, 6))
+  return !isFloor(p, n, o) && o.cuts.some((b) => inBox(b, p, 0) && inBox(b, p, 3) && inBox(b, p, 6) && !keptFlat(b, p, n))
 }
 
 function zoneOf(p: number[], n: readonly number[], o: CarveOptions): number {
@@ -101,7 +106,7 @@ export function carve(source: BufferGeometry, o: CarveOptions): BufferGeometry {
 
 function courtCuts(): Box[] {
   const { halfX, halfZ, y } = COURT.columnCut
-  return [...COURT.columns.map(([x, z]): Box => ({ min: [x - halfX, y[0], z - halfZ], max: [x + halfX, y[1], z + halfZ] })), ...COURT.chairCuts]
+  return [...COURT.columns.map(([x, z]): Box => ({ min: [x - halfX, y[0], z - halfZ], max: [x + halfX, y[1], z + halfZ] })), ...COURT.chairCuts, ...COURT.platformCuts]
 }
 
 /** Replace the merged palace mesh's geometry and material in place. The returned dispose frees the textures;

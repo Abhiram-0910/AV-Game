@@ -2,6 +2,118 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — L1 court defects: leaded glass, Rama's shadow, the right platform, the stencil
+
+Branch `feat/visual-grandeur`. Plan: `~/.claude/plans/read-session-log-md-todo-md-claude-md-optimized-zebra.md`. The
+human judged `gpu-after11-l1-spawn.png` a large improvement on `gpu-before10`: the front columns stay as framing. Four
+defects, in priority order, each judged on a real-GPU shot on the RTX 4050 before the next step started.
+
+### 1. Coloured glass: rebuilt, kept
+- **What was wrong.** An 8 × 8 grid of pure RGB cells with black gaps, black albedo, flat emissive 1.6: a sprite
+  pasted on the wall, the one placeholder-looking thing at eye level.
+- **What it is now** (`render/court-ornaments.ts`, `COURT.glass`):
+  - The window's UVs span its own box, so the pattern follows the outline.
+  - A border band of panes, one per lobe and jamb step; a half rosette on the transom with a petal per lobe, split
+    by a wandering ring; below the springing, a lozenge lattice whose shared vertices are nudged.
+  - Two canvases from one seeded layout: an albedo map with bronze cames that take the room's light, and an emissive
+    map with the panes only. Each pane has its own tone jitter and a radial gradient; the whole window is brightest
+    at its heart.
+  - The first pass read slightly pale; `clear` went from #ecd6ad to #e9c88e.
+- **Verdict** (`gpu-glass12-compare.png`, `gpu-glass12-l1-glass.png`): it reads as leaded glass. +208 tris, 0 calls.
+
+### 2. Rama's shadow on L1: not a bug, and not fixable by moving the light
+- **Probe** (scratch Playwright over `window.__bk.scene`): the SkinnedMesh has `castShadow` true, layers 1, opaque
+  materials; its bones project to NDC ~0 in the key light's shadow camera; the 4096 map exists with `autoUpdate`.
+  GTAO is not the cause. From a side view his shadow is plain on the marble (`gpu-glass12-l1-glass.png`).
+- **Cause.** L1's key (`dir [3,5,10]`, ~26° elevation, from the entrance) sits almost directly behind the follow
+  camera, so the shadow falls straight ahead, hidden behind his body, onto the dark crimson carpet.
+- **Five key directions,** moved at runtime on the 4050 and shot from spawn and the throne approach
+  (`gpu-key12-*.png`, 1:1 crops round Rama in `gpu-key12-sheet.png`):
+
+  | candidate | key dir | Rama's shadow from the follow camera | cost to the room |
+  |---|---|---|---|
+  | A (current) | [3, 5, 10] | not readable | — |
+  | B right 35° | [7, 5, 10] | not readable | column shadows turn, little else |
+  | C left 35° | [−7, 5, 10] | not readable | column shadows swing to the other side |
+  | D low sun | [3, 3, 10] | not readable | columns and walls darken |
+  | E right 55° | [10, 6, 6] | not readable | arcade goes darker and flatter |
+
+  The human's rule (memory `feedback-never-trade-room-lighting`): the key light stays unchanged.
+- **The one alternative, tried and reverted.** Lightening only the carpet's field (#8e1a22 → #b43540) so the shadow
+  could read on it. From spawn it still did not show; from the throne approach the patch was the same as on the old
+  carpet; and the corridor turned pinkish-scarlet instead of royal crimson (`gpu-cut12-compare.png`). Both failure
+  conditions met: reverted, carpet and light left alone.
+
+### 3. Right platform: ornament cut, deck and steps kept
+- **Measured** (`docs/screenshots/palace-measure-platform.png`, after the existing column cuts, 827 triangles):
+  - four step treads at y 0.15 / 0.22 / 0.29 / 0.35 (x 4.81–6.02, z 5.48–7.97)
+  - the deck top at y 0.42, one whole rectangle over x 6.02–10.01, z 3.06–10.38, with its sides
+  - three rippled rug discs (flat fans y 0.44–0.46), two crumpled chairs and a centre spire and pole up to y 1.73
+- **Cut 1** (`COURT.platformCuts`, three boxes over the deck from y 0.435): 588 triangles, 0 deck or step triangles.
+  First drawn from y 0.47, which left the rug fans; then 0.43, where rounded deck vertices fell inside.
+- **The rims still read as torn outlines** (`gpu-cut12-l1-platform.png`): 64 triangles at y 0.42–0.51. Under each
+  disc the deck is its own fan of flat y 0.42 triangles in the same footprint, so a tighter box alone would have
+  wholly contained 21–22 deck triangles per disc (`palace-measure-platform-rims.png`).
+- **Cut 2.** A cut box may carry `keepFlatBelow`: flat faces with every vertex below it survive. Three per-disc
+  boxes with `keepFlatBelow: 0.425` cut all 64 rims and no deck, step or other triangle (measured before cutting,
+  approved by the human). `palace-surface.test.ts` covers it. Result: `gpu-after12-l1-platform.png`, a clean deck.
+
+### 4. Wall stencil: kept
+- `stencilField` placed fixed-size motifs with a 0.4-step jitter, which read as wallpaper. Now each motif lands
+  anywhere in its cell (0.9-step jitter) with its own size (0.7–1.3), stroke weight and opacity; 6 % of cells stay
+  bare and 10 % of vines run long. `mottle` gains a fine second pass. The ceilings share the stencil.
+- Verdict (`gpu-stencil12-compare.png`): uneven density and weight, less of a grid; a modest difference. The
+  two-panel-wide wall canvas in the plan was skipped: the references repeat their niches, and it would add ~8 MB of
+  wall texture on both tiers.
+
+### Budget: shoot-levels, SwiftShader 1280×720
+
+| level | tier | after11 tris / calls / skinned | after12 tris / calls / skinned | why |
+|---|---|---|---|---|
+| L1 | high | 409,962 / 159 / 4 | 408,866 / 159 / 4 | glass +208, platform −652 per pass (GTAO renders twice) |
+| L2 | high | 921,735 / 107 / 3 | 921,735 / 107 / 3 | |
+| L3 | high | 872,610 / 118 / 4 | 872,610 / 118 / 4 | |
+| L4 | high | 709,131 / 118 / 3 | 709,131 / 118 / 3 | |
+| L5 | high | 147,336 / 119 / 3 | 147,336 / 119 / 3 | |
+| L1 | low | 84,938 / 53 / 4 | 84,286 / 53 / 4 | platform cut |
+| L2 | low | 28,936 / 32 / 3 | 28,936 / 32 / 3 | |
+| L3 | low | 77,371 / 53 / 4 | 77,371 / 53 / 4 | |
+| L4 | low | 31,275 / 36 / 3 | 31,275 / 36 / 3 | |
+| L5 | low | 48,415 / 55 / 3 | 48,415 / 55 / 3 | |
+
+### Frame times: RTX 4050, high, all levels (`bench-gpu.mjs`, 1536×864 at DPR 1.25, `--shots after12`)
+
+| level | view | fps | p50 / p95 / p99 ms | tris | calls |
+|---|---|---|---|---|---|
+| L1 | spawn | 144 | 7.0 / 7.3 / 7.6 | 408,866 | 159 |
+| L1 | throne | 144 | 6.9 / 7.4 / 7.6 | 408,866 | 159 |
+| L2 | spawn | 144 | 6.9 / 7.3 / 7.5 | 921,735 | 107 |
+| L2 | bank | 144 | 7.0 / 7.3 / 7.5 | 945,185 | 126 |
+| L2 | east | 144 | 6.9 / 7.3 / 7.5 | 824,737 | 110 |
+| L2 | river | 144 | 6.9 / 7.2 / 7.3 | 926,080 | 108 |
+| L3 | spawn | 144 | 6.9 / 7.3 / 7.4 | 872,610 | 118 |
+| L3 | clearing | 144 | 6.9 / 7.3 / 7.4 | 863,288 | 115 |
+| L3 | wood | 144 | 6.9 / 7.3 / 7.3 | 850,330 | 109 |
+| L4 | spawn | 144 | 6.9 / 7.3 / 7.4 | 709,131 | 118 |
+| L4 | line | 144 | 6.9 / 7.3 / 7.5 | 730,594 | 130 |
+| L4 | trees | 144 | 6.9 / 7.3 / 7.5 | 715,060 | 110 |
+| L5 | spawn | 143 | 7.0 / 7.2 / 7.5 | 169,676 | 147 |
+| L5 | altar | 144 | 6.9 / 7.3 / 7.4 | 185,952 | 179 |
+
+All hold a locked 144 fps under the ~1.1M ceiling.
+
+**Low tier on the Intel UHD** (`--gpu igpu --tier low --levels l1`): spawn 134 fps (7.0 / 13.8 / 14.0 ms), throne 144
+(6.9 / 7.2 / 7.3), 84,286 tris / 53 calls. No baseline build was re-run this session, so compare the fps with care
+(the previous entry's final run read 92–102 on the same view).
+
+### Verification
+- `tsc -b`, ESLint: clean. Vitest: 137 passed, 1 skipped (+1: the `keepFlatBelow` case).
+- E2E (`playwright test` on the final build, 6.5 min): archery-mouse, L1, L2, L4 pass. L3 and L5 fail as before this
+  work, both on the result title ("Try again" where the spec expects "Level complete"). Neither spec was loosened.
+
+### Not done
+- The wall canvas was not widened to two panel variants (see 4).
+
 ## 2026-09-14 — Claude Code (Opus 5) — L1 reads as a Rajput court; GTAO on L1; ground and hills; L4 bales and pennants; display font
 
 Branch `feat/visual-grandeur`. Phases 4, 5 and 6 of `~/.claude/plans/read-session-log-md-todo-md-and-hidden-anchor.md`.

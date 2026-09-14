@@ -41,25 +41,34 @@ function vine(ctx: Ctx, x: number, y: number, len: number, ang: number, curl: nu
   flower(ctx, x + dx * len, y + dy * len, len * 0.14)
 }
 
-/** All-over stencil: a jittered grid of small flowers and scrolls. */
+/** All-over stencil, painted by hand: one motif per cell, anywhere in its cell, each with its own size, stroke weight and
+ * wash of white; a few cells left bare, and now and then a long vine running on into the next. A 0.4-step jitter on
+ * fixed sizes read as wallpaper (SESSION-LOG 2026-09-14). */
 export function stencilField(ctx: Ctx, rand: () => number, x: number, y: number, w: number, h: number, step: number): void {
-  ctx.lineWidth = 2
   for (let gy = y + step / 2; gy < y + h + step; gy += step)
     for (let gx = x + step / 2; gx < x + w + step; gx += step) {
-      const jx = gx + (rand() - 0.5) * step * 0.4
-      const jy = gy + (rand() - 0.5) * step * 0.4
-      if (rand() < 0.4) flower(ctx, jx, jy, step * (0.16 + rand() * 0.08))
-      else vine(ctx, jx - step * 0.25, jy, step * (0.55 + rand() * 0.25), rand() * Math.PI * 2, rand() > 0.5 ? 1 : -1)
+      const [jx, jy, size, pick] = [gx + (rand() - 0.5) * step * 0.9, gy + (rand() - 0.5) * step * 0.9, 0.7 + rand() * 0.6, rand()]
+      ctx.globalAlpha = 0.65 + rand() * 0.35
+      ctx.lineWidth = 1.4 + rand() * 1.2
+      const [ang, curl] = [rand() * Math.PI * 2, rand() > 0.5 ? 1 : -1]
+      if (pick < 0.06) continue
+      if (pick < 0.34) flower(ctx, jx, jy, step * 0.2 * size)
+      else if (pick < 0.9) vine(ctx, jx - step * 0.25, jy, step * 0.62 * size, ang, curl)
+      else vine(ctx, jx - step * 0.5, jy, step * 1.5 * size, ang, curl)
     }
+  ctx.globalAlpha = 1
 }
 
+/** Plaster: broad clouds, then fine blotches, light and dark. */
 export function mottle(ctx: Ctx, rand: () => number, w: number, h: number): void {
-  for (let i = 0; i < 160; i += 1) {
-    ctx.globalAlpha = 0.03 + rand() * 0.05
-    ctx.fillStyle = rand() > 0.5 ? '#000000' : '#ffffff'
-    ctx.beginPath()
-    ctx.arc(rand() * w, rand() * h, 20 + rand() * 90, 0, Math.PI * 2)
-    ctx.fill()
+  for (const [count, r0, r1, a0, a1] of [[160, 20, 110, 0.03, 0.05], [520, 3, 21, 0.015, 0.035]]) {
+    for (let i = 0; i < count; i += 1) {
+      ctx.globalAlpha = a0 + rand() * a1
+      ctx.fillStyle = rand() > 0.5 ? '#000000' : '#ffffff'
+      ctx.beginPath()
+      ctx.arc(rand() * w, rand() * h, r0 + rand() * (r1 - r0), 0, Math.PI * 2)
+      ctx.fill()
+    }
   }
   ctx.globalAlpha = 1
 }

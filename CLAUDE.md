@@ -79,6 +79,12 @@ the gotchas that are not derivable from the tree.
   and `render/court-architecture.ts` rebuilds the columns at the measured centres. Moving or rescaling the palace
   placement invalidates every box and column: re-measure (`docs/screenshots/palace-measure-*.png`, SESSION-LOG
   2026-09-14).
+- **A cut box may carry `keepFlatBelow`** (`render/palace-surface.ts`): flat faces with every vertex below it survive.
+  The right platform's rug-disc rims share their footprint and height (y 0.42) with separate deck fans, so only that
+  rule removes them without holes (`COURT.platformCuts`, `palace-measure-platform-rims.png`).
+- **Rama's L1 shadow is real but hidden from the follow camera.** The key light sits behind the camera; five key
+  directions and a lighter carpet were tried on the 4050 and none reads (TODO, SESSION-LOG 2026-09-14). A side view
+  shows it. Do not chase it as a `castShadow` or frustum bug.
 - **GTAO runs on L1 only (`LevelLook.ao`) and wraps GTAOPass's private `_overrideVisibility`/`_restoreVisibility`**
   to hide transparent and additive meshes and pause shadow-map updates during its normal pass. `@types/three` names
   them without the underscore; re-check on every three bump. The normal pass re-renders the scene, so the overlay's

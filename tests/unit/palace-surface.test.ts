@@ -34,6 +34,16 @@ describe('palace shell carve', () => {
     expect(zoneCount(g, 'floor')).toBe(3)
   })
 
+  it('a keepFlatBelow box spares flat faces under its height and still cuts the rest (the platform rims)', () => {
+    const rimBox = { min: [2.9, 0.415, 2.9], max: [4.1, 0.53, 4.1], keepFlatBelow: 0.425 } as const
+    const deck: P3[] = [[3, 0.42, 3], [3, 0.42, 4], [4, 0.42, 4]] // flat at the deck, inside: kept
+    const rim: P3[] = [[3, 0.42, 3], [3.2, 0.46, 3], [3, 0.46, 3.2]] // sloped off the deck, inside: cut
+    const rug: P3[] = [[3, 0.51, 3], [3, 0.51, 4], [4, 0.51, 4]] // flat but above 0.425: cut
+    const g = carve(geometry([deck, rim, rug]), { ...O, cuts: [...O.cuts, rimBox] })
+    expect(g.getAttribute('position').count).toBe(3)
+    expect(zoneCount(g, 'stone')).toBe(3)
+  })
+
   it('zones by face normal: up is stone, down is ceiling, down in the gilded box is gilded, vertical is wall', () => {
     const up: P3[] = [[3, 1, 3], [3, 1, 4], [4, 1, 4]]
     const down: P3[] = [[3, 3.5, 3], [4, 3.5, 4], [3, 3.5, 4]]

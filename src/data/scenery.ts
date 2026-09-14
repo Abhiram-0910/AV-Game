@@ -164,6 +164,20 @@ export const COURT = {
     { min: [-7.75, 0.08, 3.0], max: [3.5, 0.92, 4.2] },
     { min: [-7.75, 0.08, 9.3], max: [3.5, 0.92, 10.5] },
   ],
+  /** The right platform's ornament: three rippled rug discs, two crumpled chairs and a centre spire (up to y 1.73), measured
+   * 2026-09-14 (docs/screenshots/palace-measure-platform.png). The boxes start 1.5 cm above the deck top (y 0.42, one
+   * whole rectangle) so the deck, its sides and the four steps (y 0.15–0.35) stay, and the ground probe keeps its deck. */
+  platformCuts: [
+    { min: [5.95, 0.435, 2.95], max: [10.05, 1.5, 5.45] },
+    { min: [5.95, 0.435, 5.45], max: [10.05, 1.8, 7.95] },
+    { min: [5.95, 0.435, 7.95], max: [10.05, 1.5, 10.45] },
+    // The discs' rims (64 triangles, y 0.42–0.51) read as torn outlines after the boxes above. The deck under each disc
+    // is its own fan of flat y 0.42 triangles in the same footprint, so these boxes spare flat faces below 0.425
+    // (docs/screenshots/palace-measure-platform-rims.png): all 64 rims go, no deck, step or other triangle.
+    { min: [5.96, 0.415, 3.02], max: [8.21, 0.48, 5.16], keepFlatBelow: 0.425 },
+    { min: [7.64, 0.415, 5.3], max: [9.86, 0.53, 8.28], keepFlatBelow: 0.425 },
+    { min: [5.96, 0.415, 8.23], max: [8.14, 0.48, 10.47], keepFlatBelow: 0.425 },
+  ],
   /** Shell repaint: one wall tile is wallTileM wide and floor-to-soffit tall; coffers and stone tile at tileM. The
    * gilded box is the ceiling over the throne bay, behind the back row. */
   surface: {
@@ -195,8 +209,10 @@ export const COURT = {
    * openings between columns 5.9 and 8.2 so the throne view sees them through the back row; palace.glb has no upper
    * openings that frame (its back wall has two doorways, one behind a banner, and slots below eye height). Sill,
    * springing, half-width and rise in metres. An additive pool of their colours on the floor was tried and deleted:
-   * at 0.35 opacity it did not show on lit marble even from beside the window. */
-  glass: { xs: [-7.05, 7.05], z: -1.71, sill: 1.5, spring: 2.35, half: 0.42, rise: 0.48, lobes: 7, emissive: 1.6 },
+   * at 0.35 opacity it did not show on lit marble even from beside the window.
+   * Pane layout (render/court-ornaments.ts): a `band` of border panes, a half `rosette` on the transom, petals split by
+   * a `ring`, and a lozenge lattice (width, height) below the springing. An 8 × 8 RGB grid read as pixel art. */
+  glass: { xs: [-7.05, 7.05], z: -1.71, sill: 1.5, spring: 2.35, half: 0.42, rise: 0.48, lobes: 7, emissive: 1.5, band: 0.06, rosette: 0.09, ring: 0.24, lozenge: [0.16, 0.24] },
   /** High tier: marigold torans swagged across the entrance-facing side of the back row's arches (indices into
    * arches.spans), springing to springing, drooping `droop` m, a strand of `strand` flowers at each end. The front row
    * had them too and was deleted: at 2 m they hung across the spawn camera's view and through Rama's head. */
