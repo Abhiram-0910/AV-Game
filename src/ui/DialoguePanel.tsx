@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BALANCE } from '@data/balance'
 import { UI, type Speech } from '@data/dialogue'
+import { Frame } from './Frame'
 
 interface Props {
   speech: Speech
@@ -87,6 +88,7 @@ export function DialoguePanel({ speech, onDone }: Props) {
   const name = UI[`name.${speech.speaker}`]
   return (
     <div className="dialogue" data-testid="dialogue">
+      <Frame kind="dialogue" />
       <SpeakerPortrait speaker={speech.speaker} name={name} />
       <div className="dialogue-content">
         {name && (

@@ -10,6 +10,7 @@ import { EnemyHealthBar } from './EnemyHealthBar'
 import { Crosshair } from './Crosshair'
 import { AstraButton } from './AstraButton'
 import { WaypointIndicator } from './WaypointIndicator'
+import { Frame } from './Frame'
 
 function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefined): string {
   if (!o || !p) return ''
@@ -71,6 +72,7 @@ function ObjectiveRow({ text, timeLeft, astraReady }: { text: string; timeLeft: 
   const displayText = astraReady && text ? `${text} · ${UI['objective.chargeAstra']}` : text
   return (
     <div className="hud-objective" data-testid="hud-objective">
+      <Frame kind="card" />
       <span className="hud-label">{UI['hud.objective']}</span> {displayText}
       {timeLeft !== null && (
         <span className="hud-timeleft" data-testid="hud-timeleft">

@@ -1,5 +1,30 @@
 # TODO
 
+## Open after the royal UI pass (2026-09-14, Claude Code)
+
+Every panel, button, dialogue box, HUD card, quiz and result screen is framed (SESSION-LOG 2026-09-14, "Royal UI";
+system in DESIGN.md; before|after sheets `docs/screenshots/ui-royal-*.png`). Observed but not changed:
+- **The talk prompt and the controls line sit behind the dialogue box** during a conversation (`hud-prompt` at
+  `bottom: 160px` pokes out above the dialogue crest; `hud-controls` is covered). Same at HEAD before this pass
+  (`ui-royal-dialogue-talk.png`, left). HUD positions were out of scope; hiding both while `dialogue` is open is the
+  likely fix.
+- **The astra button (L4/L5) was not captured.** Its CSS moved to the tokens (crimson lacquer, 48px tabs, 16px text),
+  but the screenshot script only visits L1. Shoot it on L4 with `astraReady`.
+- **The astra icons are emoji** (💨/🔥), which render differently per OS and clash with the gold filigree. Inline SVG
+  glyphs in `AstraButton.tsx` would match.
+- **The captures are the low tier under SwiftShader.** A real-GPU pass (`tools/bench-gpu.mjs` pattern) on the high
+  tier should confirm the panel `drop-shadow` costs nothing on the Intel UHD while a menu is open.
+- **Rama needs a real quiver (not started: it is a render change).** The arrow that reads as "through his back" is
+  the quiver stand-in: `render/character-factory.ts:132-133` attaches a bare `arrow.glb` to `spine_03`
+  (`BALANCE.archery.QUIVER_POS/ROT/SCALE`) because the pack has no quiver mesh. The fix is a procedural quiver
+  built where the stand-in is now: a tapered gold-and-crimson leather tube with gold bands and a few fletched shafts
+  showing, in the DESIGN.md palette, merged into one mesh and parented to `spine_03`. Its offsets have to be
+  re-measured so it clears the body through the bow draw and the sword slash (shoot both poses from the side), and
+  it applies to Lakshmana too (`props: ['bow', 'quiver']`). Budget it: tris and draw calls on the low and high tiers.
+  Coordinate with the rendering agent; the royal UI pass (src/ui only) did not touch it.
+- **`tests/unit/lint-boundary.test.ts` timed out once** in the full Vitest run at load average ~94 (four agents
+  running). It passes alone (6/6). Not a code change; worth a longer timeout if it recurs.
+
 ## Open after the court defects pass (2026-09-14, Claude Code)
 
 Glass, platform and stencil are done (SESSION-LOG 2026-09-14, "L1 court defects"). Open, observed but not changed:
