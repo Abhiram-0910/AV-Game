@@ -1,5 +1,20 @@
 # TODO
 
+## Open after voice-over (2026-09-14, Claude Code)
+
+All 52 lines are voiced (SESSION-LOG 2026-09-14, "Voice-over"). Open:
+- **Human ear on the cast.** Vasishtha (Umbriel) and Dasharatha (Alnilam) are 0.9 st apart in the same L1 scene, inside
+  Chirp 3's run-to-run noise. Recast = one line in `CAST` (`tools/generate-vo.mjs`) + re-run.
+- **Title-screen volume is reset by Begin.** `TitleScreen.newGame()` → `gameStore.reset()` → default settings (0.8).
+  It needs a reset that keeps `settings`, in `core/` or the title screen, which the voice branch does not own.
+- **Is per-line fetching a real problem on a lab connection?** Largest single file 53,275 B
+  (`l4.vishwamitra.astras.0`), L1 total 428,921 B over 15 files. Voice start lead on a local preview (Windows Chrome):
+  ~25–300 ms, once 1.25 s on the first line after level load. Measure on a throttled or school link before deciding to
+  preload a level's VO behind the progress bar.
+- `electron/main.ts` MIME map has no `.ogg` (harmless with Howler's XHR decode; confirm in a packaged build).
+- Safari gets subtitles only (Howler's `.ogg` probe checks Vorbis). Fine for Chrome labs and Electron.
+- The `subtitles` setting does nothing yet.
+
 ## Open after the court defects pass (2026-09-14, Claude Code)
 
 Glass, platform and stencil are done (SESSION-LOG 2026-09-14, "L1 court defects"). Open, observed but not changed:

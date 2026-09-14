@@ -1,7 +1,9 @@
-// Typewriter speech. Space or click finishes the line, then advances; Escape skips the speech.
+// Typewriter speech with voice-over. Space or click finishes the line, then advances; Escape skips the speech.
+// Each line plays /audio/vo/<key>.<n>.ogg (tools/generate-vo.mjs); a missing or failed file leaves the subtitle alone.
 import { useCallback, useEffect, useState } from 'react'
 import { BALANCE } from '@data/balance'
-import { UI, type Speech } from '@data/dialogue'
+import { DIALOGUE, UI, type DialogueKey, type Speech } from '@data/dialogue'
+import { platform } from '@platform/index'
 
 interface Props {
   speech: Speech
@@ -10,6 +12,7 @@ interface Props {
 
 interface LineProps {
   text: string
+  voiceUrl: string | null
   onNext(): void
   onSkip(): void
 }
@@ -39,26 +42,46 @@ function SpeakerPortrait({ speaker, name }: { speaker: string; name?: string }) 
   )
 }
 
-/** One line; remounted (keyed) per line so the typewriter restarts from zero. */
-function Line({ text, onNext, onSkip }: LineProps) {
+/** Types `text` out and plays its voice. When the voice starts, the remaining characters are re-timed to finish with
+ * it; without a voice they type at the default rate. Unmounting stops the voice. */
+function useTypewriter(text: string, voiceUrl: string | null) {
   const [shown, setShown] = useState(0)
-  const complete = shown >= text.length
   useEffect(() => {
-    const start = performance.now()
+    let start = performance.now()
+    let base = 0
+    let cps = BALANCE.ui.DIALOGUE_CHARS_PER_SEC
+    let typed = 0
     let raf = 0
     const tick = (now: number) => {
-      const n = Math.min(text.length, Math.floor(((now - start) / 1000) * BALANCE.ui.DIALOGUE_CHARS_PER_SEC))
-      setShown((prev) => Math.max(prev, n))
-      if (n < text.length) raf = requestAnimationFrame(tick)
+      typed = Math.min(text.length, base + Math.floor(((now - start) / 1000) * cps))
+      setShown((prev) => Math.max(prev, typed))
+      if (typed < text.length) raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [text])
+    const onplay = (seconds: number) => {
+      if (typed >= text.length || !(seconds > 0)) return
+      base = typed
+      start = performance.now()
+      cps = (text.length - typed) / seconds
+    }
+    const voice = voiceUrl ? platform.audio.play(voiceUrl, { onplay }) : 0
+    return () => {
+      cancelAnimationFrame(raf)
+      if (voice) platform.audio.stop(voice)
+    }
+  }, [text, voiceUrl])
+  return [shown, setShown] as const
+}
+
+/** One line; remounted (keyed) per line so the typewriter and the voice restart. */
+function Line({ text, voiceUrl, onNext, onSkip }: LineProps) {
+  const [shown, setShown] = useTypewriter(text, voiceUrl)
+  const complete = shown >= text.length
 
   const advance = useCallback(() => {
     if (complete) onNext()
     else setShown(text.length)
-  }, [complete, onNext, text.length])
+  }, [complete, onNext, setShown, text.length])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,6 +108,8 @@ export function DialoguePanel({ speech, onDone }: Props) {
     else onDone()
   }, [line, speech.lines.length, onDone])
   const name = UI[`name.${speech.speaker}`]
+  // Flow passes DIALOGUE[key] itself, so identity finds the key without threading it through.
+  const key = Object.keys(DIALOGUE).find((k) => DIALOGUE[k as DialogueKey] === speech)
   return (
     <div className="dialogue" data-testid="dialogue">
       <SpeakerPortrait speaker={speech.speaker} name={name} />
@@ -94,7 +119,13 @@ export function DialoguePanel({ speech, onDone }: Props) {
             {name}
           </div>
         )}
-        <Line key={line} text={speech.lines[line]} onNext={onNext} onSkip={onDone} />
+        <Line
+          key={line}
+          text={speech.lines[line]}
+          voiceUrl={key ? `/audio/vo/${key}.${line}.ogg` : null}
+          onNext={onNext}
+          onSkip={onDone}
+        />
         <div className="dialogue-hint">
           <span>{UI['dialogue.advance']}</span>
           <span>{UI['dialogue.skip']}</span>

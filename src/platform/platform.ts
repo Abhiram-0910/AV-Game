@@ -9,7 +9,7 @@ export interface SaveAdapter {
 
 export interface AudioAdapter {
   /** Returns a handle id; the sound unlocks on the first user gesture. */
-  play(url: string, opts?: { loop?: boolean; volume?: number }): number
+  play(url: string, opts?: { loop?: boolean; volume?: number; onplay?: (seconds: number) => void }): number
   stop(id: number): void
   setMasterVolume(v: number): void
 }

@@ -2,6 +2,96 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — Voice-over for all 52 dialogue lines (Google Cloud TTS, generated once)
+
+Branch `feat/voice` (worktree `bk-voice`). Plan: `~/.claude/plans/use-port-4181-for-snappy-naur.md`. Scope: `tools/generate-vo.mjs`,
+`public/audio/vo/`, the web audio adapter, `DialoguePanel.tsx`. Nothing in `src/render/`, `ui.css`, `Flow.tsx`, tests.
+
+### What shipped
+- **`tools/generate-vo.mjs`** reads `src/data/dialogue.ts` directly (Node ≥ 22.18 strips types) and writes one Opus file
+  per *line*: `public/audio/vo/<key>.<n>.ogg`. One file per key could not follow the subtitle line by line.
+  - `manifest.json` holds a sha256 of text + voice + rate + pitch per line. A line is re-generated only when that hash
+    changes or its file is missing, so editing one line costs one call and recasting one speaker costs only their lines.
+  - `--check` makes no API calls and exits 1 on any stale line. `--only <id>` generates a single line.
+  - Orphaned files are pruned. The key goes in the `X-Goog-Api-Key` header only.
+- **Playback** (`platform/web/audio-web.ts`, `ui/DialoguePanel.tsx`):
+  - Each line mounts `platform.audio.play('/audio/vo/<key>.<n>.ogg')`.
+  - When Howler fires `play`, the typewriter re-times the rest of the line to finish with the voice; until then it
+    types at `DIALOGUE_CHARS_PER_SEC`.
+  - Space, Escape or advancing unmounts the line and unloads the Howl. Without the unload, Howler caches every decoded
+    buffer for the session.
+  - A load or play error unloads silently: subtitles only.
+  - Volume is Howler's global volume, already driven by the settings slider and `initAudioDispatcher`.
+  - The key is found by identity (`DIALOGUE[k] === speech`), so `Flow.tsx` was not touched. No auto-advance.
+
+### Cast: all en-IN Chirp 3 HD (Indian English), labels are Google's
+Median F0 is from one ~250-char passage read by every voice (scratch `long-audition.mjs`), because the same sentence
+from different speakers' lines measured text, not voice. **Chirp 3 is not deterministic:** the same config twice has
+differed by ~1.5 st, and `<prosody pitch>` lands at about 2/3 of the request. Treat ±1.5 st as noise.
+
+| speaker | voice | rate | pitch | F0 (Hz) | why |
+|---|---|---|---|---|---|
+| narrator | Sulafat (F, Warm) | 0.95 | 0 | ~222 | storyteller for 11–16-year-olds; the one female voice among the court's men |
+| vishwamitra | Algenib (M, Gravelly) | 0.92 | −3 st | 102 | aged ascetic, former king; lowest and roughest, he has the most lines |
+| dasharatha | Alnilam (M, Firm) | 0.88 | 0 | 118 | a king even when pleading; slowed because Alnilam runs fast (17 cps at 0.95) |
+| vasishtha | Umbriel (M, Easy-going) | 0.85 | 0 | 124 | the guru's unhurried counsel |
+| rama | Achird (M, Friendly) | 1.0 | 0 | 146 | young and plain; the highest natural male voice short of Rasalgethi's "Informative" |
+| lakshmana | Fenrir (M, Excitable) | 1.05 | 0 | 134 | the younger brother raising the alarm |
+| tataka | Gacrux (F, Mature) | 0.85 | −3 st | ~110 on her line | heavy, slow, an octave under the warm narrator, so she cannot read as a mother |
+
+- **Rama / Dasharatha / Vishwamitra, the priority trio:**
+  - Rama–Dasharatha 3.7 st, Dasharatha–Vishwamitra 2.4 st, Rama–Vishwamitra 6.2 st.
+  - First casting (Iapetus/Orus/Algenib at 0) had Rama and Dasharatha within 0.5 st. Rama +2 st on Iapetus only moved
+    ~1 st, so Rama was recast to a naturally higher voice rather than shifted further.
+- **Vasishtha–Dasharatha is 0.9 st**, inside the noise, and they share the L1 court. Left for the human's ear.
+- **Recasting** is a one-line change to `CAST` plus `node tools/generate-vo.mjs`.
+- Candidate medians, same passage:
+  - Algenib −3 st 102 · Charon 110 · Umbriel 114 · Algenib 118 · Sadaltager 126 · Alnilam 127 · Iapetus 131
+  - Fenrir 134 · Puck 136 · Orus 137 · Zubenelgenubi 140 · Sadachbia 142 · Schedar 145 · Achird 146 · Rasalgethi 152
+- One sample per speaker was sent to Abhi for the morning judgement.
+
+### Numbers
+- **Audio:** 52 lines, **320.4 s**, **1,334,324 B** of Opus (~34 kbps mono), `public/audio` 1,341,670 B with manifest.
+  Asset budget impact: 1.3 MB of the 60 MB.
+- **Largest single file:** `l4.vishwamitra.astras.0.ogg`, 53,275 B (12.85 s).
+- **Per level:** L1 15 files 428,921 B (103 s) · L2 192,231 B · L3 285,242 B · L4 188,905 B · L5 239,025 B.
+- **API cost** (Chirp 3 HD, $30 / 1M chars after 1M free per month):
+  - A clean one-time generation of all lines is 4,456 chars = **$0.13 list**.
+  - This session sent 12,861 chars in total: shipped lines 7,257 (81 calls, including recasts) and scratch auditions
+    5,604 (42 calls). That is $0.39 list, **$0.00 billed** inside the free tier.
+- **Voice start lead** (subtitle characters already typed when the voice starts), measured in page:
+  - Windows Chrome, RTX laptop, local preview: 1 char (~25 ms) on intro lines 0–1, 12 chars (~300 ms) on intro 2, 0–1
+    on the talks. One earlier run had 50 chars (~1.25 s) on intro 0, the first line after level load.
+  - Headless SwiftShader: up to the whole line, because the main thread is congested (even a 404 arrived 2.6 s late).
+  - Not yet measured on a lab connection. The biggest file is 53 KB; whether a slow link matters is still open.
+
+### Verification
+- The one-line sample (`l3.tataka.appears.0`) was checked first: ffprobe opus 48 kHz mono 2.40 s, and it plays through
+  the game's Howler in Chromium (context running, peak RMS 0.18). Only then were the other 51 generated.
+- **Staleness proof:**
+  - A re-run made 0 calls, and `--check` passes.
+  - Editing Tataka's text reported exactly 1 stale line; the edit was reverted.
+  - The recasts regenerated only 19, 3 and 7 lines.
+- **`l1-voice.mjs` (scratch) on Windows Chrome** (Windows node, `--mute-audio`, against the 4181 preview), passed:
+  - L1 intro lines 0–2: every file 200, the voice played to its end (peak RMS 0.22–0.36), nothing overlapped, and the
+    subtitle finished 5–71 ms from the voice's end.
+  - Four court talks opened via `__bk.worldStore`: audio on each, zero Howls alive after Escape.
+  - Pause-menu slider to 0: Howler 0, RMS 0, the subtitle still types.
+  - Every VO file routed to 404: loaderror, the subtitle types at 44 cps, Space and Escape still advance.
+- typecheck/build, lint, and 136 unit tests pass. `l1.spec.ts` passes end to end with voice playing (3.7 min, SwiftShader,
+  temporary config on port 4181 with `reuseExistingServer: false`, deleted afterwards).
+- **Windows node cannot follow this worktree's `node_modules` symlink.** Require `playwright-core` from
+  `\\wsl.localhost\Ubuntu\home\abhi\NewProjects\bala-kanda\` instead.
+
+### Found, not fixed (outside scope)
+- **Title-screen volume is lost on Begin.** `TitleScreen.newGame()` calls `gameStore.reset()` → `set(initial())`,
+  which puts settings back to defaults (volume 0.8). Measured: Howler 0 on the title, 0.8 after Begin. The pause-menu
+  slider works.
+- `electron/main.ts` has no `.ogg` MIME type. Harmless: Howler decodes from an XHR ArrayBuffer. Not run in Electron.
+- Safari fails Howler's `.ogg` codec probe (it checks Vorbis), which falls back to subtitles only.
+- The `subtitles` setting is still inert; the text shows regardless.
+- VO is fetched per line, not behind the level progress bar (AGENTS.md: "nothing streams mid-level").
+
 ## 2026-09-14 — Claude Code (Opus 5) — L1 court defects: leaded glass, Rama's shadow, the right platform, the stencil
 
 Branch `feat/visual-grandeur`. Plan: `~/.claude/plans/read-session-log-md-todo-md-claude-md-optimized-zebra.md`. The

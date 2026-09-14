@@ -1,0 +1,314 @@
+{
+  "l1.dasharatha.consents.0": {
+    "hash": "b7a0e66368417837",
+    "voice": "en-IN-Chirp3-HD-Alnilam",
+    "bytes": 20721,
+    "seconds": 4.96
+  },
+  "l1.dasharatha.consents.1": {
+    "hash": "22575f1ad4c1049c",
+    "voice": "en-IN-Chirp3-HD-Alnilam",
+    "bytes": 10238,
+    "seconds": 2.43
+  },
+  "l1.dasharatha.hesitates.0": {
+    "hash": "9c765473ad425d7e",
+    "voice": "en-IN-Chirp3-HD-Alnilam",
+    "bytes": 27743,
+    "seconds": 6.66
+  },
+  "l1.dasharatha.hesitates.1": {
+    "hash": "271b424f9c7dea6a",
+    "voice": "en-IN-Chirp3-HD-Alnilam",
+    "bytes": 30255,
+    "seconds": 7.26
+  },
+  "l1.intro.0": {
+    "hash": "5d454ada2f47dd9a",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 31094,
+    "seconds": 7.49
+  },
+  "l1.intro.1": {
+    "hash": "817ecf8758c8ce42",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 35112,
+    "seconds": 8.45
+  },
+  "l1.intro.2": {
+    "hash": "f6a2a752f94d6022",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 8551,
+    "seconds": 2.03
+  },
+  "l1.outro.0": {
+    "hash": "df7c1df397a01b11",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 31349,
+    "seconds": 7.55
+  },
+  "l1.title.0": {
+    "hash": "cfd2c2f7645a7b40",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 9594,
+    "seconds": 2.27
+  },
+  "l1.vasishtha.counsel.0": {
+    "hash": "0616c970a1870bdf",
+    "voice": "en-IN-Chirp3-HD-Umbriel",
+    "bytes": 35759,
+    "seconds": 8.59
+  },
+  "l1.vasishtha.counsel.1": {
+    "hash": "42e3df61a888c78b",
+    "voice": "en-IN-Chirp3-HD-Umbriel",
+    "bytes": 39746,
+    "seconds": 9.55
+  },
+  "l1.vasishtha.counsel.2": {
+    "hash": "c4dc860cbaff5f99",
+    "voice": "en-IN-Chirp3-HD-Umbriel",
+    "bytes": 30016,
+    "seconds": 7.19
+  },
+  "l1.vishwamitra.request.0": {
+    "hash": "f0bd0f66d563e8c7",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 22030,
+    "seconds": 5.29
+  },
+  "l1.vishwamitra.request.1": {
+    "hash": "f50172a7cce1d8a8",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 52816,
+    "seconds": 12.74
+  },
+  "l1.vishwamitra.request.2": {
+    "hash": "1aef4304ed2db81f",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 43897,
+    "seconds": 10.58
+  },
+  "l2.intro.0": {
+    "hash": "05e45323f69f3f67",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 22254,
+    "seconds": 5.33
+  },
+  "l2.intro.1": {
+    "hash": "63cb8bf46f64b954",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 12499,
+    "seconds": 2.99
+  },
+  "l2.outro.0": {
+    "hash": "f3d93129a61b7af8",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 30142,
+    "seconds": 7.25
+  },
+  "l2.title.0": {
+    "hash": "fc4a90fceecd4d88",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 10531,
+    "seconds": 2.51
+  },
+  "l2.vishwamitra.bow.0": {
+    "hash": "3d41bc86f0b602a8",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 29232,
+    "seconds": 7.01
+  },
+  "l2.vishwamitra.bow.1": {
+    "hash": "8a9376ba66c6f140",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 15372,
+    "seconds": 3.67
+  },
+  "l2.vishwamitra.mantras.0": {
+    "hash": "1ad127a92e9c6eee",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 31233,
+    "seconds": 7.5
+  },
+  "l2.vishwamitra.mantras.1": {
+    "hash": "e13469eb3f32ed07",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 27201,
+    "seconds": 6.53
+  },
+  "l2.vishwamitra.mantras.2": {
+    "hash": "5a5c604bd0e6d14d",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 13767,
+    "seconds": 3.29
+  },
+  "l3.intro.0": {
+    "hash": "36a8dc5dc58057be",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 31375,
+    "seconds": 7.55
+  },
+  "l3.intro.1": {
+    "hash": "8af012d585f101bc",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 8834,
+    "seconds": 2.09
+  },
+  "l3.outro.0": {
+    "hash": "4db577c1fc3b944e",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 34326,
+    "seconds": 8.27
+  },
+  "l3.outro.1": {
+    "hash": "56b07f6ac5890643",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 26439,
+    "seconds": 6.35
+  },
+  "l3.rama.resolve.0": {
+    "hash": "635cb4186adc73b7",
+    "voice": "en-IN-Chirp3-HD-Achird",
+    "bytes": 19423,
+    "seconds": 4.64
+  },
+  "l3.tataka.appears.0": {
+    "hash": "19db26a9de3f02a7",
+    "voice": "en-IN-Chirp3-HD-Gacrux",
+    "bytes": 10201,
+    "seconds": 2.39
+  },
+  "l3.title.0": {
+    "hash": "fea8bf76d2a84c50",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 9804,
+    "seconds": 2.33
+  },
+  "l3.vishwamitra.dusk.0": {
+    "hash": "0c4da845ae9c8e12",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 28711,
+    "seconds": 6.91
+  },
+  "l3.vishwamitra.duty.0": {
+    "hash": "8bd5d43c3edc7af8",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 39457,
+    "seconds": 9.5
+  },
+  "l3.vishwamitra.duty.1": {
+    "hash": "e9b9e09d287bbf3c",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 37013,
+    "seconds": 8.9
+  },
+  "l3.vishwamitra.duty.2": {
+    "hash": "2b4616847f25108e",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 39659,
+    "seconds": 9.55
+  },
+  "l4.intro.0": {
+    "hash": "9a83155fc7d57b38",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 20203,
+    "seconds": 4.85
+  },
+  "l4.outro.0": {
+    "hash": "c24c7c810df263e9",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 25398,
+    "seconds": 6.11
+  },
+  "l4.title.0": {
+    "hash": "e0918b4ea1bced3d",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 8548,
+    "seconds": 2.03
+  },
+  "l4.vishwamitra.astras.0": {
+    "hash": "7cb74951c7604b72",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 53275,
+    "seconds": 12.85
+  },
+  "l4.vishwamitra.astras.1": {
+    "hash": "99b5c74f7ff4327c",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 32259,
+    "seconds": 7.77
+  },
+  "l4.vishwamitra.astras.2": {
+    "hash": "d6f1edd815f3a74d",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 31833,
+    "seconds": 7.66
+  },
+  "l4.vishwamitra.astras.3": {
+    "hash": "2bce3bd0145bd09b",
+    "voice": "en-IN-Chirp3-HD-Algenib",
+    "bytes": 17389,
+    "seconds": 4.15
+  },
+  "l5.intro.0": {
+    "hash": "02460d93ccb24e03",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 26383,
+    "seconds": 6.35
+  },
+  "l5.intro.1": {
+    "hash": "756bfb3229ac11bd",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 32560,
+    "seconds": 7.85
+  },
+  "l5.intro.2": {
+    "hash": "530242fb6e84dda4",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 18978,
+    "seconds": 4.55
+  },
+  "l5.lakshmana.watch.0": {
+    "hash": "f99fd3d41fd3ebc8",
+    "voice": "en-IN-Chirp3-HD-Fenrir",
+    "bytes": 14290,
+    "seconds": 3.41
+  },
+  "l5.outro.0": {
+    "hash": "7f988338c8260571",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 30874,
+    "seconds": 7.43
+  },
+  "l5.outro.1": {
+    "hash": "12b6d9997150ebdf",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 34875,
+    "seconds": 8.39
+  },
+  "l5.outro.2": {
+    "hash": "b490b6c7aa93c9ce",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 16462,
+    "seconds": 3.95
+  },
+  "l5.rama.maricha.0": {
+    "hash": "1b3e382228e2892c",
+    "voice": "en-IN-Chirp3-HD-Achird",
+    "bytes": 34635,
+    "seconds": 8.32
+  },
+  "l5.rama.subahu.0": {
+    "hash": "df0024c64867f4fe",
+    "voice": "en-IN-Chirp3-HD-Achird",
+    "bytes": 19437,
+    "seconds": 4.64
+  },
+  "l5.title.0": {
+    "hash": "0f21cf3100dda5df",
+    "voice": "en-IN-Chirp3-HD-Sulafat",
+    "bytes": 10531,
+    "seconds": 2.51
+  }
+}
