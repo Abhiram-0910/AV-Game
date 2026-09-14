@@ -43,6 +43,10 @@ export interface WildsBuild {
 }
 
 const REEDS = { height: [0.9, 1.7] as const, colors: ['#5f7f3a', '#6f8c44', '#4f6e30'] }
+/** Leafy trunk: a 10-sided tube whose base swells into five root buttresses. tree.glb's bark averages #8b5843, which
+ * the warm key and ACES push to orange-red; `tint` is a linear per-channel multiplier that lands it on grey-brown
+ * (~#6e6258) while keeping the texture's contrast. */
+const TRUNK = { top: 0.2, base: 0.34, height: 5.6, sides: 10, rows: 6, flare: 0.7, flareHeight: 1.1, buttresses: 5, tint: [0.6, 1.25, 1.75] as const }
 
 const between = (rand: Rand, [a, b]: readonly [number, number]) => a + rand() * (b - a)
 const pick = <T>(rand: Rand, list: readonly T[]): T => list[Math.floor(rand() * list.length)]
@@ -104,12 +108,28 @@ function scaleUv(g: BufferGeometry, su: number, sv: number, ou = 0, ov = 0): Buf
   return g
 }
 
+function trunkGeometry(): BufferGeometry {
+  const { top, base, height, sides, rows, flare, flareHeight, buttresses } = TRUNK
+  const g = scaleUv(new CylinderGeometry(top, base, height, sides, rows, true).translate(0, height / 2, 0), 2, 4)
+  const pos = g.getAttribute('position')
+  for (let i = 0; i < pos.count; i += 1) {
+    const y = pos.getY(i)
+    if (y >= flareHeight) continue
+    const x = pos.getX(i)
+    const z = pos.getZ(i)
+    const k = 1 + flare * (1 - y / flareHeight) ** 2 * (0.55 + 0.45 * Math.cos(buttresses * Math.atan2(z, x)))
+    pos.setXYZ(i, x * k, y, z * k)
+  }
+  g.computeVertexNormals()
+  return g
+}
+
 function treeParts(w: Wilds, tree: Object3D, leaves: Part) {
   const bark = prototype(tree, named('Bark'))
   if (w.trees.bare) return [{ ...bark, tinted: true }]
   bark.geometry.dispose()
-  const trunk = scaleUv(new CylinderGeometry(0.2, 0.34, 5.6, 7, 1, true).translate(0, 2.8, 0), 2, 4)
-  return [{ geometry: trunk, material: bark.material, tinted: false }, { ...leaves, tinted: true }]
+  ;(bark.material as MeshStandardMaterial).color.setRGB(...TRUNK.tint)
+  return [{ geometry: trunkGeometry(), material: bark.material, tinted: false }, { ...leaves, tinted: true }]
 }
 
 /** Trees inside the bounds grown by shadowReach cast shadows; the far ring would only add shadow draws. */
@@ -207,8 +227,16 @@ function mist(m: NonNullable<Wilds['mist']>, b: Bounds, owned: Texture[]): { mes
   return { mesh, material }
 }
 
-export function buildWilds(level: WildsLevel, tree: Object3D, rock: Object3D): WildsBuild {
-  const w = WILDS[level]!
+/** The level's WILDS with counts scaled by the bench density knob (tree spacing shrinks with it, so trees really
+ * multiply); above 1 every tree casts. */
+function scaled(w: Wilds, k: number): Wilds {
+  if (k === 1) return w
+  const n = (c: { count: number }) => ({ ...c, count: Math.round(c.count * k) })
+  return { ...w, trees: { ...w.trees, count: Math.round(w.trees.count * k), minGap: w.trees.minGap / Math.sqrt(k) }, rocks: n(w.rocks) as Wilds['rocks'], shrubs: n(w.shrubs) as Wilds['shrubs'], grass: n(w.grass) as Wilds['grass'], shadowReach: k > 1 ? 1000 : w.shadowReach }
+}
+
+export function buildWilds(level: WildsLevel, tree: Object3D, rock: Object3D, density = 1): WildsBuild {
+  const w = scaled(WILDS[level]!, density)
   const { bounds } = SCENERY[level]!
   // The generator's first draws from a small seed are tiny; a large odd seed spreads them.
   const rand = seeded(w.seed * 7919 + 1)

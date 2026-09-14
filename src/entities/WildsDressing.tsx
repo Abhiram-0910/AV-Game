@@ -7,6 +7,7 @@ import { type CanvasTexture, Color, type DirectionalLight, type Fog, type MeshBa
 import { RANGE, SCENERY, WILDS } from '@data/scenery'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
+import { DEBUG } from '@platform/debug'
 import { loadGltf } from '@render/loaders'
 import { skyTexture } from '@render/procedural-textures'
 import { buildWilds, type WildsBuild, type WildsLevel } from '@render/wilds-dressing'
@@ -84,7 +85,7 @@ export function WildsDressing({ level }: { level: WildsLevel }) {
     let mine: WildsBuild | null = null
     Promise.all([loadGltf('tree'), loadGltf('rock')]).then(([tree, rock]) => {
       if (!live) return
-      mine = buildWilds(level, tree.scene, rock.scene)
+      mine = buildWilds(level, tree.scene, rock.scene, DEBUG.density)
       builtRef.current = mine
       setBuilt(mine)
       worldStore.getState().markLoaded()

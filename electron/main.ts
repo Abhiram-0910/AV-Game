@@ -17,6 +17,9 @@ const saveFile = join(app.getPath('userData'), 'save.json')
 // app.ready. Never set MESA_GL_VERSION_OVERRIDE: it papers over the same failure instead of
 // fixing it, and silently changes what GL version the app thinks it has.
 if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform', 'x11')
+// Optimus laptops: Chromium otherwise renders WebGL on the iGPU and ignores powerPreference (measured 2026-09-14,
+// Intel UHD + RTX 4050: the dGPU only with this switch).
+app.commandLine.appendSwitch('force_high_performance_gpu')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
 app.commandLine.appendSwitch('enable-gpu-rasterization')
 app.commandLine.appendSwitch('enable-zero-copy')

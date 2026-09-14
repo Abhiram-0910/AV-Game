@@ -1,7 +1,7 @@
 // High tier post-processing: UnrealBloom, a warm grade and Vignette via EffectComposer.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { Vector2, type Camera, type Scene, type WebGLRenderer } from 'three'
+import { HalfFloatType, Vector2, WebGLRenderTarget, type Camera, type Scene, type WebGLRenderer } from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
@@ -10,6 +10,9 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js'
 import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js'
 import { POST } from '@data/scenery'
+
+/** MSAA samples on the composer's scene target. */
+const MSAA_SAMPLES = 4
 
 interface ComposerBundle {
   composer: EffectComposer
@@ -26,7 +29,10 @@ function createComposer(
   width: number,
   height: number,
 ): ComposerBundle {
-  const composer = new EffectComposer(gl)
+  // The composer's default targets have no MSAA, so the canvas's antialias never reached the screen and every edge on
+  // high was aliased. HalfFloat keeps the linear HDR the bloom threshold reads.
+  const pr = gl.getPixelRatio()
+  const composer = new EffectComposer(gl, new WebGLRenderTarget(width * pr, height * pr, { type: HalfFloatType, samples: MSAA_SAMPLES }))
   const renderPass = new RenderPass(scene, camera)
   const bloom = new UnrealBloomPass(
     new Vector2(width, height),

@@ -33,7 +33,7 @@ const CAM = BALANCE.camera
 function persistOnChange(): () => void {
   let last = gameStore.getState()
   return gameStore.subscribe((s) => {
-    const changed = s.completed !== last.completed || s.codex !== last.codex || s.settings !== last.settings || s.benchmarkTier !== last.benchmarkTier
+    const changed = s.completed !== last.completed || s.codex !== last.codex || s.settings !== last.settings || s.benchmarkTier !== last.benchmarkTier || s.benchmarkRenderer !== last.benchmarkRenderer
     last = s
     if (changed) platform.save.store(s.snapshot())
   })
@@ -44,13 +44,14 @@ async function boot(state: RootState, setTier: (t: ResolvedTier) => void): Promi
   const save = platform.save.load()
   gameStore.getState().hydrate(save)
   const decision = await resolveTier(save, state.gl)
-  if (decision.benchmarked) gameStore.getState().setBenchmarkTier(decision.benchmarked)
+  if (decision.benchmarked) gameStore.getState().setBenchmarkTier(decision.benchmarked, decision.renderer)
   setAssetTier(decision.tier)
   state.gl.setPixelRatio(decision.tier === 'low' ? BALANCE.render.PIXEL_RATIO_LOW : Math.min(window.devicePixelRatio, BALANCE.render.PIXEL_RATIO_HIGH_MAX))
   perfStats.renderer = decision.renderer
   perfStats.software = isSoftwareRenderer(decision.renderer)
   perfStats.tier = decision.tier
   perfStats.tierReason = decision.reason
+  perfStats.benchMs = decision.benchMs ?? 0
   screenStore.getState().setActiveTier({ tier: decision.tier, reason: decision.reason })
   setTier(decision.tier)
 }

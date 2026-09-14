@@ -7,8 +7,8 @@ import { resolveTier } from '@render/quality-tier'
 
 const renderer = (name: string) => ({ getContext: () => ({ getExtension: () => null, getParameter: () => name, RENDERER: 0 }) }) as unknown as WebGLRenderer
 
-function save(qualityTier: 'auto' | 'low' | 'high', benchmarkTier: 'low' | 'high' | null = null) {
-  return { ...deserializeSave(null), settings: { qualityTier, volume: 1, subtitles: true }, benchmarkTier }
+function save(qualityTier: 'auto' | 'low' | 'high', benchmarkTier: 'low' | 'high' | null = null, benchmarkRenderer?: string) {
+  return { ...deserializeSave(null), settings: { qualityTier, volume: 1, subtitles: true }, benchmarkTier, ...(benchmarkRenderer ? { benchmarkRenderer } : {}) }
 }
 
 describe('resolveTier', () => {
@@ -16,8 +16,14 @@ describe('resolveTier', () => {
     expect(await resolveTier(save('high'), renderer('SwiftShader'))).toMatchObject({ tier: 'high', reason: 'override' })
   })
 
-  it('a persisted benchmark is reused and says so', async () => {
-    expect(await resolveTier(save('auto', 'low'), renderer('NVIDIA'))).toMatchObject({ tier: 'low', reason: 'saved', benchmarked: null })
+  it('a persisted benchmark is reused on the renderer it was measured on, and says so', async () => {
+    expect(await resolveTier(save('auto', 'low', 'NVIDIA'), renderer('NVIDIA'))).toMatchObject({ tier: 'low', reason: 'saved', benchmarked: null })
+  })
+
+  it('re-detects when the renderer changed or was never recorded (an Optimus browser moved off the iGPU)', async () => {
+    const onIntel = save('auto', 'low', 'Intel(R) UHD Graphics')
+    expect(await resolveTier(onIntel, renderer('ANGLE (SwiftShader)'))).toMatchObject({ tier: 'low', reason: 'software', benchmarked: 'low' })
+    expect(await resolveTier(save('auto', 'low'), renderer('Intel(R) UHD Graphics 620'))).toMatchObject({ reason: 'weakGpu', benchmarked: 'low' })
   })
 
   it('names the heuristic that picked low', async () => {

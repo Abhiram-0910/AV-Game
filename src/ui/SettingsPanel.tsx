@@ -24,6 +24,7 @@ function ActiveTierNote({ current }: { current: QualityTier }) {
           {UI['settings.restart']}
         </button>
       )}
+      {active.reason === 'weakGpu' && <small data-testid="settings-gpu-hint">{UI['tier.hint.weakGpu']}</small>}
     </p>
   )
 }

@@ -36,6 +36,7 @@ export const UI = {
   'tier.reason.weakGpu': 'detected: integrated GPU',
   'tier.reason.slow': 'detected: benchmark too slow',
   'tier.reason.fast': 'detected: benchmark passed',
+  'tier.hint.weakGpu': 'Laptop with a second graphics card? In Windows Settings → Display → Graphics, set your browser to High performance, then restart.',
   'hud.health': 'Health',
   'hud.arrows': 'Arrows',
   'hud.astra': 'Astra',

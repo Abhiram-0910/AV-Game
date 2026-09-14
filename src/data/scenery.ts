@@ -204,7 +204,7 @@ type Span = readonly [number, number]
 
 /** Levels 2–4 outdoors, high tier only (render/wilds-dressing.ts, entities/WildsDressing.tsx). tree.glb and
  * rock.glb scatter as InstancedMesh, one draw call per mesh however many trees. A leafy forest tree is
- * tree.glb's leaf cards on a tapered bark-textured trunk (~2k tris; the full model's branches are 4.3k more); a
+ * tree.glb's leaf cards on a flared, 10-sided bark-textured trunk (~2.1k tris; the full model's branches are 4.3k more); a
  * bare tree is its bark primitive alone. Shrubs are crossed cards of the same leaf texture, so undergrowth
  * matches the canopy. Seeded rejection sampling inside `area`; nothing may sit in a `clear` capsule,
  * which keep every walk, the follow camera 5.5 m behind it, and every line of fire open (dressing never
@@ -240,11 +240,11 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
       [10.5, -30, 10.5, -30, 7.5],
       [10.5, -30, 12, -46, 7.5], // line of fire to the three targets (x 8–16, z −42…−44)
     ],
-    trees: { count: 52, scale: [0.85, 1.5], bare: false, minGap: 4.2, tints: ['#ffffff', '#dfeec0', '#c3d69a', '#e9f2d0'], lean: 0.05 },
-    shadowReach: 4,
-    rocks: { count: 34, scale: [1.2, 3.6], colors: ['#ffffff', '#d8d4c4', '#b9b5a4'] },
-    shrubs: { count: 150, scale: [0.6, 1.4], colors: ['#ffffff', '#d0e0a8', '#b8cc88', '#e0ecc0'] },
-    grass: { count: 900, height: [0.35, 0.75], colors: ['#b4cc78', '#a0bc66', '#c4d888', '#94b25e'] },
+    trees: { count: 200, scale: [0.85, 1.5], bare: false, minGap: 2.6, tints: ['#ffffff', '#dfeec0', '#c3d69a', '#e9f2d0'], lean: 0.05 },
+    shadowReach: 40,
+    rocks: { count: 80, scale: [1.2, 3.6], colors: ['#ffffff', '#d8d4c4', '#b9b5a4'] },
+    shrubs: { count: 520, scale: [0.6, 1.4], colors: ['#ffffff', '#d0e0a8', '#b8cc88', '#e0ecc0'] },
+    grass: { count: 3600, height: [0.35, 0.75], colors: ['#b4cc78', '#a0bc66', '#c4d888', '#94b25e'] },
     water: { minX: -46, maxX: -14.5, minZ: -140, maxZ: 70, color: '#6aa6a2', bank: '#a89468', bankWidth: 3, reeds: 160, flow: 0.035 },
   },
   l3: {
@@ -254,12 +254,13 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
       [0, 27, 0, -26, 6], // spawn (0, 20) facing −Z down to the clearing
       [0, -16, 0, -16, 11], // Tataka's clearing: open ground to fight in
     ],
-    trees: { count: 14, scale: [0.8, 1.35], bare: true, minGap: 6, tints: ['#a4a4a4', '#8a8a8a', '#bab6ae'], lean: 0.14 },
-    shadowReach: 0,
-    rocks: { count: 40, scale: [1.2, 4], colors: ['#9a9a94', '#7c7c78', '#b0aea6'] },
-    shrubs: { count: 90, scale: [0.5, 1.2], colors: ['#8a7a5a', '#6e6250', '#9a8a68'] },
-    grass: { count: 520, height: [0.3, 0.7], colors: ['#77705a', '#646050', '#8a8266', '#5a5a4a'] },
-    mist: { color: '#9aa6a0', opacity: 0.2, heights: [0.12, 0.35, 0.65], size: 110, drift: 0.012 },
+    trees: { count: 70, scale: [0.8, 1.35], bare: true, minGap: 3.2, tints: ['#a4a4a4', '#8a8a8a', '#bab6ae'], lean: 0.14 },
+    shadowReach: 40,
+    rocks: { count: 90, scale: [1.2, 4], colors: ['#9a9a94', '#7c7c78', '#b0aea6'] },
+    shrubs: { count: 320, scale: [0.5, 1.2], colors: ['#8a7a5a', '#6e6250', '#9a8a68'] },
+    grass: { count: 2000, height: [0.3, 0.7], colors: ['#77705a', '#646050', '#8a8266', '#5a5a4a'] },
+    // 0.45 over [0.12, 0.35, 0.65] veiled Rama to the hips and cut bands into every trunk (2026-09-14): kept below the knee.
+    mist: { color: '#9aa6a0', opacity: 0.35, heights: [0.06, 0.2, 0.38], size: 110, drift: 0.012 },
     curseLift: { seconds: 5, fog: '#b3a582', sky: { zenith: '#6f93b8', horizon: '#cdbb92' }, exposure: 1.05, sun: { color: '#ffc67a', intensity: 2.2, dir: [6, 8, 4] } },
   },
   l4: {
@@ -270,11 +271,11 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
       [6.5, 11, 6.5, 11, 4.2], // the hut
       [-3.5, 8.5, -3.5, 8.5, 2.5], // the fire pit
     ],
-    trees: { count: 34, scale: [0.9, 1.55], bare: false, minGap: 5, tints: ['#ffffff', '#e4f0c4', '#cbdca0'], lean: 0.04 },
-    shadowReach: 10,
-    rocks: { count: 18, scale: [1.2, 3], colors: ['#ffffff', '#dedad0'] },
-    shrubs: { count: 70, scale: [0.6, 1.3], colors: ['#ffffff', '#d8e6b0', '#c0d496'] },
-    grass: { count: 520, height: [0.3, 0.65], colors: ['#86a84c', '#739a44', '#98b45a'] },
+    trees: { count: 130, scale: [0.9, 1.55], bare: false, minGap: 3, tints: ['#ffffff', '#e4f0c4', '#cbdca0'], lean: 0.04 },
+    shadowReach: 40,
+    rocks: { count: 45, scale: [1.2, 3], colors: ['#ffffff', '#dedad0'] },
+    shrubs: { count: 260, scale: [0.6, 1.3], colors: ['#ffffff', '#d8e6b0', '#c0d496'] },
+    grass: { count: 2200, height: [0.3, 0.65], colors: ['#86a84c', '#739a44', '#98b45a'] },
   },
 }
 
@@ -338,7 +339,7 @@ export const POST = {
 export const LOW_AMBIENT_FROM_ENV = 3
 
 /** High-tier shadow map for the key light. The frustum is fitted to each level's bounds. */
-export const SHADOW = { MAP_SIZE: 2048, BIAS: -0.0004, NORMAL_BIAS: 0.04, RADIUS: 3, NEAR: 0.5 } as const
+export const SHADOW = { MAP_SIZE: 4096, BIAS: -0.0004, NORMAL_BIAS: 0.04, RADIUS: 3, NEAR: 0.5 } as const
 
 export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', LevelScenery>>> = {
   l1: {

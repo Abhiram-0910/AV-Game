@@ -1,5 +1,16 @@
 # TODO
 
+## Deferred from the 2026-09-14 visual plan (Claude Code)
+
+Agreed with the human: this session did the tier fix, the measured budget, L2–L4 density, MSAA and trunks. Still to do, in
+the plan at `~/.claude/plans/read-session-log-md-todo-md-and-hidden-anchor.md`:
+- **Phase 4, L1 reads as Ayodhya.** palace.glb is one untextured material. Box-projected UVs after `mergeByMaterial`,
+  vertex-colour zoning, a sandstone normal map, garlands/lamps/canopy/brackets, GTAO on L1 only. Before shots:
+  `vis-before10-l1.png` and `gpu-before10-l1-spawn.png`.
+- **Phase 5 (rest):** ground normal map, a hill ring on L2/L4.
+- **Phase 6:** L4 bales still read as fence panels and the flags as orange rectangles. Fix or remove.
+- The Electron `force_high_performance_gpu` switch is not yet confirmed on Windows (`[gpu]` log line).
+
 ## Playtest follow-ups (2026-09-13, Claude Code)
 
 Observed or measured while fixing the six playtest failures (SESSION-LOG 2026-09-13), not changed:
@@ -23,12 +34,14 @@ Observed or measured while fixing the six playtest failures (SESSION-LOG 2026-09
 
 - Rama holds the sword upright behind his head while drawing the bow (seen from the L4 firing line on low). The
   melee PR's sword prop stays attached during archery.
-- L2 light shafts were built and dropped: the key light is behind the camera for the whole walk, so they read as a
-  smear. They need a side-on sun, which changes the level's lighting.
+- L2 light shafts, second attempt (2026-09-14): additive crossed cards along a side-front sun ([10, 5, −4]). They read as
+  faint haze in the canopy and as two thin diagonal streaks in the sky, not as beams, so the sun went back to the front
+  and the shafts were deleted (screenshots `gpu-uhd-l2-{bank,east}.png` against `gpu-before10-l2-*`). A real attempt needs
+  volumetric depth (a god-ray post pass masked by the canopy), not cards.
 - Dressing does not collide and is not in `world.hittable` or `world.ground`: the player walks through trees and
   arrows fly through bales. Registering bales as ground would make the arc stop where the fired arrow does not.
-- Forest trunks are plain tapered cylinders, and the bark reads orange-red next to the canopy up close.
-- High-tier draw calls are 106–132 on L2–L4. No high budget is written down; low is 80.
+- The six static `tree.glb` props in L2 (full model, `StaticProp`) still have the orange-red bark; only the instanced
+  forest trunks got the grey-brown tint and root flare. A placement tint would tint the leaves as well.
 - The L3 curse lift is high only; low keeps the cursed look through the outro.
 - `vite.config.ts` `syncPortraits()` reads `/home/yashwanth/...`, so it is dead on every other machine.
 

@@ -47,6 +47,14 @@ the gotchas that are not derivable from the tree.
 - **`?debug` shows the perf overlay on a production build** (the e2e reads it);
   `?debug=bow` arms the bow in any level. `window.__bk` exposes the stores read-only for
   tests under the same flag.
+- **Chrome on this Optimus laptop renders WebGL on the Intel UHD, not the RTX 4050**, even with
+  `powerPreference: 'high-performance'`. That is why the human saw the low tier (reason `weakGpu`). Only
+  `--force_high_performance_gpu` (Electron sets it) or the Windows Graphics "High performance" setting moves it. A saved
+  tier is reused only on the renderer it was measured on (`save.benchmarkRenderer`).
+- **Real-GPU numbers come from `tools/bench-gpu.mjs`, run by Windows `node.exe`** through the `\\wsl.localhost` path. It
+  drives Windows Chrome against the WSL preview. WSL's Chromium is SwiftShader and says nothing about a GPU. Measure
+  delivered frame intervals: `gl.finish()` timing does not include GPU time on ANGLE/D3D11 (it read 5 ms on a UHD
+  running at 13 fps). `?density=K` scales the wilds for sweeps.
 - **`playwright-cli` is not global.** Use `./node_modules/.bin/playwright cli --browser=chromium …`
   (the default `chrome` channel is not installed; rtk also mangles `npx playwright`).
 - **Headless Chromium on this WSL renders through SwiftShader.** Expect ~5–10 fps and a

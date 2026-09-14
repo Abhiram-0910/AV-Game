@@ -87,8 +87,11 @@ character count matters more than triangle count.
 Textures: **ETC1S for base colour only.** Normal and ORM maps require **UASTC** — ETC1S
 cross-pollinates RGB channels and destroys non-visual channel data.
 
-High tier lifts these: real shadows (1 directional, 1024 map), bloom + vignette,
-uncapped pixel ratio, 1024px textures, ~300k triangles. **Same code, same build — only
+High tier lifts these: real shadows (1 directional, 4096 map), bloom + vignette + 4× MSAA,
+pixel ratio up to 2, 1024px textures. **High budget, measured 2026-09-14 on an RTX 4050 Laptop at
+1920×1080 (tools/bench-gpu.mjs):** stay ≤ ~1.1M rendered triangles per frame (shadow pass included), which
+held a locked 144 fps; 60 fps (p95 frame ≤ 17.5 ms) broke only at ~15.5M. Re-measure with the tool; do not
+infer a ceiling. The ~300k figure that stood here was never measured. **Same code, same build — only
 the `QualityTier` and the asset directory change.** Never fork the codebase for quality.
 
 ## Character system — settled, do not redesign

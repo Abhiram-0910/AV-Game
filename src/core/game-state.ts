@@ -35,6 +35,7 @@ export interface GameState {
   quizScores: Partial<Record<GateId, number>>
   settings: Settings
   benchmarkTier: BenchmarkTier
+  benchmarkRenderer?: string
 }
 
 export interface GameActions {
@@ -55,7 +56,7 @@ export interface GameActions {
   fail(condition: FailCondition): void
   answerQuiz(option: number): { correct: boolean; explanation: string } | null
   setSettings(patch: Partial<Settings>): void
-  setBenchmarkTier(tier: BenchmarkTier): void
+  setBenchmarkTier(tier: BenchmarkTier, renderer: string): void
   hydrate(save: Save): void
   snapshot(): Save
   reset(): void
@@ -63,7 +64,7 @@ export interface GameActions {
 
 export type GameStore = GameState & GameActions
 
-type BaseState = Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier' | 'unlockedAstras' | 'selectedAstra'>
+type BaseState = Omit<GameState, 'completed' | 'codex' | 'quizScores' | 'settings' | 'benchmarkTier' | 'benchmarkRenderer' | 'unlockedAstras' | 'selectedAstra'>
 
 function levelStart(id: LevelId, attempt = 0): BaseState {
   return {
@@ -219,7 +220,7 @@ function persistenceActions(set: Set, get: Get) {
   return {
     setSettings: (patch: Partial<Settings>) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 
-    setBenchmarkTier: (benchmarkTier: BenchmarkTier) => set({ benchmarkTier }),
+    setBenchmarkTier: (benchmarkTier: BenchmarkTier, benchmarkRenderer: string) => set({ benchmarkTier, benchmarkRenderer }),
 
     hydrate: (save: Save) =>
       set({
@@ -229,6 +230,7 @@ function persistenceActions(set: Set, get: Get) {
         quizScores: { ...save.quiz },
         settings: { ...save.settings },
         benchmarkTier: save.benchmarkTier,
+        benchmarkRenderer: save.benchmarkRenderer,
         unlockedAstras: [...(save.unlockedAstras ?? [])],
         selectedAstra: save.unlockedAstras?.[0] ?? null,
       }),
@@ -243,6 +245,7 @@ function persistenceActions(set: Set, get: Get) {
         quiz: { ...s.quizScores },
         settings: { ...s.settings },
         benchmarkTier: s.benchmarkTier,
+        ...(s.benchmarkRenderer !== undefined ? { benchmarkRenderer: s.benchmarkRenderer } : {}),
         unlockedAstras: [...s.unlockedAstras],
       }
     },

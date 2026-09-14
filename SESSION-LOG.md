@@ -2,6 +2,115 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — The 4050 ran the low tier; the high budget measured on the real GPU
+
+Branch `feat/visual-grandeur`. The human played the build after the 09-13 dressing and saw fewer props and flatter
+scenes. There were two candidate causes; both were checked on this laptop (Intel UHD 0xA78B + RTX 4050 Laptop,
+1920×1080 @144 Hz, Windows DPI 120) before any fix. Scope agreed with the human: phases 0–3 of the plan plus the MSAA
+fix and the trunk fix. The L1 palace, the outdoor "boxes" pass and the L4 bales/flags are a later session.
+
+### 1. Cause (a) confirmed: Chrome renders on the Intel UHD, so the tier was low
+- A `--dump-dom` probe in stock Windows Chrome reported `ANGLE (Intel, Intel(R) UHD Graphics …)` for
+  `powerPreference` default, `high-performance` and `low-power` alike. Only `--force_high_performance_gpu` gave
+  `NVIDIA GeForce RTX 4050 Laptop GPU`. No per-app GPU preference was set for Chrome in Windows.
+- `resolveTier` matches `WEAK_GPU` → **low, reason `weakGpu`**, persisted in the save. Every later boot reused it as
+  `saved`, even on another renderer. On low, `WildsDressing` is not mounted and L3's static trees are bare: that is the
+  "fewer props, flatter" report.
+- **Fixes:**
+  - `electron/main.ts` appends `force_high_performance_gpu`. Unverified on Windows Electron in this session: the
+    `[gpu]` log line should now name the NVIDIA renderer.
+  - The save gains an **optional** `benchmarkRenderer` (still v2, no migration; e2e seeds stay valid). A saved tier is
+    reused only on the renderer it was measured on, and a missing value re-detects once, which unsticks the human's
+    existing save. The store, snapshot and persist check carry it.
+  - **Verified on the laptop:** one Chrome profile, three boots against the preview. iGPU → low/weakGpu, saved
+    with the Intel renderer. The same profile with `--force_high_performance_gpu` → re-detected **high/fast**
+    (benchmark 6.94 ms) instead of reusing the saved low. Third boot on the dGPU → high/saved.
+  - Settings shows a hint when the reason is `weakGpu` (`tier.hint.weakGpu`): set the browser to High performance in
+    Windows Graphics settings. Page JS cannot pick the dGPU.
+- **Benchmark (balance.ts change, reason):** the old one timed the rAF interval of a 100k Lambert knot at DPR 1. That
+  is vertex-bound, vsync-capped, and it counted shader compile. Now: 10 untimed warm-up frames, then 60 frames of a
+  300k-tri Standard knot behind 12 full-screen translucent Standard layers at the high pixel ratio, timed by delivered
+  frame interval. `BENCH_TRIANGLES` 100k→300k, `BENCH_LAYERS` 12 (new), `BENCH_WARMUP` 10 (new), `BENCH_LOW_MS`
+  20→25. Calibrated on both GPUs of this laptop with the renderer name spoofed so the UHD reaches the benchmark:
+  **RTX 4050 6.95 ms → high, Intel UHD 37.8 ms → low.** 25 ms also passes a 4050 on a 60 Hz screen (16.7 ms).
+- Tried first and dropped: timing `render()` between two `gl.finish()` calls. On ANGLE/D3D11 it does not include GPU
+  time: 0.41 ms (4050) against 0.60 ms (UHD), and the harness read 4–6 ms per frame on a UHD delivering 13 fps.
+
+### 2. The real high-tier ceiling, measured on the RTX 4050
+- New `tools/bench-gpu.mjs`, run by Windows `node.exe` through `\\wsl.localhost` so it can drive Windows Chrome (WSL's
+  Chromium is SwiftShader). Viewport 1536×864 at DPR 1.25 (the panel's real 1920×1080), high tier with the new 4×
+  MSAA, 5 s per view, p50/p95/p99 of delivered frame intervals. `?density=K` scales wilds counts, shrinks tree spacing
+  by √K and makes every tree cast.
+- Baseline on the old build (commit 9443f33, high): every level held 144 fps; ~300k tris on L2–L3.
+- **L2 sweep (the densest level), 60 fps = p95 ≤ 17.5 ms:**
+
+  | density | tris per frame (incl. shadow pass) | fps (4 views) | p95 ms |
+  |---|---|---|---|
+  | ×1 | 0.30–0.32 M | 144 | 7.3 |
+  | ×4 | 1.10–1.12 M | 144 | 7.3–7.4 |
+  | ×16 | 3.98–4.01 M | 114–129 | 13.9–14.0 |
+  | ×32 | 7.83–7.85 M | 90–102 | 13.9–14.0 |
+  | ×64 | 15.5 M | 64–75 | **20.8–20.9: broke** |
+
+- **Frame budget:** 16.7 ms (60 fps), p95 ≤ 17.5 ms. It held to ~7.8 M triangles per frame and broke at ~15.5 M
+  (×64). Shipping stays inside the band that holds a locked 144 fps, ≤ ~1.1 M, which leaves ~14× headroom for combat,
+  L5 waves and thermal throttling. AGENTS.md's "~300k triangles" is replaced by this.
+- Intel UHD reference, same harness: L2 high at ×1 delivered 13 fps; L1 low ran 127–138 fps.
+
+### 3. Restored and exceeded (high only; scenery.ts WILDS)
+- L2: trees 52→200 (gap 4.2→2.6), shrubs 150→520, grass 900→3600, rocks 34→80, shadowReach 4→40.
+- L3: bare trees 14→70, shrubs 90→320, grass 520→2000, rocks 40→90, shadowReach 0→40, mist 0.2→0.35. The sheets
+  moved down to 0.06/0.2/0.38 m: at 0.45 over the old heights the mist veiled Rama to the hips and cut hard bands into
+  every trunk (`gpu-after10-l3-*` from the first pass).
+- L4: trees 34→130, shrubs 70→260, grass 520→2200, rocks 18→45, shadowReach 10→40.
+- Shadow map 2048→4096 (the high budget has room; L2's frustum spans ~66 m).
+- **MSAA:** the EffectComposer's default targets have no samples, so high shipped with no anti-aliasing despite
+  `antialias: true`. It now renders into a HalfFloat target with `samples: 4`.
+- **Trunks:** 10 sides × 6 rows with five root buttresses flaring over the bottom 1.1 m (14 → 120 tris a trunk). tree.glb's
+  bark averages #8b5843, which the warm key pushed to orange-red; a linear per-channel multiplier (0.6, 1.25, 1.75)
+  lands it on grey-brown. L2's six static tree.glb props keep the old bark (TODO).
+- **Light shafts, tried again and dropped.** Crossed additive cards along a side-front sun ([10, 5, −4] instead of
+  [8, 6, 6]). From the walk they were faint haze in the canopy and two thin diagonal streaks in the open sky, not beams
+  (`gpu-uhd-l2-{bank,east}.png` vs `gpu-before10-l2-*`). The side sun would also shade half of Rama's back for the
+  whole level. The sun went back to the front, the shafts module was deleted.
+- **Final bench on the 4050 (all at 144 fps locked):**
+
+  | level | views | tris per frame | calls | p95 ms |
+  |---|---|---|---|---|
+  | L1 | spawn, throne | 178k | 91 | 7.2 |
+  | L2 | spawn, bank, east, river | 824–945k | 106–125 | 7.3–7.4 |
+  | L3 (mist 0.35) | spawn, clearing, wood | 850–873k | 109–118 | 7.1–7.2 |
+  | L4 | spawn, line, trees | 695–710k | 109–128 | 7.4 |
+  | L5 | spawn, altar | 170–186k | 147–179 | 7.3 |
+
+### 4. shoot-levels, both tiers, all five levels (SwiftShader, 1280×720)
+
+| level | tier | before10 (9443f33) tris / calls / skinned | after10 tris / calls / skinned |
+|---|---|---|---|
+| L1 | high | 177,642 / 91 / 4 | 177,642 / 91 / 4 |
+| L2 | high | 291,007 / 106 / 3 | 921,303 / 106 / 3 |
+| L3 | high | 291,510 / 119 / 4 | 872,610 / 118 / 4 |
+| L4 | high | 211,273 / 117 / 3 | 698,779 / 115 / 3 |
+| L5 | high | 147,336 / 119 / 3 | 147,336 / 119 / 3 |
+| L1 | low | 80,024 / 44 / 4 | 80,024 / 44 / 4 |
+| L2 | low | 28,936 / 32 / 3 | 28,936 / 32 / 3 |
+| L3 | low | 77,371 / 53 / 4 | 77,371 / 53 / 4 |
+| L4 | low | 31,275 / 36 / 3 | 31,275 / 36 / 3 |
+| L5 | low | 48,415 / 55 / 3 | 48,415 / 55 / 3 |
+
+Low tier is identical, level for level: nothing this session touches mounts on low. Draw calls on high did not grow, since
+instancing absorbs the extra trees. Screenshots: `vis-{before10,after10}-l*.png` (`-low`, `-throne`) and the 4050 frames
+`gpu-{before10,after10}-l*-<view>.png`.
+
+### Verification
+- `tsc -b`, ESLint: clean. Vitest: 133 passed, 1 skipped. New tests: renderer match reuses the saved tier; a mismatch
+  or a missing renderer re-detects; save keeps a string `benchmarkRenderer` and drops anything else.
+- `npm run build`, preview restarted before every measurement (stale-dist gotcha).
+- E2E, all six specs, `--workers=1`, 11.7 min, on the final build: archery-mouse, L1, L2, L3, L4 **pass**. L5 **fails** as
+  expected ("Try again" at `l5.spec.ts:147`), spec untouched (TODO: BROKEN — L5).
+- Not verified: the Electron switch on Windows. Two throwaway Chrome profiles from the probes are still on this machine
+  (`C:\Windows\Temp\bk-gpu-probe`, `C:\Windows\Temp\bk-tier-verify`); deleting them was not permitted in-session.
+
 ## 2026-09-13 — Claude Code (Opus 5) — Six playtest failures: cursor aim, L4 retry, waypoint marker, talk, reticle, arc
 
 Branch `feat/visual-grandeur`. A human played the build and hit six failures that a green e2e suite missed, mostly

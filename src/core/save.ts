@@ -26,6 +26,9 @@ interface SaveBody {
   quiz: Partial<Record<GateId, number>>
   settings: Settings
   unlockedAstras?: AstraId[]
+  /** The renderer the benchmark ran on. A saved tier is reused only on the same renderer, so moving the browser
+   * from an iGPU to a dGPU re-detects. Optional: older saves and the e2e seeds omit it, which re-detects once. */
+  benchmarkRenderer?: string
 }
 
 /** Shipped in pass 1; still accepted and migrated. */
@@ -91,6 +94,7 @@ function parseBody(raw: Record<string, unknown>): SaveBody | null {
     quiz: raw.quiz as SaveBody['quiz'],
     settings,
     ...(unlockedAstras !== undefined ? { unlockedAstras } : {}),
+    ...(typeof raw.benchmarkRenderer === 'string' ? { benchmarkRenderer: raw.benchmarkRenderer } : {}),
   }
 }
 

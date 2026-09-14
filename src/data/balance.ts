@@ -305,10 +305,13 @@ export const BALANCE = {
     /** Pixel ratio cap on the low tier; high tier lifts it to the device ratio. */
     PIXEL_RATIO_LOW: 1,
     PIXEL_RATIO_HIGH_MAX: 2,
-    /** One-time benchmark: frames measured and the mean frame time that means "low". */
+    /** One-time benchmark: untimed warm-up frames (shader compile), timed frames, full-screen translucent Standard layers
+     * of overdraw at the high pixel ratio, and the mean delivered-frame interval above which the machine gets "low". */
+    BENCH_WARMUP: 10,
     BENCH_FRAMES: 60,
-    BENCH_LOW_MS: 20,
-    BENCH_TRIANGLES: 100_000,
+    BENCH_LAYERS: 12,
+    BENCH_LOW_MS: 25,
+    BENCH_TRIANGLES: 300_000,
     /** Torus-knot stress mesh (radius, tube, radial segments) and the throwaway camera. */
     BENCH_KNOT: { RADIUS: 1, TUBE: 0.3, RADIAL: 125, SPIN_RAD_PER_FRAME: 0.02 },
     BENCH_CAMERA: { FOV: 50, NEAR: 0.1, FAR: 50, DISTANCE: 4 },

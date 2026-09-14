@@ -9,4 +9,7 @@ export const DEBUG = {
   bow: debugParam === 'bow',
   /** Pass 3 Phase B: male/female × high/low LOD comparison scene, see scenes/LodDebug.tsx. */
   lod: debugParam === 'lod',
+  /** ?density=K multiplies the L2–L4 wilds' tree, shrub, grass and rock counts, and every tree casts a shadow when
+   * K > 1: the knob tools/bench-gpu.mjs sweeps to find the high tier's real ceiling. */
+  density: Number(params.get('density') ?? 1) || 1,
 } as const

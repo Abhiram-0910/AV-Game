@@ -30,6 +30,11 @@ describe('save', () => {
     expect(deserializeSave(serializeSave(withAstras))).toEqual(withAstras)
   })
 
+  it('keeps the benchmark renderer when it is a string and drops it otherwise, without rejecting the save', () => {
+    expect(parseSave({ ...good, benchmarkRenderer: 'ANGLE (NVIDIA)' })).toEqual({ ...good, benchmarkRenderer: 'ANGLE (NVIDIA)' })
+    expect(parseSave({ ...good, benchmarkRenderer: 42 })).toEqual(good)
+  })
+
   it('migrates a v1 save to v2 with no benchmark result', () => {
     expect(parseSave(v1)).toEqual({ ...v1, version: 2, benchmarkTier: null })
   })
