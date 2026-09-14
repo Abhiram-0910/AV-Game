@@ -74,6 +74,37 @@ describe('enemy AI', () => {
     expect(e.didAttack).toBe(false)
   })
 
+  it('turns on a player standing between it and the objective, inside ENGAGE_RADIUS, and walks at him', () => {
+    const e = spawnEnemy('rakshasa', [0, 0, -10])
+    e.state = 'chase'
+    const player = { x: 1.5, z: -10 + BALANCE.yajna.ENGAGE_RADIUS - 1.5 }
+    stepEnemy(e, player, 0, 1 / 60, { x: 0, z: 0 })
+    expect(e.x).toBeGreaterThan(0) // stepped sideways toward the player, not straight down the line to the fire
+    e.x = player.x
+    e.z = player.z - (BALANCE.enemies.rakshasa.REACH - 0.1)
+    stepEnemy(e, player, 1, 1 / 60, { x: 0, z: 0 })
+    e.stateUntil = 1
+    stepEnemy(e, player, 1, 1 / 60, { x: 0, z: 0 })
+    expect(e.didAttack).toBe(true)
+    expect(e.attackedObjective).toBe(false)
+  })
+
+  it('ignores a player who is farther from it than the objective, even inside ENGAGE_RADIUS', () => {
+    const e = spawnEnemy('rakshasa', [0, 0, -2])
+    e.state = 'chase'
+    stepEnemy(e, { x: 0, z: 1 }, 0, 1 / 60, { x: 0, z: 0 }) // player 3 m away, behind the fire (2 m away)
+    expect(e.x).toBe(0)
+    expect(e.z).toBeGreaterThan(-2)
+    expect(e.z).toBeLessThan(-1.9) // one tick toward the fire
+  })
+
+  it('keeps pathing to the objective when the player is ahead of it but outside ENGAGE_RADIUS', () => {
+    const e = spawnEnemy('rakshasa', [0, 0, -20])
+    e.state = 'chase'
+    stepEnemy(e, { x: 3, z: -20 + BALANCE.yajna.ENGAGE_RADIUS + 1 }, 0, 1 / 60, { x: 0, z: 0 })
+    expect(e.x).toBe(0) // straight down the line to the fire
+  })
+
   it('a non-lethal arrow staggers; a lethal one kills and stops movement', () => {
     const e = spawnEnemy('tataka', [0, 0, -1])
     e.state = 'chase'

@@ -150,6 +150,157 @@ Worktree `bk-ui`, branch `feat/royal-ui`, in parallel with the voice and renderi
 - **Rama's quiver.** Asked for at the end of the pass. The arrow through his back is the quiver stand-in
   (`render/character-factory.ts` attaches `arrow.glb` to `spine_03`); a real quiver is a factory/render change,
   outside this pass's `src/ui` scope and in the rendering agent's area, so it went to TODO with a spec instead.
+## 2026-09-14 — Claude Code (Opus 5) — L5: interception, dead regen wired, a bot that plays at SwiftShader speed
+
+Branch `fix/l5-winnable` (worktree `~/NewProjects/bk-l5`). Plan: `~/.claude/plans/use-port-4184-for-reflective-ocean.md`.
+Every e2e below ran headless SwiftShader, low tier, preview on port 4184 through an untracked copy of
+`playwright.config.ts`. Numbers come from an untracked in-page recorder (`game.subscribe` per change, samples every
+second, peak `__bk.perf` during play). Probes and config are deleted, not committed. **A human has not played any of
+this.**
+
+### 1. What killed L5 before any change (current build, spec as committed at ef49181)
+- **Yajna integrity, at tick 6038.** Rama's health stayed at 100: he took zero hits all fight.
+- Nine rakshasas stood at 1.58 m from the fire on N/E/W. Rama at (0, 1) was 1.87–2.58 m from them, outside REACH 1.6,
+  so `stepEnemy` never picked him. The diagnosis in the 2026-09-13 entry is right.
+- The bot fired all 12 arrows, one every ~450 ticks (ticks 1025–5835), and every one hit: 6 kills. Waves filled the
+  12-skinned budget with survivors, so Subahu and Maricha never spawned.
+- After the fail the spec kept walking to arrow piles and hit the 20-min test timeout.
+- Peak during play: 161 draw calls, 12 / 12 skinned, 111k triangles.
+
+### 2. The arrow stall and the sword that never landed: neither reproduces
+- **Arrow stall.** It did not happen on this build: 12 releases at a steady ~450-tick cadence, no gap. The Maricha
+  branch was never entered, because Maricha never spawned. So this run cannot confirm the Maricha-branch theory. That
+  branch could loop (it cast at any range, and after the one charge was spent it re-tried forever while Maricha stayed
+  nearest), and the new bot no longer has it. The quiver sat at 3 for ~2300 ticks in the 2026-09-13 run; that run
+  used the pre-cursor-aim spec, which is gone.
+- **Sword.** A probe stood on the north approach and pressed F with a rakshasa inside 2 m and the cone: 4 / 4 presses
+  registered (`swordSlashUntilTick` moved) and killed (30 → 0) at 1.59–1.83 m. The input path works.
+- **The common cause is the bot, not an input path.** Every Playwright call waits on a SwiftShader frame (a poll
+  costs ~25 ticks at best), and a key held for any part of a slow frame turns that whole frame (0.7–0.8 rad). So
+  `play.ts` `face()` cannot land inside 0.5 rad and loops. Seen three times: the first rule run's bot turned in place
+  at (0, 1.2) for ~1400 ticks (yaw 1.19 ↔ 2.69) and never swung; the L3 regen run's bot oscillated 2.7 ↔ 4.5 through
+  Tataka's whole fight and fired nothing. `play.ts` is shared and was not changed (TODO).
+
+### 3. Design: interception
+- **Rule** (`systems/ai/enemy-ai.ts` `stepEnemy`): with an objective, an enemy goes for Rama when he is in REACH (as
+  before) **or nearer to it than the fire is and within `yajna.ENGAGE_RADIUS`**. It walks at whichever target it
+  chose; before, `chase` always stepped toward the objective. Without an objective (Tataka) the branch is the same as
+  before.
+- `yajna.ENGAGE_RADIUS` 4.0 replaces `yajna.DEFENSE_RADIUS` 4.0, which nothing read. Kept at 4.0: a rakshasa halted
+  at the fire (1.58 m) must still turn when Rama stands on its line outside the 2.9 m altar steps (the bot's post at
+  2.6 m is 1.0 m from it), and 4 m leaves a child slack. Not swept.
+- **Why:** it is the instruction ("stand between them and the fire") as a rule. Where Rama stands changes who takes
+  the hit, it adds nothing to render and no skinned meshes, and it is pure and unit-tested. Kiting is bounded: past
+  4 m they go back to the fire.
+- **Rejected:** a shorter REACH (moves where they halt; still no way to block three sides, and at ~1 m they clip into
+  the bricks); a different guard spot alone (spec-only, the rule stays false); body blocking (collision code, enemies
+  slide round the capsule, harder for a child to read); plain proximity aggro (standing beside one is not "between").
+- **Unit tests** (`tests/unit/enemy-ai.test.ts`): turns on a player in front inside the radius and walks at him; ignores
+  one farther than the fire; keeps to the fire when he is ahead but outside the radius.
+
+### 4. Tataka (L3) with the rule, then with regen
+Her runs are compared as behaviour, not pass/fail (L3 is a known flake).
+| run | her hits on Rama | distance | cadence | result |
+|---|---|---|---|---|
+| baseline (no rule) | 8 × 10 | 2.39 m | 198–217 ticks | win, tick 3192 |
+| rule | 9 × 10 | 2.36 m | 198 (one 213) | win, 10 hp left |
+| rule + regen | 10 × 10 | 2.36 m, last five 1.45 m | 198 | lost |
+| rule + regen, again | 10 × 10 | 2.19–2.26 m | 198 | lost; Tataka never damaged |
+- **The rule did not reach her.** Same damage, same cadence. Her halt distance moved 2.39 → 2.36 m, less than one
+  tick of her walk (2.4 m/s ÷ 60 = 0.04 m), which depends on where Rama stood when she closed in.
+- **Regen did not make L3 easier.** She hits every 198 ticks, under `REGEN_DELAY_TICKS` 240, so regen gave back 0 during
+  her fight. The regen-on run lost because the bot never shot her (150 / 150 at the end; the `face()` oscillation in
+  §2). The 1.45 m hits are Rama walking in (z −7.3 → −8.2 at tick ~6900); she stood still at (1.1, −9.6).
+- **Both regen-on L3 runs lost and both regen-off runs won.** Regen never wrote to the store in either lost fight:
+  health was full before Tataka, and her hits come faster than the delay. In both losses the bot never damaged her.
+  Two against two is not proof either way, so I ran a controlled set.
+- **Controlled set, final build.** Four L3 runs alternating off, on, off, on. The probe switched regen off through the
+  real store (`game.setState({ regenHealth: no-op })`), so it was the same build every time:
+  | run | regen | result | Tataka's hits | distance | cadence | health regained |
+  |---|---|---|---|---|---|---|
+  | 1 | off | lost | 10 × 10 | 2.38 m (1.61 once) | ≥ 198 | 0 |
+  | 2 | on | lost, Tataka at 15 / 150 | 10 × 10 | 2.39 m | ≥ 198 | 0 |
+  | 3 | off | win, Rama at 20 | 8 × 10 | 2.37 m | ≥ 198 | 0 |
+  | 4 | on | win, Rama at 20 | 8 × 10 | 2.38 m | ≥ 198 | 0 |
+  **Regen gave back 0 health in every L3 run, with it on or off: it does not reach L3.** Her fight is unchanged, and
+  wins and losses split evenly across both. The earlier two-and-two pattern was the L3 flake (TODO), not regen.
+
+### 5. Player regen was dead code: wired (outside the scoped files)
+`player.REGEN_PER_TICK` 0.05 and `REGEN_DELAY_TICKS` 240 were in `balance.ts` and nothing read them. With interception,
+Rama takes the hits the fire used to. In the best regen-off run (bot5) a 1143-tick lull with no hits gave back 0
+health instead of ~45, and he died on health with Subahu at 85 / 120. Abhi chose to wire regen, not to tune a rakshasa
+number over it.
+- `regenHealth(tick)`: in play, below max, and `tick ≥ playerInvulnUntil − INVULN_TICKS + REGEN_DELAY_TICKS` (the
+  last hit's tick, no new state), add `REGEN_PER_TICK`, capped at max. Called once per play tick.
+- **Lines touched outside the scoped files, additions only, for the merge:**
+  - `src/core/game-state.ts` line 48: `regenHealth(tick: number): void` in `GameActions`.
+  - `src/core/game-state.ts` lines 220–231: new `regenActions(set, get)`, between `resourceActions` and
+    `persistenceActions`. `resourceActions` itself is unchanged: putting regen there broke its 50-line cap.
+  - `src/core/game-state.ts` line 276: `...regenActions(set, get),` in `createGameStore`.
+  - `src/entities/SimulationDriver.tsx` line 130: `gameStore.getState().regenHealth(tick)`, right after `stepEnemies`
+    in the play block.
+- Unit test (`tests/unit/game-state.test.ts`): no regen inside the delay, +REGEN_PER_TICK after it, a new hit restarts
+  the delay, capped at max.
+- Health is a HUD bar width only, so fractional health needs no UI change.
+
+### 6. The bot, and how close it got before regen
+`l5.spec.ts` assertions are unchanged (win title, ending title, codex count). Only how the bot plays changed, one step
+per run, each run's evidence below.
+| bot | change | result | yajna | kills | peak calls / skinned |
+|---|---|---|---|---|---|
+| rule 1 | old spec's `face`/`steerTo` + bow | health 0, tick 3577 | 72 | 0 | 146 / 12 |
+| bot2 | coarse taps, walk while tapping, bow | health 0, tick 3203 | 90 | 7 | 140 / 11 |
+| bot3 | sword only (an arrow cost ~340 ticks) | health 0, tick 4514 | 108 | 12 | 107 / 8 |
+| bot4 | hold A/D and watch the heading | **yajna 0**, tick 6099, hp 28 | 0 | 14 | 153 / 12 |
+| bot5 | keys held across polls, Q held on Maricha | health 0, tick 5609 | 108 | 19 | 110 / 8 |
+| bot5 ×2 more | same | health 0 (tick 5468; the other lost too, probe overwritten) | 108 | 16 | 107 / 8 |
+| bot5 + regen | same bot, regen on | health 0, tick 6006, Subahu 15 / 120 | 84 | 17 | 107 / 9 |
+| bot5 + regen, again | same | health 0, tick 5973, Subahu 15 / 120; Subahu dealt 72, rakshasas 78, 56.6 regained | 102 | 19 | 103 / 8 |
+| bot5 + regen, third | same | health 0, tick 5979, Subahu 50 / 120; Subahu dealt 84, rakshasas 78, 65.6 regained | 90 | 19 | 108 / 9 |
+- bot3's hits: of 17, seven came from a rakshasa already in reach and in the cone with no slash for 200–500 ticks.
+  That was bot latency, not being surrounded; each came from one attacker.
+- bot5 + regen: Rama won back 59.8 health in lulls (61.6 → 100 once). He died to **Subahu**: 84 of the last 100 in 7
+  hits of 12, one every 108 ticks. Each slash knocks Subahu 1.5 m out of sword range, and the bot landed 3 in ~870
+  ticks. Rakshasas dealt 66 over the whole fight. Maricha was flung by the held-Q Manava.
+
+### 7. One tuned number: `enemies.subahu.ATTACK_COOLDOWN` 90 → 150
+- **Evidence for it:** three regen-on runs of the same bot all lost on Rama's health, with Subahu at 15, 15 and 50 of
+  120. In each, Subahu dealt most of the lethal damage (84, 72, 84) in hits of 12 every 108 ticks (cooldown 90 +
+  18-tick windup). Every slash knocks him 1.5 m out of sword reach, so he got a hit in before the next swing.
+  Rakshasas dealt 66–78 across the whole fight, and regen covered most of that.
+- **Why this number:** Subahu is the damage that killed the runs, and his cooldown is an L5-only stat. At 150 a hit
+  every 168 ticks leaves ~5 hits in that fight instead of 7, one slash's worth. It also gives a child a longer gap to
+  swing into, which is Tataka's reason for 180; he stays quicker than her. His `DAMAGE` 12 was left alone. Not swept:
+  one candidate, three runs.
+- **Not changed:** `rakshasa` stats, wave counts and `maxAlive`, `ENGAGE_RADIUS`, `yajna` numbers.
+
+**Result, three runs, same build and bot** (`sub150`):
+| run | result | Rama's health at the end (lowest) | yajna at the end (lowest) | Subahu dealt | regained |
+|---|---|---|---|---|---|
+| 1 | **win**, tick 6099 | 32.8 (32.8) | 105 / 150 (105) | 60 | 64.8 |
+| 2 | **win**, tick 6394 | 14.9 (14.9) | 87 / 150 (87) | 84 | 58.9 |
+| 3 | lost on health, tick 6325, Subahu at 15 | 0 | 99 / 150 | 72 | 68.1 |
+Every run cut down 19 rakshasas and flung Maricha.
+
+**First bot wins L5 has ever had: 2 of 3.**
+- **Margin is thin on health, moderate on the fire:** Rama ended at 33 % and 15 %, the yajna at 70 % and 58 %.
+- **Not trivial for the bot.** The plan's "tighten if both above ~70 %" did not trigger, so nothing was tightened.
+- **The bot is a slow player.** One decision every ~25 ticks under SwiftShader, sword only, no bow. A child at 60 fps
+  reacts faster but aims and positions worse. Whether this is too easy or too hard for a class is unknown until a
+  human plays it.
+
+**The committed spec** (`tests/e2e/l5.spec.ts`, no probe, temp config on 4184, same build) **passed once, in 1.9 min**:
+"Level complete", the "Maricha and Subahu" scroll, then the ending screen and codex count. Peak 8 / 12 skinned.
+Screenshots `l5-guard-position.png`, `l5-fight-end.png` and `l5-ending.png` (new) are from that run. It was one run.
+The probes put the bot at about two wins in three, so a later single run can lose on a correct build.
+
+**Verified** after deleting the probes and the temp config: vitest 140 passed / 2 skipped (was 137 / 1; +1 regen test,
++3 interception tests, and the GLB clip test skips without `raw/`), `tsc -b` clean, ESLint clean.
+
+**Budgets during play** (low tier, SwiftShader):
+- Peak draw calls 104–106 in the tuned runs, against 161 before this work (fewer live rakshasas, since they now die).
+- Peak skinned meshes 8 / 12, against 12 / 12.
+- Nothing was added to render. The 80-call low-tier budget was exceeded before this work and still is, less so.
 
 ## 2026-09-14 — Claude Code (Opus 5) — L1 court defects: leaded glass, Rama's shadow, the right platform, the stencil
 

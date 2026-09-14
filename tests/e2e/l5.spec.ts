@@ -1,45 +1,35 @@
-// Drives the real build through Level 5: guard the yajna against every rakshasa wave, then
-// defeat Subahu (arrows) and Maricha (the single Manava astra charge, held back for exactly
-// this — arrows bounce off him, see systems/archery/step.ts). The player parks just in front
-// of the altar so an approaching rakshasa's own REACH check pulls its attack onto the player
-// instead of the fire — "stand between them and the fire" (l5.intro) — and snipes whatever is
-// nearest, recovering spent arrows from the ground when the quiver runs dry.
+// Drives the real build through Level 5: guard the yajna against every rakshasa wave, then defeat Subahu and Maricha
+// (the single Manava astra charge, held back for him alone; arrows and fire pass over him).
+// "Stand between them and the fire" (l5.intro): a rakshasa turns on Rama when he is nearer to it than the fire and within
+// yajna.ENGAGE_RADIUS (systems/ai/enemy-ai.ts). So the bot does what a player does: steps onto the line between the fire
+// and the rakshasa closest to it, and cuts down whatever comes into sword reach (F).
+// Sword only, no bow: under SwiftShader one aimed arrow cost the bot ~340 ticks while an engaged rakshasa hits every ~50,
+// and one slash kills a rakshasa (melee.DAMAGE 35 > HEALTH 30). Keys are held across polls, as a player holds them:
+// releasing and re-pressing every step cost ~165 ticks per short walk (probe, 2026-09-14), since every Playwright call
+// waits on a SwiftShader frame.
 import { expect, test, type Page } from '@playwright/test'
 import { BALANCE } from '../../src/data/balance'
 import { DIALOGUE, UI } from '../../src/data/dialogue'
 import { LEVELS } from '../../src/data/levels'
-import { face, player, pollUntil, projectToScreen, seedSave, shoot, skipSpeech, steerTo, waitFrames, type Point } from './play'
+import { headingError, seedSave, skipSpeech, waitFrames } from './play'
 
 const L5 = LEVELS[4]
-/** A rakshasa is the male mesh at 1.1x: about 2 m tall. */
-const ENEMY_CENTRE_Y = 1.0
+const ALTAR = { x: L5.waypoints.altar[0], z: L5.waypoints.altar[2] }
+/** Where the guard stands on the fire-to-rakshasa line: outside the altar steps (2.9 m wide), inside ENGAGE_RADIUS of
+ * a rakshasa halted at the fire. */
+const GUARD_RADIUS = 2.6
+/** Slash when an enemy is this close: under melee.RANGE, so it is still in reach after a poll of approach. */
+const SLASH_DIST = BALANCE.melee.RANGE - 0.3
+/** The sword's cone is ±60°; inside this heading error a slash lands. Manava's cone is also ±60°. */
+const CONE_TOL = 0.9
+/** Heading error tolerated while walking; tighter would oscillate, one poll turns Rama ~0.75 rad under SwiftShader. */
+const WALK_TOL = 0.5
+/** Cast Manava only well inside its range, so Maricha is still in the cone when the charge lets go. */
+const ASTRA_DIST = BALANCE.astra.manavastra.CONE_RANGE - 1.5
 
-// The fight loop alone may run HARD_STOP_MS (12 min); the aim now waits for the arc to settle before each release.
+// The fight loop alone may run HARD_STOP_MS (12 min).
 test.setTimeout(1_200_000)
 test.beforeEach(({ page }) => seedSave(page, 'l5'))
-
-/** One arrow at the nearest live enemy, aimed with raw mouse coordinates and tracking it through the draw. */
-async function fireAt(page: Page, target: Sighted) {
-  await face(page, target)
-  await shoot(page, async () => {
-    const now = (await nearestEnemy(page)) ?? target
-    return { x: now.x, y: ENEMY_CENTRE_Y, z: now.z }
-  })
-}
-
-/** The single Manava astra charge, held back for Maricha alone. Manava is a cone ahead of Rama, so facing him is the aim. */
-async function castAstraAt(page: Page, target: Point) {
-  await face(page, target)
-  const s = await projectToScreen(page, target)
-  await page.mouse.move(s.x, s.y)
-  await waitFrames(page)
-  // L5 unlocks both astras and selects Agneyastra first (game-state.ts unlockAstra); only Manava flings Maricha.
-  await page.keyboard.press('Digit2')
-  await page.keyboard.down('q')
-  await pollUntil(page, () => page.evaluate((n) => window.__bk.world.astraCharge.ticks >= n, BALANCE.astra.CHARGE_TICKS), 4000)
-  await page.keyboard.up('q')
-  await page.waitForTimeout(300)
-}
 
 interface Sighted {
   x: number
@@ -47,55 +37,89 @@ interface Sighted {
   kind: string
 }
 
-async function nearestEnemy(page: Page): Promise<Sighted | null> {
-  const enemies = await page.evaluate(() => window.__bk.world.enemies.filter((e) => e.state !== 'dead').map((e) => ({ x: e.x, z: e.z, kind: e.kind })))
-  const p = await player(page)
-  let best: Sighted | null = null
-  let bestD = Infinity
-  for (const e of enemies) {
-    const d = Math.hypot(e.x - p.x, e.z - p.z)
-    if (d < bestD) {
-      bestD = d
-      best = e
-    }
-  }
-  return best
+interface Fight {
+  tick: number
+  phase: string
+  charges: number
+  charge: number
+  p: { x: number; z: number; yaw: number }
+  enemies: Sighted[]
 }
 
-async function nearestPile(page: Page): Promise<{ x: number; z: number } | null> {
-  const piles = await page.evaluate(() => window.__bk.world.arrowPickups)
-  const p = await player(page)
-  let best: { x: number; z: number } | null = null
-  let bestD = Infinity
-  for (const pile of piles) {
-    const d = Math.hypot(pile.x - p.x, pile.z - p.z)
-    if (d < bestD) {
-      bestD = d
-      best = pile
+async function fight(page: Page): Promise<Fight> {
+  return page.evaluate(() => {
+    const { game, world } = window.__bk
+    const g = game.getState() as ReturnType<typeof game.getState> & { astraCharges: number }
+    const p = world.player
+    return {
+      tick: world.tick,
+      phase: g.phase,
+      charges: g.astraCharges,
+      charge: world.astraCharge.ticks,
+      p: { x: p.x, z: p.z, yaw: p.yaw },
+      enemies: world.enemies.filter((e) => e.state !== 'dead').map((e) => ({ x: e.x, z: e.z, kind: e.kind })),
     }
-  }
-  return best
-}
-
-// Right at the altar itself — a rakshasa stops advancing once within its own REACH of the
-// fire (levels.ts's altar waypoint), so only a guard standing on top of it, not several metres
-// back, is ever close enough for an approaching rakshasa's own REACH check to redirect onto
-// the player instead of the fire (pass 3 phase G playtesting: a guard position even 1-3m back
-// never took a single hit across several full-length runs — the fire took every one instead).
-const GUARD_POS = { x: L5.waypoints.altar[0], z: L5.waypoints.altar[2] + 0.5 }
-
-async function recoverArrows(page: Page, prompt: ReturnType<Page['getByTestId']>) {
-  const pile = await nearestPile(page)
-  if (!pile) {
-    await page.waitForTimeout(400)
-    return
-  }
-  await steerTo(page, pile, () => prompt.isVisible().catch(() => false), 60)
-  if (await prompt.isVisible().catch(() => false)) await page.keyboard.press('e')
-  await steerTo(page, GUARD_POS, async () => {
-    const p = await player(page)
-    return Math.hypot(p.x - GUARD_POS.x, p.z - GUARD_POS.z) < 1
   })
+}
+
+const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z)
+
+/** Keys held right now. `hold` presses and releases only what changed since the last poll. */
+function keyboard(page: Page) {
+  const held = new Set<string>()
+  return async (want: readonly string[]) => {
+    for (const k of [...held]) {
+      if (!want.includes(k)) {
+        await page.keyboard.up(k)
+        held.delete(k)
+      }
+    }
+    for (const k of want) {
+      if (!held.has(k)) {
+        await page.keyboard.down(k)
+        held.add(k)
+      }
+    }
+  }
+}
+
+/** A turn key toward `target` when the heading is off by more than `tol`. */
+function turnKey(f: Fight, target: { x: number; z: number }, tol: number): string[] {
+  const err = headingError(f.p, target)
+  return Math.abs(err) > tol ? [err > 0 ? 'a' : 'd'] : []
+}
+
+interface Plan {
+  keys: string[]
+  slash: boolean
+  label: string
+}
+
+/** One poll of decisions, the way a player makes them. */
+function decide(f: Fight): Plan {
+  const maricha = f.enemies.find((e) => e.kind === 'maricha')
+  // Hold Q facing Maricha once he is close; letting go casts, so let go only charged and with him in the cone.
+  if (maricha && f.charges > 0 && dist(maricha, f.p) < ASTRA_DIST) {
+    const aimed = Math.abs(headingError(f.p, maricha)) <= CONE_TOL / 2
+    const release = aimed && f.charge >= BALANCE.astra.CHARGE_TICKS
+    return { keys: [...turnKey(f, maricha, CONE_TOL / 2), ...(release ? [] : ['q'])], slash: false, label: release ? 'cast' : 'charge' }
+  }
+  // Maricha only answers to the astra: the sword is for everyone else.
+  const foes = f.enemies.filter((e) => e.kind !== 'maricha')
+  const close = foes.filter((e) => dist(e, f.p) <= SLASH_DIST).sort((a, b) => dist(a, f.p) - dist(b, f.p))[0]
+  if (close) {
+    const keys = turnKey(f, close, CONE_TOL)
+    return { keys, slash: keys.length === 0, label: `slash ${close.kind}` }
+  }
+  const threat = [...foes, ...(maricha ? [maricha] : [])].sort((a, b) => dist(a, ALTAR) - dist(b, ALTAR))[0]
+  if (!threat) return { keys: [], slash: false, label: 'idle' }
+  const d = Math.max(dist(threat, ALTAR), 1e-3)
+  const post = { x: ALTAR.x + ((threat.x - ALTAR.x) / d) * GUARD_RADIUS, z: ALTAR.z + ((threat.z - ALTAR.z) / d) * GUARD_RADIUS }
+  if (dist(post, f.p) > 1.0) {
+    const walk = Math.abs(headingError(f.p, post)) < 1.2 ? ['w'] : []
+    return { keys: [...turnKey(f, post, WALK_TOL), ...walk], slash: false, label: 'walk' }
+  }
+  return { keys: turnKey(f, threat, CONE_TOL), slash: false, label: 'hold' }
 }
 
 test('Level 5 plays end to end: every rakshasa wave, then Subahu and Maricha', async ({ page }) => {
@@ -108,40 +132,23 @@ test('Level 5 plays end to end: every rakshasa wave, then Subahu and Maricha', a
   const intro = page.getByTestId('dialogue-text')
   await expect(intro).toContainText(DIALOGUE['l5.intro'].lines[0].slice(0, 20), { timeout: 120_000 })
   await skipSpeech(page, '')
-
-  await steerTo(page, GUARD_POS, async () => {
-    const p = await player(page)
-    return Math.hypot(p.x - GUARD_POS.x, p.z - GUARD_POS.z) < 0.6
-  })
-  await face(page, { x: 0, z: -1 })
+  // L5 unlocks both astras and selects Agneyastra first (game-state.ts unlockAstra); only Manava flings Maricha.
+  await page.keyboard.press('Digit2')
   await page.screenshot({ path: 'docs/screenshots/l5-guard-position.png' })
 
-  const arrowsStat = page.getByTestId('hud-arrows')
-  const prompt = page.getByTestId('hud-prompt')
+  const hold = keyboard(page)
   const resultTitle = page.getByTestId('result-title')
-
   const start = Date.now()
   const HARD_STOP_MS = 720_000
   while (Date.now() - start < HARD_STOP_MS) {
-    if (await resultTitle.isVisible().catch(() => false)) break
-
-    const arrowsLeft = Number((await arrowsStat.textContent()) ?? '0')
-    if (arrowsLeft === 0) {
-      await recoverArrows(page, prompt)
-      continue
-    }
-
-    const target = await nearestEnemy(page)
-    if (!target) {
-      await page.waitForTimeout(300)
-      continue
-    }
-    if (target.kind === 'maricha') {
-      await castAstraAt(page, { x: target.x, y: 0.9, z: target.z })
-    } else {
-      await fireAt(page, target)
-    }
+    const f = await fight(page)
+    if (f.phase !== 'play') break
+    const plan = decide(f)
+    await hold(plan.keys)
+    if (plan.slash) await page.keyboard.press('f')
+    if (plan.label === 'idle') await waitFrames(page, 1)
   }
+  await hold([])
 
   await page.screenshot({ path: 'docs/screenshots/l5-fight-end.png' })
   await expect(resultTitle).toHaveText(UI['result.win'], { timeout: 5_000 })

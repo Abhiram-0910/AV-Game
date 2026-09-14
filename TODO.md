@@ -38,6 +38,20 @@ system in DESIGN.md; before|after sheets `docs/screenshots/ui-royal-*.png`). Obs
   Coordinate with the rendering agent; the royal UI pass (src/ui only) did not touch it.
 - **`tests/unit/lint-boundary.test.ts` timed out once** in the full Vitest run at load average ~94 (four agents
   running). It passes alone (6/6). Not a code change; worth a longer timeout if it recurs.
+## Open after the L5 interception work (2026-09-14, Claude Code)
+
+SESSION-LOG 2026-09-14, "L5: interception, dead regen wired". Observed, not changed:
+- **A human has not played L5** with interception or regen. The bot's margins say nothing about a child on a trackpad.
+- **`play.ts` `face()` / `steerTo` cannot converge under SwiftShader.** A key held for any part of a slow frame turns the
+  whole frame (0.7–0.8 rad), so `face()` swings past its 0.5 rad tolerance and loops. It froze the first L5 rule-run
+  bot for ~1400 ticks and made the L3 regen-on bot fire nothing at Tataka (yaw 2.7 ↔ 4.5 through her whole fight):
+  the likeliest cause of the L3 "melee race" flake. `l5.spec.ts` now turns by holding A/D and watching the heading;
+  `play.ts` is shared and was left alone.
+- **The sword can kill Maricha.** `systems/combat-rules.ts` `checkMeleeHit` has no Maricha guard (arrows and
+  Agneyastra skip him), so 3 slashes (35 × 3 > 90) kill him, against the content rule "flung, never killed". Not in
+  this task's files; the L5 bot keeps the sword off him.
+- **Regen was dead code** (`player.REGEN_PER_TICK`, `REGEN_DELAY_TICKS`): now wired, lines in the SESSION-LOG entry.
+  Tataka's cadence (198 ticks) is under the 240-tick delay, so it does nothing during her fight.
 
 ## Open after the court defects pass (2026-09-14, Claude Code)
 
@@ -59,7 +73,8 @@ Glass, platform and stencil are done (SESSION-LOG 2026-09-14, "L1 court defects"
 - **Wall stencil** is less regular but still one 2.4 m tile; a second panel variant (a two-tile canvas, ~8 MB more on
   both tiers) is the next step if it still reads as repeated.
 - **Glass** has no coloured light on the floor (unchanged from the entry below).
-- **L3 e2e** still loses the melee race (below); L5 e2e is a known failure.
+- **L3 e2e** still loses the melee race (below). ~~L5 e2e is a known failure~~: winnable, the bot wins 2 of 3 (see
+  "WINNABLE — L5" below).
 
 
 ## Open after phases 4–6 (2026-09-14, Claude Code)
@@ -125,12 +140,25 @@ fix: 11 / 12.
 `syncLowTier()` deleted and the untracked `public/assets/low/` (49 MB) removed. `render/manifest.ts` still serves
 `high/` to both tiers; the KTX2 entry below still stands.
 
-## BROKEN — L5 e2e still loses (updated 2026-09-14, Claude Code)
+## WINNABLE — L5, not yet played by a human (2026-09-14, Claude Code)
 
-Still true after the playtest fixes. `l5.spec.ts` now shoots the way a player does: raw mouse coordinates, the arc's
-lock, and an immediate release when already locked (tests/e2e/play.ts). Three full-suite runs on the final aim code all
-ended "Try again". The spec now reports that instead of hanging on a gone crosshair. The four points below are still the
-next steps.
+Three changes, SESSION-LOG 2026-09-14 "L5: interception, dead regen wired":
+- **Interception:** a rakshasa turns on Rama when he is nearer to it than the fire and within `yajna.ENGAGE_RADIUS` 4 m.
+- **Player regen wired:** it was dead code.
+- **`subahu.ATTACK_COOLDOWN` 90 → 150.**
+
+The bot won 2 of 3 instrumented runs: Rama at 33 % and 15 % health, the yajna at 70 % and 58 %. Its first wins ever.
+The third run lost with Subahu at 15 / 120. The committed `l5.spec.ts` then passed once, in 1.9 min: the first full
+L5 e2e pass. `l5.spec.ts` still asserts the real win title, the ending and the codex
+count. Open:
+- **Play it by hand.** Is 2 of 3 with a thin health margin right for a Class 6–10 child? The bot is slower than a human
+  and aims better.
+- **The bot wins about two runs in three,** so a single e2e run of `l5.spec.ts` can fail on a correct build. Read the
+  failure before retrying (CLAUDE.md's L4 note on silent resets applies).
+- **Low-tier draw calls mid-fight are 104–106** (80 budget), down from 161.
+
+The four numbered points below are answered: 1 and 2 did not reproduce, and the cause was the bot's speed under
+SwiftShader. 3 is interception. 4 still stands.
 
 ## (history) BROKEN — L5 e2e still loses; L4 fixed (2026-09-13, Claude Code)
 
