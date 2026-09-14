@@ -1,6 +1,6 @@
-// Ayodhya's court from primitives and canvas textures: patterned marble floor, crimson carpet,
-// two-step dais, gold throne under a Surya disc, braziers, banners, gold column bands. Built as
-// plain meshes, then merged by material — about eight draw calls for the whole hall.
+// Ayodhya's court from primitives and canvas textures: marble and checkerboard floor, crimson carpet, two-step
+// dais, gold throne under a Surya disc, braziers, banners, and the columns and arch screens
+// (render/court-architecture.ts). Built as plain meshes, then merged by material.
 import {
   type BufferGeometry,
   BoxGeometry,
@@ -17,12 +17,14 @@ import {
   SphereGeometry,
 } from 'three'
 import { COURT } from '@data/scenery'
+import { courtArchitecture } from './court-architecture'
+import { colouredGlass, hangingLamps, torans } from './court-ornaments'
 import { disposeTree } from './dispose'
 import { flameGeometry } from './fire'
 import type { ResolvedTier } from './manifest'
 import { authoredMaterial as make } from './materials'
 import { mergeByMaterial } from './merge'
-import { bannerTexture, carpetTexture, flameTexture, friezeTexture, marbleTexture } from './procedural-textures'
+import { bannerTexture, carpetTexture, checkerTexture, flameTexture, friezeTexture, marbleTexture } from './procedural-textures'
 
 const P = COURT.palette
 const Y = COURT.floorY
@@ -45,14 +47,20 @@ function lift(m: Material, units: number): Material {
 }
 
 function courtMaterials(tier: ResolvedTier) {
-  const { floor, carpet } = COURT
+  const { floor, carpet, checker } = COURT
   const floorTex = marbleTexture(P)
   floorTex.repeat.set((floor.maxX - floor.minX) / floor.tileM, (floor.maxZ - floor.minZ) / floor.tileM)
+  const checkerTex = checkerTexture(P)
+  checkerTex.repeat.set((checker.maxX - checker.minX) / (checker.squareM * 2), (checker.maxZ - checker.minZ) / (checker.squareM * 2))
   const carpetTex = carpetTexture(P)
   carpetTex.repeat.set(1, (carpet.toZ - carpet.fromZ) / carpet.repeatM)
+  // Stacked floor layers, lowest first: polygon offset orders them over palace.glb's floor.
   return {
     floor: lift(make(tier, { map: floorTex, roughness: 0.5 }), -4),
-    carpet: lift(make(tier, { map: carpetTex, roughness: 0.95 }), -8),
+    checker: lift(make(tier, { map: checkerTex, roughness: 0.35 }), -6),
+    inlayGold: lift(make(tier, { color: P.gold, metalness: 1, roughness: 0.35 }), -7),
+    inlayRed: lift(make(tier, { color: P.crimson, roughness: 0.5 }), -8),
+    carpet: lift(make(tier, { map: carpetTex, roughness: 0.95 }), -10),
     marble: make(tier, { color: P.marble, roughness: 0.3 }),
     gold: make(tier, { color: P.gold, metalness: 1, roughness: 0.3 }),
     bronze: make(tier, { color: P.bronze, metalness: 0.6, roughness: 0.65 }),
@@ -72,13 +80,33 @@ function put(g: Group, geo: BufferGeometry, mat: Material, x: number, y: number,
   return m
 }
 
+const flat = (w: number, d: number) => new PlaneGeometry(w, d).rotateX(-Math.PI / 2)
+
+/** A rectangular ring `band` wide round a w × d rectangle centred at (x, z). */
+function frame(g: Group, mat: Material, x: number, z: number, w: number, d: number, band: number, y: number) {
+  for (const s of [-1, 1]) {
+    put(g, flat(w + band * 2, band), mat, x, y, z + s * (d / 2 + band / 2))
+    put(g, flat(band, d), mat, x + s * (w / 2 + band / 2), y, z)
+  }
+}
+
 function floorAndCarpet(g: Group, m: CourtMaterials) {
-  const { floor, carpet } = COURT
-  const w = floor.maxX - floor.minX
-  const d = floor.maxZ - floor.minZ
-  put(g, new PlaneGeometry(w, d).rotateX(-Math.PI / 2), m.floor, (floor.minX + floor.maxX) / 2, Y + 0.004, (floor.minZ + floor.maxZ) / 2)
+  const { floor: f, carpet, checker: c } = COURT
+  const [inner, band, outer] = c.border
+  const edge = inner + band + outer
+  // White marble round the checker field, not under it: the hole saves a layer of overdraw on the integrated GPU.
+  const hole = { minX: c.minX - edge, maxX: c.maxX + edge, minZ: c.minZ - edge, maxZ: c.maxZ + edge }
+  const slab = (x0: number, x1: number, z0: number, z1: number) => put(g, flat(x1 - x0, z1 - z0), m.floor, (x0 + x1) / 2, Y + 0.004, (z0 + z1) / 2)
+  slab(f.minX, hole.minX, f.minZ, f.maxZ)
+  slab(hole.maxX, f.maxX, f.minZ, f.maxZ)
+  slab(hole.minX, hole.maxX, f.minZ, hole.minZ)
+  slab(hole.minX, hole.maxX, hole.maxZ, f.maxZ)
+  const [cx, cz, cw, cd] = [(c.minX + c.maxX) / 2, (c.minZ + c.maxZ) / 2, c.maxX - c.minX, c.maxZ - c.minZ]
+  put(g, flat(cw, cd), m.checker, cx, Y + 0.006, cz)
+  frame(g, m.inlayGold, cx, cz, cw, cd, edge, Y + 0.007)
+  frame(g, m.inlayRed, cx, cz, cw + inner * 2, cd + inner * 2, band, Y + 0.008)
   const len = carpet.toZ - carpet.fromZ
-  put(g, new PlaneGeometry(carpet.width, len).rotateX(-Math.PI / 2), m.carpet, 0, Y + 0.012, (carpet.fromZ + carpet.toZ) / 2)
+  put(g, flat(carpet.width, len), m.carpet, 0, Y + 0.012, (carpet.fromZ + carpet.toZ) / 2)
 }
 
 /** Marble steps with a gold nosing on each front edge. Returns the top of the last step. */
@@ -159,13 +187,11 @@ function frieze(g: Group, m: CourtMaterials) {
   put(g, geo, m.frieze, 0, 0, 0)
 }
 
-function bannersAndBands(g: Group, m: CourtMaterials) {
+function banners(g: Group, m: CourtMaterials) {
   for (const [x, z] of COURT.banners) {
     put(g, new PlaneGeometry(0.95, 2.8), m.banner, x, 3.6, z + 0.22)
     put(g, new CylinderGeometry(0.025, 0.025, 1.15, 8), m.gold, x, 5.02, z + 0.22, Math.PI / 2)
   }
-  const { xs, zs, radius, ys } = COURT.columnBands
-  for (const x of xs) for (const z of zs) for (const y of ys) put(g, new CylinderGeometry(radius, radius, 0.1, 16), m.gold, x, y, z)
 }
 
 export function buildCourt(tier: ResolvedTier): Court {
@@ -175,9 +201,16 @@ export function buildCourt(tier: ResolvedTier): Court {
   throne(raw, m, dais(raw, m))
   backdrop(raw, m)
   const torches = braziers(raw, m)
-  bannersAndBands(raw, m)
+  banners(raw, m)
+  courtArchitecture(raw, tier)
+  if (tier === 'high') {
+    hangingLamps(raw, { brass: m.bronze, gold: m.gold, flame: m.flame })
+    colouredGlass(raw, m.gold, tier)
+  }
   frieze(raw, m)
   const group = mergeByMaterial(raw)
+  // Instanced after the merge: mergeByMaterial would flatten an InstancedMesh to its one base geometry.
+  if (tier === 'high') group.add(torans(tier))
   group.name = 'court-dressing'
   group.traverse((o) => {
     const mesh = o as Mesh
@@ -185,7 +218,8 @@ export function buildCourt(tier: ResolvedTier): Court {
     mesh.receiveShadow = true
     // Floor and carpet only receive; everything standing casts (high tier's shadow map only). The frieze
     // is dressing on palace.glb, which casts nothing, so it must not either.
-    mesh.castShadow = mesh.material !== m.floor && mesh.material !== m.carpet && mesh.material !== m.frieze
+    const mat = mesh.material as Material
+    mesh.castShadow = ![m.floor, m.checker, m.inlayGold, m.inlayRed, m.carpet, m.frieze].includes(mat) && !mat.userData.noShadow
   })
   return { group, torches, dispose: () => disposeTree(group) }
 }

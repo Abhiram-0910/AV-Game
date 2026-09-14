@@ -102,3 +102,17 @@ export function fibreTexture(base: string, dark: string, light: string, alongV: 
     }
   })
 }
+
+/** A pennant: saffron cloth with a gold hem along both long edges and a gold sleeve at the hoist (u 0). */
+export function pennantTexture(cloth: string, hem: string): CanvasTexture {
+  return clamped(
+    canvasTexture(128, (ctx, s) => {
+      ctx.fillStyle = cloth
+      ctx.fillRect(0, 0, s, s)
+      ctx.fillStyle = hem
+      ctx.fillRect(0, 0, s, s * 0.1)
+      ctx.fillRect(0, s * 0.9, s, s * 0.1)
+      ctx.fillRect(0, 0, s * 0.1, s)
+    }),
+  )
+}

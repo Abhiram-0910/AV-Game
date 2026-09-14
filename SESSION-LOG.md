@@ -2,6 +2,236 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — L1 reads as a Rajput court; GTAO on L1; ground and hills; L4 bales and pennants; display font
+
+Branch `feat/visual-grandeur`. Phases 4, 5 and 6 of `~/.claude/plans/read-session-log-md-todo-md-and-hidden-anchor.md`.
+Session plan: `~/.claude/plans/read-session-log-md-todo-md-claude-md-snuggly-pumpkin.md`. The visual target was the nine
+photographs in `docs/reference/palace-ref-*.jpg` (Jaipur City Palace, Mehrangarh, Bundi, Kumbhalgarh). Each step ended
+with a build, a restarted preview, shots on both tiers, and a look before the next step started.
+
+### 1. Palace measurement (the gate before any cut)
+- **What the mesh is.** palace.glb is one mesh with one material: 39,732 triangles, no textures, the source decimated to
+  0.12. Its column capitals and the chairs are collapsed ornament shells. That is geometry, so shading could not fix it.
+- **Clusters.** A node script parsed the glb at the StaticProp placement and clustered triangles in the shaft band
+  (y 1.5–3.0, vertical faces). It found 24 free-standing columns:
+  - two rows of ten at z 2.3 and 10.9, x −10.5 … 10.6
+  - two side columns at x −10.9 (z 4.8, 8.2)
+  - two side columns at x 10.35 (z 5.1, 8.4)
+- **Chairs.** Two rows of nine chairs sit just inside the rows (z 3.1–4.1 and 9.4–10.4, y < 0.85).
+- **The right side is really asymmetric.** The human asked whether the raised platform was pulling the right-hand
+  centroids inward. Each side column was measured again on three bands separately: the shaft (y 1.6–2.6), the base
+  (y 0.5–0.9) and the capital (y 2.7–3.1). The results were 10.35 / 10.345 / 10.35 on the right and −10.875 / −10.88 /
+  −10.875 on the left. The platform contaminates nothing, and the centres did not move.
+- **Cut rule.** The box/platform overlap was real, though. The rule changed from "centroid inside a box" to "all three
+  vertices inside one box":
+  - it cuts 13,703 triangles and spares 6
+  - two of the six are the platform's edge faces at x 10.02, y −0.01…0.42
+  - the rest are wide soffit faces crossing box edges
+  - up- or down-facing triangles below y 0.12 are floor and are never cut
+  - no column is left with stray triangles
+  - `palace-surface.test.ts` covers the rule
+- Overlays: `docs/screenshots/palace-measure-{top,elevation}.png`. The human approved the 2.3 m capital: the glb's own
+  capitals at 3.1 m left only 0.44 m under the 3.54 soffit for an arch.
+
+### 2–5. The court (both tiers)
+- **Shell repaint** (`render/palace-surface.ts`, `palace-textures.ts`):
+  - The shell is cut, zoned by face normal and box-projected in metres, into one geometry with material groups.
+  - **Walls:** a coral field under white floral stencil, a terracotta dado with a lozenge chain, a painted multifoil
+    niche with a flowering sprig, and a rosette band under the soffit.
+  - **Ceilings:** coffers with concentric ruled borders and a stencilled medallion.
+  - **Throne bay ceiling:** gold lattice and filigree on crimson with lapis rosettes (metalness mask on high).
+  - **Ledges:** sandstone.
+- **Floor.** White marble runs over the whole interior, with a checkerboard field of 0.6 m terracotta and white squares
+  between the rows, framed by gold and crimson. Screenshots: `vis-s3-*`.
+- **Columns and arches** (`render/court-architecture.ts`):
+  - Sandstone columns: plinth, lotus base, tapering shaft with bands, bell capital, abacus, four scroll brackets.
+  - 24 multifoil arch screens (9 lobes) with a cream bead, springing at 2.3 m.
+  - The banners moved onto the measured column centres.
+  - `merge.ts` now de-indexes a mixed bucket instead of dropping it, and warns if a merge still fails.
+  - Screenshots: `vis-s4-*`.
+- **Look (`balance`-free, `scenery.ts`).** The fill sky went from blue-grey #7c89a8 to warm #a0908c, with ground bounce
+  #6a3424: the blue fill had turned the white marble lilac. Exposure 0.72 → 0.76. The palace's old tint and pbr factors
+  went away with its material. Screenshots: `vis-s5-*`.
+
+### 6. Ornament, one at a time (high only) — what stayed and what was deleted
+- **Hanging lamps: kept** (`vis-s6a-l1*.png`). Five-wick diyas hang in eight back-row arches, with the arch over the
+  throne left clear. They read as lamps and cross nothing. The bowl was first bronze, which read as a black blob, and
+  is now gold.
+- **Coloured glass windows: kept** (`vis-s6b-l1-throne.png`).
+  - Two multifoil windows are on the back wall. palace.glb has no upper openings: a ray scan found two doorways and
+    low slots only.
+  - They show through the back-row arches from the throne approach. From spawn, banners partly hide them.
+  - The first pattern was random jewel cells, which read as a test pattern. It became an ordered ruby border with
+    amber and emerald rings and a sapphire centre. That change went in with the toran step, not on its own.
+- **Coloured light pools on the floor: deleted** (`vis-s6c-l1-glasspool.png`). The additive pool at 0.35 opacity did
+  not show on lit marble even from beside the window. A pool that cannot be seen is not worth its draw call.
+- **Marigold torans, front row: deleted** (`vis-s6c-l1.png`). At 2 m from the camera they hung across the whole spawn
+  view and through Rama's head.
+- **Marigold torans, back row: kept** (`vis-s6d-l1*.png`). One swag per arch with strands at the springings, a single
+  instanced draw.
+
+### 7. GTAO on L1 only
+- `LevelLook.ao` (L1) turns on GTAOPass in the composer after the RenderPass. It runs at half resolution, radius 1.6,
+  scale 1.4, 16 samples.
+- The wrapped `_overrideVisibility` hides transparent and additive meshes and pauses shadow-map updates during its
+  normal pass. The two materials that `GTAOPass.dispose` leaks are freed.
+- `?ao=0` turns it off. `bench-gpu.mjs --query` passes that parameter.
+- At radius 0.6 it did nothing visible (`vis-s7-*`). At 1.6 the difference is subtle contact shading under the columns,
+  the dais steps and the arch soffits (`gpu-s7ao-l1-throne.png` vs `gpu-s7noao-l1-throne.png`).
+- **Cost on the RTX 4050, 1536×864 at DPR 1.25:**
+
+  | L1 view | GTAO | fps | p50 / p95 / p99 ms | tris per frame | calls |
+  |---|---|---|---|---|---|
+  | spawn | on | 144 | 6.9 / 7.1 / 7.3 | 409,962 | 159 |
+  | spawn | `?ao=0` | 144 | 6.9 / 7.1 / 7.2 | 255,116 | 105 |
+  | throne | on | 144 | 6.9 / 7.1 / 7.3 | 409,962 | 159 |
+  | throne | `?ao=0` | 144 | 6.9 / 7.1 / 7.1 | 255,116 | 105 |
+
+- **What the table shows.** GTAO's normal pass re-renders the scene: +154,846 triangles and +54 calls in the overlay.
+  The frame still holds the 144 Hz display floor, so this metric (delivered frame interval) cannot resolve its time.
+  Full resolution was not measured.
+
+### 8. Display font
+- Yatra One (`public/fonts/YatraOne-Regular.ttf`, SIL OFL 1.1, with `public/fonts/OFL.txt` carrying the copyright line
+  from the font's name table) is loaded by `@font-face` into `--font-display`.
+- That variable already covered the screen titles, buttons, settings and codex headings, the dialogue speaker, boss
+  names and the astra title. `.btn-choice` (quiz answers, codex titles, settings options) stays on the body font.
+- `font-synthesis-weight: none` stops faux bold.
+- Electron's MIME table gains `.ttf`.
+- Checked: `document.fonts.check` true; `ui-s7-title.png`, `ui-s7-settings.png`.
+- The HUD was not restyled.
+
+### 9. Ground and hills (high)
+- **Ground normal map.** GroundPlane gets a normal map from its own dapple canvas. At strength 3 the lawn read as
+  bubble wrap (`gpu-s9-l2-spawn.png`), so it went down to 1.2 (`gpu-s9b-*`).
+- **Hill ring** (`render/hill-ring.ts`, `WILDS.l2/l4.hills`):
+  - 72 segments × 4 rows, 432 triangles, 1 call.
+  - Unlit and unfogged, with haze in the vertex colours.
+  - Follows the camera at 84–108 m, so it never passes FAR 120.
+  - At ridge heights 12–26 m it read as a wall (`gpu-s9-l4-line.png`), so they went down to 9–18
+    (`gpu-s9b-l4-line.png`).
+  - It reads on L4 above the tree line. On L2 the forest hides it from the bank and spawn views.
+
+### 10. L4 bales and pennants (the one attempt)
+- **Bales.** Every backstop is now two courses of rounded straw bales (0.9 × 0.42 × 0.5 m at target scale), each one
+  nudged and turned, the upper course staggered. Every bale shows its own twine bands. Stakes and the plank rail are
+  gone.
+  - Before and after: `gpu-after10-l4-line.png` / `gpu-s10-l4-line.png`. Verdict: they read as stacked bales, not
+    fence panels.
+- **Pennants.** The flat 0.55 × 0.34 plane became a triangular saffron pennant with a gold hem and sleeve, sagging and
+  rippling, on a 2.2 m bamboo pole with node rings.
+  - Verdict (`vis-s10-l4-flags.png`): they read as pennants, not orange rectangles, so they stay.
+  - From the firing-line view they are just off screen.
+
+### Budget: shoot-levels, SwiftShader 1280×720, both tiers, all five levels
+
+| level | tier | after10 tris / calls / skinned | after11 tris / calls / skinned | why |
+|---|---|---|---|---|
+| L1 | high | 177,642 / 91 / 4 | 409,962 / 159 / 4 | GTAO normal pass included; scene alone (`?ao=0`) 255,116 / 105 |
+| L2 | high | 921,303 / 106 / 3 | 921,735 / 107 / 3 | hill ring +432 / +1 |
+| L3 | high | 872,610 / 118 / 4 | 872,610 / 118 / 4 | |
+| L4 | high | 698,779 / 115 / 3 | 709,131 / 118 / 3 | hills, bales, pennants |
+| L5 | high | 147,336 / 119 / 3 | 147,336 / 119 / 3 | |
+| L1 | low | 80,024 / 44 / 4 | 84,938 / 53 / 4 | see below |
+| L2 | low | 28,936 / 32 / 3 | 28,936 / 32 / 3 | |
+| L3 | low | 77,371 / 53 / 4 | 77,371 / 53 / 4 | |
+| L4 | low | 31,275 / 36 / 3 | 31,275 / 36 / 3 | |
+| L5 | low | 48,415 / 55 / 3 | 48,415 / 55 / 3 | |
+
+**L1 per step:**
+- **Low tier:**
+  - repaint and cut: 66,321 / 47 (−13.7k tris, +3 zone calls)
+  - checker: +18 tris / +3 calls
+  - columns and arches: +18,944 / +3
+  - the invisible glb floor zone and the marble holed under the checker: −345 tris / 0
+  - Low stays inside 120k / 80 / 12.
+- **High tier (scene without GTAO):**
+  - lamps: +11,072 / 0
+  - glass: +372 / +2, one of which was the pool, later deleted
+  - back-row torans: +29,116 / +1
+  - The front-row torans added a further 29k and were deleted.
+
+### Frame times: RTX 4050, all levels at final settings (`bench-gpu.mjs`, 1536×864 at DPR 1.25, high)
+
+| level | view | fps | p50 / p95 / p99 ms | tris | calls |
+|---|---|---|---|---|---|
+| L1 | spawn | 144 | 6.9 / 7.1 / 7.3 | 409,962 | 159 |
+| L1 | throne | 144 | 6.9 / 7.1 / 7.3 | 409,962 | 159 |
+| L2 | spawn | 144 | 6.9 / 7.1 / 7.2 | 921,735 | 107 |
+| L2 | bank | 144 | 6.9 / 7.1 / 7.2 | 945,185 | 126 |
+| L2 | east | 143 | 6.9 / 7.1 / 7.2 | 824,737 | 110 |
+| L2 | river | 144 | 6.9 / 7.2 / 7.3 | 926,080 | 108 |
+| L3 | spawn | 144 | 6.9 / 7.2 / 7.3 | 872,610 | 118 |
+| L3 | clearing | 144 | 6.9 / 7.1 / 7.2 | 863,288 | 115 |
+| L3 | wood | 144 | 6.9 / 7.1 / 7.3 | 853,614 | 110 |
+| L4 | spawn | 144 | 6.9 / 7.2 / 7.3 | 709,131 | 118 |
+| L4 | line | 144 | 6.9 / 7.2 / 7.4 | 730,594 | 130 |
+| L4 | trees | 144 | 6.9 / 7.2 / 7.4 | 715,060 | 110 |
+| L5 | spawn | 143 | 6.9 / 7.1 / 7.3 | 169,676 | 147 |
+| L5 | altar | 144 | 6.9 / 7.1 / 7.2 | 185,952 | 179 |
+
+All levels hold a locked 144 fps under the ~1.1M high ceiling. The L1 rows were re-run after the final low-tier
+overdraw fix (which removed 690 triangles); the other levels' rows are from the run just before it, which touched only
+L1.
+
+### Low tier on the Intel UHD (the regression check that caught one)
+Same session, same harness, `--gpu igpu --tier low --levels l1`. The baseline is commit 4a3ea76 built in a scratch
+worktree and served on the same port.
+
+| build | spawn fps, p50 / p95 ms | throne fps, p50 / p95 ms |
+|---|---|---|
+| baseline 4a3ea76 | 91, 13.6 / 20.7 | 97, 7.1 / 14.2 |
+| after the court, first run | 77, 13.7 / 27.8 | 89, 13.7 / 20.8 |
+| after the court, second run | 86, 13.8 / 20.5 | 92, 13.7 / 14.1 |
+| **final** (run 1 / run 2) | **94 / 92, 7.3–13.7 / 14.1–14.2** | **102 / 101, 7.1 / 14.0–14.1** |
+
+- **The regression.** The first after-build was 5–15 % slower on the UHD. Cause: full-screen overdraw on a fill-bound
+  iGPU. palace.glb's own floor was still drawn under the court floor, and the marble was drawn under the checker.
+- **The fix.** The glb floor became an invisible material group, which the ground raycast still hits (three tests
+  group visibility only for rendering), and the marble got a hole where the checker lies.
+- **Result.** The final build matches or beats the baseline.
+- **Note.** The 127–138 fps logged for L1 low earlier today was not reproduced on the same baseline commit in this
+  session (91–97). Compare within a session.
+
+### Verification
+- `tsc -b` and ESLint: clean.
+- Vitest: 136 passed, 1 skipped. The new `palace-surface.test.ts` covers:
+  - cut when all vertices are inside a box; the edge-crossing face and the floor are kept
+  - zoning by face normal and the gilded box
+  - UVs in metres
+- `npm run build` and a restarted preview before every shot and bench.
+- E2E, all six specs, `--workers=1`, 23.0 min, on the final build with the `steerTo` fix:
+
+  | spec | result |
+  |---|---|
+  | `archery-mouse.spec.ts` | pass |
+  | `l1.spec.ts` | pass (it also passed alone, 3.2 min) |
+  | `l2.spec.ts` | pass |
+  | `l3.spec.ts` | **fail**: "Try again" after hitting Tataka down to 30. The same spec also fails on baseline 4a3ea76 (see below) |
+  | `l4.spec.ts` | pass |
+  | `l5.spec.ts` | **fail, as expected**: "Try again" at `l5.spec.ts:147`; spec untouched |
+
+### E2E: what failed on the final build, and why
+- First full run: archery-mouse, L2 and L4 passed. L1, L3 and L5 failed. L5 is the expected failure (it timed out
+  mid-fight after 20.4 min; spec untouched).
+- **L3 is not this work's.** On its own it failed again. The baseline commit 4a3ea76, built in a scratch worktree and
+  run with the same spec, also failed L3 ("Try again" after hitting Tataka down to 15 health). L3's low-tier code path
+  is unchanged by this session. It stays the melee-race flake already in TODO.
+- **L1 was caused by this work, through a knife-edge in the spec helper.** The baseline passed L1 (3.1 min) and the
+  final build failed at `l1.spec.ts:69` both in the suite and alone.
+  - A traced probe replayed the approach on both builds. It showed identical positions (z 8.79 → 6.96 → 5.13 per
+    poll): one traced SwiftShader poll carries the bot 1.83 m with W held, wider than the 1.6 m arrival circle.
+  - Whether a poll lands inside was pure sampling phase. The new court makes a traced `evaluate` 10–20 % slower
+    (10.0 against 10.5–11.5 fps under tracing), which moved the samples out of the circle.
+  - Untraced, the two builds pace the same (frame p50 133 against 117–133 ms).
+  - **Fix, in the shared helper rather than the spec:** `steerTo` walks in taps once it is within twice its longest
+    observed step (+1 m) of the target, so no poll can step over an arrival circle.
+
+### Found along the way
+- rtk runs `grep` through ripgrep. An unescaped `{` errors, and in an `&&` chain it skipped the `pkill` after it, so a
+  stale preview kept port 4173 once. `pkill -f "vite preview"` inside a command that also starts `vite preview` kills
+  its own shell (exit 143/144). Both are now CLAUDE.md gotchas.
+
 ## 2026-09-14 — Claude Code (Opus 5) — The 4050 ran the low tier; the high budget measured on the real GPU
 
 Branch `feat/visual-grandeur`. The human played the build after the 09-13 dressing and saw fewer props and flatter

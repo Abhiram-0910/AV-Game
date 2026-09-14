@@ -1,14 +1,25 @@
 # TODO
 
-## Deferred from the 2026-09-14 visual plan (Claude Code)
+## Open after phases 4–6 (2026-09-14, Claude Code)
 
-Agreed with the human: this session did the tier fix, the measured budget, L2–L4 density, MSAA and trunks. Still to do, in
-the plan at `~/.claude/plans/read-session-log-md-todo-md-and-hidden-anchor.md`:
-- **Phase 4, L1 reads as Ayodhya.** palace.glb is one untextured material. Box-projected UVs after `mergeByMaterial`,
-  vertex-colour zoning, a sandstone normal map, garlands/lamps/canopy/brackets, GTAO on L1 only. Before shots:
-  `vis-before10-l1.png` and `gpu-before10-l1-spawn.png`.
-- **Phase 5 (rest):** ground normal map, a hill ring on L2/L4.
-- **Phase 6:** L4 bales still read as fence panels and the flags as orange rectangles. Fix or remove.
+Phases 4, 5 and 6 are done (SESSION-LOG 2026-09-14, "L1 reads as a Rajput court"). What is still open, observed but not
+changed:
+- **A human has not yet judged L1 against the reference photographs.** From spawn, the front-row columns stand 2 m from
+  the camera and fill a third of the frame, and the arch screens frame the throne tightly. That may read as grand or
+  as cramped.
+- **The right-side platform (x 5.9–10, z 2.9–10.5) is kept from palace.glb** and still carries crumpled ornament shells
+  (the steps and the object near (9.5, 6.75)). They are visible on the right of the spawn view. Cutting them needs its
+  own measured boxes and gate.
+- **GTAO is subtle** at radius 1.6. Its frame cost could not be resolved on the 4050 because the 144 Hz display caps the
+  metric, and full-resolution AO was not measured. A GPU timer query, or a 60 Hz run with vsync off, would give the
+  real cost.
+- **Coloured light on the floor from the glass.** Additive pools were invisible on lit marble and were deleted. A real
+  attempt needs the key light through the window (a projected gobo or a spotlight with a colour map), not a decal.
+- **L2's hill ring is mostly hidden** by the forest from the bank and spawn views. It reads on L4.
+- **The waypoint beam** still runs up through the back-row arch and the frieze from the L1 entrance.
+- **L3 e2e loses the melee race again.** It failed in three runs on 2026-09-14: in the suite, alone, and on baseline
+  4a3ea76 with the same spec, reaching Tataka 150 → 15 at best. L3's code did not change. It passed in the previous
+  session's final suite, so it is timing-dependent. It needs the TODO's melee-pacing work, not a spec loosening.
 - The Electron `force_high_performance_gpu` switch is not yet confirmed on Windows (`[gpu]` log line).
 
 ## Playtest follow-ups (2026-09-13, Claude Code)

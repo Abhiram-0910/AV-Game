@@ -81,14 +81,22 @@ export async function face(page: Page, target: { x: number; z: number }) {
 
 /** Face the target, then walk toward it, re-facing if the heading drifts, until `arrived`. */
 export async function steerTo(page: Page, target: { x: number; z: number }, arrived: () => Promise<boolean>, maxSteps = 300): Promise<boolean> {
+  let last: { x: number; z: number } | null = null
+  let longestStep = 0
   for (let i = 0; i < maxSteps; i += 1) {
     if (await arrived()) break
-    if (Math.abs(headingError(await player(page), target)) > 0.6) {
+    const p = await player(page)
+    if (last) longestStep = Math.max(longestStep, Math.hypot(p.x - last.x, p.z - last.z))
+    last = p
+    if (Math.abs(headingError(p, target)) > 0.6) {
       await page.keyboard.up('w')
       await face(page, target)
     }
     await page.keyboard.down('w')
     await page.waitForTimeout(SETTLE_MS)
+    // A traced SwiftShader poll can carry the bot ~1.8 m with W held, wider than an arrival circle, so whether it lands
+    // inside came down to timing (L1's approach, 2026-09-14). Near the target, walk in taps: W is up while polling.
+    if (Math.hypot(target.x - p.x, target.z - p.z) < longestStep * 2 + 1) await page.keyboard.up('w')
   }
   await page.keyboard.up('w')
   return arrived()

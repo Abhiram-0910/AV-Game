@@ -9,10 +9,11 @@ export function seeded(seed: number): () => number {
   return () => (s = (s * 16807) % 2147483647) / 2147483647
 }
 
-export function canvasTexture(size: number, paint: (ctx: CanvasRenderingContext2D, size: number) => void): CanvasTexture {
+export function canvasTexture(size: number, paint: (ctx: CanvasRenderingContext2D, width: number, height: number) => void, height = size): CanvasTexture {
   const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = size
-  paint(canvas.getContext('2d')!, size)
+  canvas.width = size
+  canvas.height = height
+  paint(canvas.getContext('2d')!, size, height)
   const texture = new CanvasTexture(canvas)
   texture.wrapS = texture.wrapT = RepeatWrapping
   texture.colorSpace = SRGBColorSpace
@@ -84,37 +85,59 @@ export interface CourtColors {
   marble: string
   vein: string
   inlay: string
+  checkRed: string
+  joint: string
 }
 
-/** Cream marble tiles with thin veining, dark grout and a crimson-and-gold inlay at each corner. */
+function veins(ctx: CanvasRenderingContext2D, rand: () => number, size: number, colour: string, count: number): void {
+  ctx.strokeStyle = colour
+  for (let i = 0; i < count; i += 1) {
+    ctx.globalAlpha = 0.08 + rand() * 0.18
+    ctx.lineWidth = 0.6 + rand() * 1.6
+    ctx.beginPath()
+    const x = rand() * size
+    const y = rand() * size
+    ctx.moveTo(x, y)
+    ctx.bezierCurveTo(x + rand() * 120 - 60, y + rand() * 120 - 60, x + rand() * 160 - 80, y + rand() * 160 - 80, x + rand() * 200 - 100, y + rand() * 200 - 100)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 1
+}
+
+/** White marble, 2 × 2 tiles a repeat, veined, with thin terracotta joints. */
 export function marbleTexture(c: CourtColors): CanvasTexture {
   const rand = seeded(11)
   return canvasTexture(512, (ctx, size) => {
-    const tile = size / 2
     ctx.fillStyle = c.marble
     ctx.fillRect(0, 0, size, size)
-    ctx.strokeStyle = c.vein
-    for (let i = 0; i < 60; i += 1) {
-      ctx.globalAlpha = 0.08 + rand() * 0.18
-      ctx.lineWidth = 0.6 + rand() * 1.6
-      ctx.beginPath()
-      const x = rand() * size
-      const y = rand() * size
-      ctx.moveTo(x, y)
-      ctx.bezierCurveTo(x + rand() * 120 - 60, y + rand() * 120 - 60, x + rand() * 160 - 80, y + rand() * 160 - 80, x + rand() * 200 - 100, y + rand() * 200 - 100)
-      ctx.stroke()
+    veins(ctx, rand, size, c.vein, 60)
+    ctx.fillStyle = c.joint
+    for (let k = 0; k <= size; k += size / 2) {
+      ctx.fillRect(k - 1.5, 0, 3, size)
+      ctx.fillRect(0, k - 1.5, size, 3)
+    }
+  })
+}
+
+/** Checkerboard marble, 2 × 2 squares a repeat: terracotta and white, each veined, hairline joints. */
+export function checkerTexture(c: CourtColors): CanvasTexture {
+  const rand = seeded(13)
+  return canvasTexture(512, (ctx, size) => {
+    const sq = size / 2
+    for (let i = 0; i < 2; i += 1)
+      for (let j = 0; j < 2; j += 1) {
+        ctx.fillStyle = (i + j) % 2 ? c.checkRed : c.marble
+        ctx.fillRect(i * sq, j * sq, sq, sq)
+      }
+    veins(ctx, rand, size, c.vein, 50)
+    veins(ctx, rand, size, '#ffffff', 25)
+    ctx.fillStyle = c.inlay
+    ctx.globalAlpha = 0.5
+    for (let k = 0; k <= size; k += sq) {
+      ctx.fillRect(k - 1, 0, 2, size)
+      ctx.fillRect(0, k - 1, size, 2)
     }
     ctx.globalAlpha = 1
-    ctx.fillStyle = c.inlay
-    for (let k = 0; k <= size; k += tile) {
-      ctx.fillRect(k - 2, 0, 4, size)
-      ctx.fillRect(0, k - 2, size, 4)
-    }
-    for (let x = 0; x <= size; x += tile)
-      for (let y = 0; y <= size; y += tile) {
-        diamond(ctx, x, y, 22, c.gold)
-        diamond(ctx, x, y, 14, c.crimson)
-      }
   })
 }
 

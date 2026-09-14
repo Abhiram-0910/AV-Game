@@ -78,6 +78,8 @@ export interface Placement {
   pbr?: { roughness: number; metalness: number }
   /** tree.glb without its leaves: the bark primitive is trunk and branches, a dead tree. */
   bare?: boolean
+  /** 'palace': cut the collapsed columns and chairs and repaint the shell by zone (render/palace-surface.ts). */
+  surface?: 'palace'
 }
 
 export interface NpcPlacement {
@@ -116,6 +118,9 @@ export interface LevelLook {
   sky: { zenith: string; horizon: string }
   /** Linear fog in metres. `far` stays under BALANCE.camera.FAR (120) so the ground's clipped edge is fully fogged. */
   fog: { near: number; far: number }
+  /** High tier: ground-truth ambient occlusion (render/PostProcessing.tsx). Interiors only: its normal pass ignores
+   * alphaTest, so outdoor leaf cards would occlude as solid quads. */
+  ao?: boolean
 }
 
 type XZ = readonly [number, number]
@@ -134,9 +139,47 @@ export const COURT = {
     bronze: '#8a5a2c',
     flame: '#ff7a1a',
     flameCore: '#ffd07a',
+    // Rajput court interiors: coral plaster fields, terracotta dados, white stencil, sandstone, lapis.
+    coral: '#d27a5e',
+    terracotta: '#a4492f',
+    stencil: '#f4e9d8',
+    sandstone: '#d8c4ae',
+    lapis: '#2a4a86',
+    checkRed: '#a24a2c',
+    joint: '#b0664c',
+  },
+  /** palace.glb's 24 free-standing columns (x, z), measured from the glb at its placement (SESSION-LOG 2026-09-14,
+   * docs/screenshots/palace-measure-*.png): two rows of ten and two at each side. The model is asymmetric: the side
+   * columns stand at x −10.9 and 10.35, confirmed on the shaft, base and capital bands separately. */
+  columns: [
+    [-10.5, 2.3], [-8.1, 2.3], [-5.8, 2.3], [-3.45, 2.3], [-1.1, 2.3], [1.2, 2.3], [3.55, 2.3], [5.9, 2.3], [8.2, 2.3], [10.6, 2.3],
+    [-10.5, 10.9], [-8.1, 10.9], [-5.8, 10.9], [-3.45, 10.9], [-1.1, 10.9], [1.2, 10.9], [3.55, 10.9], [5.9, 10.9], [8.2, 10.9], [10.6, 10.9],
+    [-10.9, 4.8], [-10.9, 8.2], [10.35, 5.1], [10.35, 8.4],
+  ] as readonly XZ[],
+  /** Cut from the shell round each column (the collapsed lotus base, shaft and capital; the beam at 3.54 stays), and
+   * the two rows of collapsed chairs. A triangle goes only when all three vertices are inside one box, which spares
+   * the right-side platform's faces and the beam soffit; floor triangles always stay. */
+  columnCut: { halfX: 0.45, halfZ: 0.5, y: [0.08, 3.56] },
+  chairCuts: [
+    { min: [-7.75, 0.08, 3.0], max: [3.5, 0.92, 4.2] },
+    { min: [-7.75, 0.08, 9.3], max: [3.5, 0.92, 10.5] },
+  ],
+  /** Shell repaint: one wall tile is wallTileM wide and floor-to-soffit tall; coffers and stone tile at tileM. The
+   * gilded box is the ceiling over the throne bay, behind the back row. */
+  surface: {
+    floorGuardY: 0.12,
+    wallFloorY: 0.1,
+    wallTileM: 2.4,
+    wallTileH: 3.44,
+    tileM: 2.35,
+    gilded: { min: [-3.5, 3.0, -2.2], max: [3.6, 4.6, 2.3] },
   },
   floorY: 0.1,
-  floor: { minX: -7.4, maxX: 7.4, minZ: -1.7, maxZ: 14.9, tileM: 2.4 },
+  /** The whole interior (inner walls at x −14.7 / 13.6, z −1.8 / 14.96): white marble in 1.2 m tiles. */
+  floor: { minX: -14.6, maxX: 13.5, minZ: -1.75, maxZ: 14.96, tileM: 2.4 },
+  /** Checkerboard marble in the central bay between the column rows (z 2.3 / 10.9), 0.6 m squares, framed by a
+   * gold rule, a crimson band and a gold rule (`border`: widths from the field outward). */
+  checker: { minX: -4.8, maxX: 4.8, minZ: 3.0, maxZ: 10.2, squareM: 0.6, border: [0.04, 0.2, 0.04] },
   carpet: { width: 1.5, fromZ: 1.4, toZ: 14.9, repeatM: 1.5 },
   /** Two marble steps (width, depth, rise) under the throne, centred at z. */
   dais: { z: 0.2, steps: [[4.2, 3.0, 0.16], [2.8, 2.0, 0.16]] as const },
@@ -145,11 +188,24 @@ export const COURT = {
   throne: { z: 0.2, seatW: 1.1, seatD: 0.7, seatH: 0.46, backH: 1.7, discY: 2.55, discR: 0.8 },
   /** Braziers: bronze stand, gold bowl, emissive flame; a warm point light each on high only. */
   braziers: [[-1.95, 5.6], [1.95, 5.6], [-1.95, 9.2], [1.95, 9.2], [-2.7, 1.0], [2.7, 1.0]] as readonly XZ[],
+  /** High tier: brass diyas hung from the apex of these back-row arches (indices into arches.spans; the central arch
+   * framing the throne stays clear). Chain from hangY to the bowl at bowlY; wick flames [radius, height]. */
+  lamps: { spans: [0, 1, 2, 3, 5, 6, 7, 8], hangY: 3.34, bowlY: 2.8, wicks: 5, flame: [0.028, 0.09] },
+  /** High tier: coloured-glass multifoil windows on the back wall (z −1.72, as the backdrop), centred on the arch
+   * openings between columns 5.9 and 8.2 so the throne view sees them through the back row; palace.glb has no upper
+   * openings that frame (its back wall has two doorways, one behind a banner, and slots below eye height). Sill,
+   * springing, half-width and rise in metres. An additive pool of their colours on the floor was tried and deleted:
+   * at 0.35 opacity it did not show on lit marble even from beside the window. */
+  glass: { xs: [-7.05, 7.05], z: -1.71, sill: 1.5, spring: 2.35, half: 0.42, rise: 0.48, lobes: 7, emissive: 1.6 },
+  /** High tier: marigold torans swagged across the entrance-facing side of the back row's arches (indices into
+   * arches.spans), springing to springing, drooping `droop` m, a strand of `strand` flowers at each end. The front row
+   * had them too and was deleted: at 2 m they hung across the spawn camera's view and through Rama's head. */
+  torans: { spans: [0, 1, 2, 3, 4, 5, 6, 7, 8], radius: 0.04, droop: 0.32, strand: 6, colours: ['#f28a14', '#f7b21c', '#e8621a', '#f7c52e'] },
   /** Lights the floor round each stand, not the hall: short range, and a flame whose emissive stays under
    * ACES' white point (6 blew the old cones out to white). */
   torch: { color: '#ff9a48', intensity: 1.8, distance: 3.8, decay: 2, flameEmissive: 1.8, flickerHz: 7, flickerAmount: 0.18, flame: { radius: 0.13, height: 0.42 } },
   /** Banners on column faces toward the entrance: x, z of the column, hung from y 2.2 to 5. */
-  banners: [[-3.5, 2.0], [3.5, 2.0], [-5.85, 2.0], [5.85, 2.0], [-3.5, 10.75], [3.5, 10.75]] as readonly XZ[],
+  banners: [[-3.45, 2.3], [3.55, 2.3], [-5.8, 2.3], [5.9, 2.3], [-3.45, 10.9], [3.55, 10.9]] as readonly XZ[],
   /** Painted frieze over palace.glb's architrave: the apse-shaped beam above the back columns, whose bare
    * face (y 3.54–4.18) lit head-on by the key was the flat beige band across the top of every court frame.
    * Points are the raycast face (x, z) pushed ~4 cm toward the hall; `repeatM` is one lotus per tile. */
@@ -158,8 +214,36 @@ export const COURT = {
     repeatM: 0.6,
     path: [[-9.55, 3.75], [-8.05, 2.97], [-6.5, 2.79], [-5, 2.78], [-3.5, 2.77], [-2, 2.74], [-0.5, 2.71], [1, 2.73], [2.5, 2.76], [4, 2.78], [5.5, 2.79], [7.05, 2.9], [8.55, 3.3], [9.7, 4.6]] as readonly XZ[],
   },
-  /** Gold bands round the inner column shafts (radius, heights). */
-  columnBands: { xs: [-3.5, -1.17, 1.17, 3.5], zs: [2.0, 10.75], radius: 0.2, ys: [1.1, 3.0] },
+  /** Procedural sandstone column (render/court-architecture.ts), heights absolute (floor at 0.1): plinth [width,
+   * height]; base and capital lathe profiles [radius, y]; shaft [bottom radius, top radius, y0, y1]; band heights;
+   * abacus [width, height, bottom y]; scroll brackets under it [from, reach, drop]. The capital tops out at the arch
+   * springing, 2.3 m: palace.glb's own capitals at 3.1 left only 0.44 m for an arch under the 3.54 soffit. */
+  column: {
+    plinth: [0.6, 0.3],
+    base: [[0.001, 0.4], [0.26, 0.4], [0.26, 0.46], [0.21, 0.52], [0.23, 0.58], [0.17, 0.66], [0.17, 0.68]],
+    shaft: [0.17, 0.145, 0.68, 1.98],
+    bands: [0.78, 1.36],
+    capital: [[0.145, 1.98], [0.2, 2.02], [0.235, 2.09], [0.2, 2.15], [0.27, 2.2], [0.27, 2.24], [0.001, 2.24]],
+    abacus: [0.52, 0.07, 2.24],
+    bracket: [0.14, 0.44, 0.3],
+    segments: { high: 16, low: 8 },
+  },
+  /** Multifoil arch screens between neighbouring columns (indices into `columns`): wall from the springing into the
+   * soffit (3.54, 2 cm overlap), the arch starting `inset` from each column centre. `bead`: cream edging width. */
+  arches: {
+    spring: 2.3,
+    top: 3.56,
+    rise: 0.95,
+    lobes: 9,
+    depth: 0.32,
+    inset: 0.24,
+    bead: 0.05,
+    spans: [
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9],
+      [10, 11], [11, 12], [12, 13], [13, 14], [14, 15], [15, 16], [16, 17], [17, 18], [18, 19],
+      [0, 20], [20, 21], [21, 10], [9, 22], [22, 23], [23, 19],
+    ],
+  },
 } as const
 
 /** Level 5's sacred enclosure round the altar at the origin (render/yajna-dressing.ts, entities/YajnaDressing.tsx):
@@ -225,6 +309,9 @@ export interface Wilds {
   /** Horizontal mist sheets at these heights over `size` metres round the play area, drifting. */
   mist?: { color: string; opacity: number; heights: readonly number[]; size: number; drift: number }
   /** When Tataka falls the curse lifts over `seconds`: mist burns off, fog and sky warm, a gold sun comes up. */
+  /** A ring of hills that follows the camera beyond the forest (render/hill-ring.ts): foot radius and ridge heights in
+   * metres, base colour, and how far it is mixed toward the sky's horizon colour at the foot and at the crest. */
+  hills?: { radius: number; height: Span; color: string; haze: Span; segments: number }
   curseLift?: { seconds: number; fog: string; sky: { zenith: string; horizon: string }; exposure: number; sun: { color: string; intensity: number; dir: Vec3 } }
 }
 
@@ -246,6 +333,7 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
     shrubs: { count: 520, scale: [0.6, 1.4], colors: ['#ffffff', '#d0e0a8', '#b8cc88', '#e0ecc0'] },
     grass: { count: 3600, height: [0.35, 0.75], colors: ['#b4cc78', '#a0bc66', '#c4d888', '#94b25e'] },
     water: { minX: -46, maxX: -14.5, minZ: -140, maxZ: 70, color: '#6aa6a2', bank: '#a89468', bankWidth: 3, reeds: 160, flow: 0.035 },
+    hills: { radius: 84, height: [9, 18], color: '#4f6e4c', haze: [0.45, 0.62], segments: 72 },
   },
   l3: {
     seed: 3,
@@ -276,6 +364,7 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
     rocks: { count: 45, scale: [1.2, 3], colors: ['#ffffff', '#dedad0'] },
     shrubs: { count: 260, scale: [0.6, 1.3], colors: ['#ffffff', '#d8e6b0', '#c0d496'] },
     grass: { count: 2200, height: [0.3, 0.65], colors: ['#86a84c', '#739a44', '#98b45a'] },
+    hills: { radius: 84, height: [9, 18], color: '#4f6e4c', haze: [0.45, 0.62], segments: 72 },
   },
 }
 
@@ -297,16 +386,24 @@ export const RANGE = {
     stone: '#8a857a',
     earth: '#85674a',
     saffron: '#ff8c1a',
+    gold: '#e2b040',
+    bamboo: '#b8a062',
     ember: '#2a0a04',
     flame: '#ff6a1a',
     flameCore: '#ffd07a',
   },
-  /** Whitewashed stones across z from −halfWidth to +halfWidth, a saffron-flagged post at each end, on a
+  /** Whitewashed stones across z from −halfWidth to +halfWidth, a pennant on a bamboo pole at each end, on a
    * trodden earth strip `depth` deep. */
   firingLine: { z: -4.9, halfWidth: 5, stoneEvery: 0.6, depth: 2.4 },
-  /** Bale behind each target, sized at target scale 1 (width, height, depth) and set `behind` metres farther
-   * down range; a lateral target's bale spans its whole slide. */
-  backstop: { w: 1.5, h: 0.95, d: 0.6, behind: 0.75 },
+  /** Stack behind each target, `w` wide at target scale 1 and set `behind` metres farther down range; a lateral
+   * target's stack spans its whole slide. */
+  backstop: { w: 1.5, behind: 0.75 },
+  /** One straw bale at target scale 1 (length, height, depth, edge radius), nudged up to `jitter` m and turned up to
+   * `yaw` rad so a stack does not read as one panel. */
+  bale: { l: 0.9, h: 0.42, d: 0.5, radius: 0.06, jitter: 0.04, yaw: 0.07 },
+  /** Firing-line pennant: pole height, node spacing; the triangle's length, hoist height, sag at the tip, ripple
+   * amplitude and segments along it. */
+  pennant: { pole: 2.2, nodeEvery: 0.45, length: 0.78, hoist: 0.42, droop: 0.12, ripple: 0.05, segments: 8 },
   /** Round mud-walled kuti with a conical thatch roof and a doorway facing the range. */
   hut: { x: 6.5, z: 11, r: 2.3, wallH: 2.1, roofH: 2.7, overhang: 0.6 },
   /** Stone-ringed fire pit: ring radius, stone count, flames (x, z, radius, height), and a flickering light. */
@@ -333,6 +430,9 @@ export const POST = {
    * highlights, cooler blue pulled down, and a slight pow for contrast in the mids. */
   GRADE_MUL: [1.04, 1.0, 0.93],
   GRADE_POW: [1.06, 1.06, 1.1],
+  /** GTAO (LevelLook.ao): world-space radius in metres, the blend into the scene, samples, and the fraction of the
+   * composer's resolution it renders at. */
+  AO: { RADIUS: 1.6, DISTANCE_EXPONENT: 1, THICKNESS: 1, SCALE: 1.4, SAMPLES: 16, BLEND: 1, RESOLUTION: 0.5 },
 } as const
 
 /** Low tier has no reflection map; a neutral ambient of envIntensity × this stands in for its irradiance. */
@@ -346,7 +446,7 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     statics: [
       // Sketchfab palace ships in centimetres and off-centre (x −475..329, z −212..319 before
       // scaling); at 0.04 the hall is ~32 × 21 m and this offset puts it around the court.
-      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, tint: '#e2cdae', castShadow: false, pbr: { roughness: 0.72, metalness: 0 } },
+      { asset: 'palace', pos: [2.9, 0.1, 4.4], yaw: 0, scale: 0.04, ground: true, castShadow: false, surface: 'palace' },
       // royalRoom removed (visual pass, 2026-09-11): at scale 1 it planted a 7 m sword on the
       // throne (nodes Object_7-9), a lamp sunk through the floor at x 3.5, and an oversized dais at
       // x -7. The throne and its dais are built from primitives instead: COURT below, CourtDressing.tsx.
@@ -363,16 +463,18 @@ export const SCENERY: Readonly<Partial<Record<'l1' | 'l2' | 'l3' | 'l4' | 'l5', 
     // Measured by raycasting palace.glb at this placement: inner walls at x -14.7 / 13.6, z -1.8 / 14.96.
     cameraBounds: { minX: -14.2, maxX: 13.1, minZ: -1.3, maxZ: 14.6 },
     look: {
-      exposure: 0.72,
+      exposure: 0.76,
       // Late sun through the entrance behind the player: long shadows reach toward the throne.
       key: { color: '#ffc792', intensity: 2.3, dir: [3, 5, 10] },
-      fill: { sky: '#7c89a8', ground: '#5c2a1c', intensity: 0.75 },
+      // Coral walls and marble: a cool blue sky fill turned the white squares lilac; bounce light off the coral instead.
+      fill: { sky: '#a0908c', ground: '#6a3424', intensity: 0.75 },
       rim: { color: '#9cc2ff', intensity: 1.8, dir: [-4, 6, -10] },
       // An interior: nothing bright to reflect, just enough for gold to read as metal.
       envIntensity: 0.18,
       ground: { base: '#5a4636', dapple: ['#6a5442', '#4a382a'] },
       sky: { zenith: '#2a1a12', horizon: '#7a5a40' },
       fog: { near: 6, far: 70 },
+      ao: true,
     },
   },
   l2: {

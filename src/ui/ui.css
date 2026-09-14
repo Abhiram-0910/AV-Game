@@ -1,11 +1,21 @@
 /* 1366×768 first. Nothing under 16px, hit targets ≥ 48px, light text on a dark scrim. */
+/* Yatra One (SIL OFL 1.1, public/fonts/OFL.txt): one heavy weight, for headings, titles and buttons only. */
+@font-face {
+  font-family: 'Yatra One';
+  src: url('/fonts/YatraOne-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   --ink: #f6eedc;
   --ink-dim: #cdbf9f;
   --gold: #e6b450;
   --scrim: rgba(12, 8, 4, 0.78);
   --danger: #ff5a4a;
-  --font-display: Georgia, 'Times New Roman', serif;
+  --font-display: 'Yatra One', Georgia, serif;
+  /* The display face has no bold: never fake one on 600/700 headings. */
+  font-synthesis-weight: none;
 }
 
 .overlay {
@@ -105,6 +115,8 @@
 .btn-choice {
   min-width: 0;
   text-align: left;
+  /* Quiz answers and codex titles are body text in a button, not display type. */
+  font-family: inherit;
 }
 .btn-choice[aria-pressed='true'] {
   background: #ffd784;

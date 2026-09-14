@@ -37,6 +37,7 @@ const MIME: Readonly<Record<string, string>> = {
   '.jpg': 'image/jpeg',
   '.ktx2': 'image/ktx2',
   '.svg': 'image/svg+xml',
+  '.ttf': 'font/ttf',
 }
 
 /** A tiny static file server for the packaged build. `file://` breaks the app's root-relative

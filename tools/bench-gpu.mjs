@@ -1,7 +1,7 @@
 // Real-GPU frame cost. WSL's Chromium only has SwiftShader, so this runs under WINDOWS node and drives Windows
 // Chrome, which reaches the WSL preview on localhost:4173 (`npm run build && npm run preview` first):
 //   "/mnt/c/Program Files/nodejs/node.exe" '\\wsl.localhost\Ubuntu\home\abhi\NewProjects\bala-kanda\tools\bench-gpu.mjs' \
-//     --gpu dgpu --tier high --density 1,2,4 --levels l2,l3 [--shots tag] [--spoof]
+//     --gpu dgpu --tier high --density 1,2,4 --levels l2,l3 [--shots tag] [--spoof] [--query ao=0]
 // --gpu igpu leaves Chrome on the laptop's Intel UHD (its default); dgpu adds --force_high_performance_gpu.
 // --spoof hides the renderer name so the one-time tier benchmark runs even on the UHD (calibration).
 // Metric: the interval between delivered animation frames (rAF timestamps), which Chrome paces to GPU completion and the
@@ -21,6 +21,8 @@ const DENSITIES = arg('density', '1').split(',').map(Number)
 const LEVELS = arg('levels', 'l1,l2,l3,l4,l5').split(',')
 const SHOTS = arg('shots', null)
 const SPOOF = process.argv.includes('--spoof')
+// Extra URL params, e.g. --query ao=0
+const QUERY = arg('query', '')
 const SAMPLE_MS = Number(arg('sample', 5000))
 const ORDER = ['l1', 'l2', 'l3', 'l4', 'l5']
 // This laptop's panel: 1920×1080 at Windows DPI 120.
@@ -76,7 +78,7 @@ async function runLevel(browser, level, density) {
   const save = { version: 2, level, completed, codex: [], quiz: {}, settings: { qualityTier: TIER, volume: 0, subtitles: true }, benchmarkTier: null }
   await page.addInitScript((json) => localStorage.setItem('bala-kanda.save', json), JSON.stringify(save))
   await page.addInitScript(probe, { spoof: SPOOF })
-  await page.goto(`http://localhost:4173/?debug&density=${density}`)
+  await page.goto(`http://localhost:4173/?debug&density=${density}${QUERY ? `&${QUERY}` : ''}`)
   await page.getByTestId(completed.length ? 'title-continue' : 'title-start').click({ timeout: 60_000 })
   await page.addStyleTag({ content: '.perf{display:none!important}' })
   await page.getByTestId('dialogue').waitFor({ timeout: 180_000 })

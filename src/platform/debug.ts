@@ -12,4 +12,6 @@ export const DEBUG = {
   /** ?density=K multiplies the L2–L4 wilds' tree, shrub, grass and rock counts, and every tree casts a shadow when
    * K > 1: the knob tools/bench-gpu.mjs sweeps to find the high tier's real ceiling. */
   density: Number(params.get('density') ?? 1) || 1,
+  /** ?ao=0 turns off GTAO on levels that use it, for tools/bench-gpu.mjs's with/without cost. */
+  ao: params.get('ao') !== '0',
 } as const

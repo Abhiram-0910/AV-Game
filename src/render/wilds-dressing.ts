@@ -23,6 +23,7 @@ import { type InstanceTransform, makeInstanced } from './instancing'
 import { tierMaterial } from './materials'
 import { seeded } from './procedural-textures'
 import { buildRange } from './range-dressing'
+import { hillRing } from './hill-ring'
 import { grassTexture, mistTexture, rippleTexture } from './wild-textures'
 
 export type WildsLevel = 'l2' | 'l3' | 'l4'
@@ -251,6 +252,7 @@ export function buildWilds(level: WildsLevel, tree: Object3D, rock: Object3D, de
   if (water) group.add(...water.meshes)
   const fog = w.mist ? mist(w.mist, bounds, owned) : null
   if (fog) group.add(fog.mesh)
+  if (w.hills) group.add(hillRing(w.hills, SCENERY[level]!.look.sky.horizon, w.seed))
   const range = level === 'l4' ? buildRange() : null
   if (range) {
     group.add(range.group)

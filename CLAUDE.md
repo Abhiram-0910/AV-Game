@@ -71,8 +71,22 @@ the gotchas that are not derivable from the tree.
 - **A failed level under e2e looks like a silent reset.** `ResultPanel` autofocuses Retry and the spec's next
   `mouse.down/up` or Enter can land on it, starting a new attempt (the scene remounts, everything resets). Find out why
   the level failed (L4: `arrowsOut`) before debugging the reset.
-- **`mergeByMaterial` silently drops a bucket that mixes indexed and non-indexed geometry** (`mergeGeometries`
-  returns null). Polyhedron geometries (Dodecahedron, Icosahedron) are non-indexed; give them their own material.
+- **`mergeByMaterial` de-indexes a bucket that mixes indexed and non-indexed geometry** (Extrude, RoundedBox and the
+  polyhedra have no index) and `console.warn`s if a merge still fails. An `InstancedMesh` must be added after the
+  merge: the merge would flatten it to one copy of its geometry (`court-ornaments.ts` torans).
+- **palace.glb's columns and chairs are cut at runtime** (`render/palace-surface.ts`) by world-space boxes in `COURT`
+  (a triangle goes only when all three vertices are inside one box; floor triangles always stay for the ground probe),
+  and `render/court-architecture.ts` rebuilds the columns at the measured centres. Moving or rescaling the palace
+  placement invalidates every box and column: re-measure (`docs/screenshots/palace-measure-*.png`, SESSION-LOG
+  2026-09-14).
+- **GTAO runs on L1 only (`LevelLook.ao`) and wraps GTAOPass's private `_overrideVisibility`/`_restoreVisibility`**
+  to hide transparent and additive meshes and pause shadow-map updates during its normal pass. `@types/three` names
+  them without the underscore; re-check on every three bump. The normal pass re-renders the scene, so the overlay's
+  L1 triangle count includes it: `?ao=0` gives the scene alone.
+- **rtk routes `grep` through ripgrep:** an unescaped `{` in a pattern errors, and in an `&&` chain it silently skips
+  what follows (it skipped a `pkill`, so the old preview kept port 4173). Use `/usr/bin/grep -F`. `pkill -f` matches the command line of the
+  shell running it: stop the preview with `pkill -f "[v]ite preview"` in a command that does not itself start
+  `vite preview` (otherwise it kills itself, exit 143/144, and nothing is left listening).
 - **No AI attribution trailers in commits**, ever (user rule, overrides tool defaults).
 - **The bow aims along the cursor ray, not the cursor's offset from the screen centre.** `FollowCamera` writes
   `world.aimRay` every frame; `aimFromRay` (ballistics.ts) turns it into `world.aimDir`. The four `AIM_*` limits in
@@ -81,6 +95,9 @@ the gotchas that are not derivable from the tree.
 - **e2e specs aim like a player: `tests/e2e/play.ts`.** Project the target with `window.__bk.camera`, raise the cursor
   until `crosshair[data-target-locked]` flips, release. Never reintroduce a pitch solver in a spec: it hid the vertical
   launch for a whole release.
+- **`steerTo` tap-walks near its target.** Under a traced SwiftShader run one poll with W held carries the bot ~1.8 m, wider
+  than an arrival circle, so arrival came down to timing: a 10–20 % slower frame made L1's approach miss every time
+  (SESSION-LOG 2026-09-14). Never go back to holding W through the poll near the target.
 - **Retry is a remount.** `RETRY` bumps `gameStore.attempt` and `App.tsx` keys the scene on it, so every entity
   re-registers. Never reset level state in place; entities that register on mount (targets, enemies) will not come back.
 - **`arrow.glb` stands upright** (head at −Y). Orient arrows only through `render/arrow-model.ts`.

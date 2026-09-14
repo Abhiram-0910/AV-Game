@@ -24,8 +24,11 @@ export function mergeByMaterial(root: Object3D): Group {
   const group = new Group()
   group.name = `${root.name}-merged`
   for (const { material, geometries } of buckets.values()) {
-    const merged = mergeGeometries(stripToCommon(geometries), false)
-    if (!merged) continue
+    const merged = mergeGeometries(stripToCommon(matchIndexing(geometries)), false)
+    if (!merged) {
+      console.warn(`mergeByMaterial: could not merge ${geometries.length} geometries for material "${material.name}"`)
+      continue
+    }
     geometries.forEach((g) => g.dispose())
     const mesh = new Mesh(merged, material)
     mesh.matrixAutoUpdate = false
@@ -37,6 +40,18 @@ export function mergeByMaterial(root: Object3D): Group {
     m.removeFromParent()
   })
   return group
+}
+
+/** mergeGeometries refuses a mix of indexed and non-indexed geometry (Extrude, RoundedBox and the polyhedra have no
+ * index); de-index the rest of the bucket when any lacks one. */
+function matchIndexing(geometries: BufferGeometry[]): BufferGeometry[] {
+  if (geometries.every((g) => g.index) || geometries.every((g) => !g.index)) return geometries
+  return geometries.map((g) => {
+    if (!g.index) return g
+    const flat = g.toNonIndexed()
+    g.dispose()
+    return flat
+  })
 }
 
 /** mergeGeometries refuses mismatched attribute sets; keep only what every geometry has. */

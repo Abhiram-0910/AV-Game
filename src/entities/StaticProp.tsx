@@ -8,6 +8,7 @@ import { loadGltf } from '@render/loaders'
 import type { ResolvedTier } from '@render/manifest'
 import { applyTierMaterials } from '@render/materials'
 import { mergeByMaterial } from '@render/merge'
+import { dressPalace } from '@render/palace-surface'
 
 /** tree.glb's leaf cards come off; the bark primitive left is trunk and branches. */
 function stripLeaves(root: Object3D): void {
@@ -23,6 +24,7 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
   useEffect(() => {
     let live = true
     let built: Group | null = null
+    let surface: { dispose(): void } | null = null
     loadGltf(placement.asset).then((gltf) => {
       if (!live) return
       const scene = gltf.scene.clone()
@@ -32,6 +34,7 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
       scene.scale.setScalar(placement.scale)
       applyTierMaterials(scene, tier, { tint: placement.tint, pbr: placement.pbr })
       built = mergeByMaterial(scene)
+      if (placement.surface === 'palace') surface = dressPalace(built, tier)
       built.name = placement.asset
       built.traverse((o) => {
         o.castShadow = placement.castShadow ?? true
@@ -47,6 +50,7 @@ export function StaticProp({ placement, tier }: { placement: Placement; tier: Re
         world.ground = world.ground.filter((g) => g !== built)
         // Textures belong to the cached prototype; the scene evicts those on unmount.
         disposeTree(built, { textures: false })
+        surface?.dispose()
       }
     }
   }, [placement, tier])

@@ -2,6 +2,7 @@
 import { Canvas, type RootState } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import { BALANCE } from '@data/balance'
+import { SCENERY } from '@data/scenery'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
@@ -76,6 +77,7 @@ function Level({ tier }: { tier: ResolvedTier }) {
 export function App() {
   const [tier, setTier] = useState<ResolvedTier | null>(null)
   const screen = useScreen((s) => s.screen)
+  const level = useGame((s) => s.level)
   useEffect(() => persistOnChange(), [])
   useEffect(() => initAudioDispatcher(), [])
   // The title screen shows before any level mounts, so no level assets load until the player
@@ -89,12 +91,12 @@ export function App() {
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onCreated={(state) => {
           // Read-only handles for the e2e; the camera lets a spec project a target to the pixels a player sees.
-          if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats, camera: state.camera } })
+          if (DEBUG.overlay) Object.assign(window, { __bk: { game: gameStore, world, worldStore, perf: perfStats, camera: state.camera, scene: state.scene } })
           void boot(state, setTier)
         }}
       >
         {showLevel && <Level tier={tier} />}
-        {tier === 'high' && showLevel && <PostProcessing />}
+        {tier === 'high' && showLevel && <PostProcessing ao={DEBUG.ao && !!SCENERY[level]?.look.ao} />}
         {DEBUG.overlay && <PerfProbe />}
       </Canvas>
       <div className="overlay">
