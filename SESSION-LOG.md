@@ -91,6 +91,65 @@ differed by ~1.5 st, and `<prosody pitch>` lands at about 2/3 of the request. Tr
 - Safari fails Howler's `.ogg` codec probe (it checks Vorbis), which falls back to subtitles only.
 - The `subtitles` setting is still inert; the text shows regardless.
 - VO is fetched per line, not behind the level progress bar (AGENTS.md: "nothing streams mid-level").
+## 2026-09-14 — Claude Code (Opus 5) — Royal UI: ornamented frames on every panel, button and HUD card
+
+Worktree `bk-ui`, branch `feat/royal-ui`, in parallel with the voice and rendering agents; edits confined to
+`src/ui/**` and `DESIGN.md` (plus this log, TODO and the committed sheets). Plan:
+`~/.claude/plans/read-session-log-md-todo-md-claude-md-modular-micali.md`.
+
+### What changed
+- **`DESIGN.md`** (new) locks the system: tokens, contrast table, frame kinds, button states, rules for new UI.
+- **`src/ui/royal.css`** (new, `@import`ed first by `ui.css`): every colour token, the frame/panel styles, `.btn` and
+  `.btn-choice`. Gold filigree on lapis (`docs/reference/royal-frames.png`), crimson lacquer, coral and white
+  stencil (`palace-ref-*.jpg`).
+- **`src/ui/Frame.tsx`** (new): `Frame({ kind: 'panel' | 'dialogue' | 'card' })` draws a chamfer-cut lapis ground, a
+  double gold rule with SVG stepped corners, a scalloped-arch crest, diamond finials and (panel) a plaster stencil.
+  It sits behind its host's content (`z-index: -1` in an isolated host), is `aria-hidden` and holds no text.
+  `Panel` wraps it for full-screen menus.
+- **Screens in `Panel`**: title (menu, confirm), settings, codex list and card, loading, pause, quiz, result, ending.
+  Root elements and every `data-testid` unchanged (source list of 62 ids identical before and after).
+- **HUD**: objective card and boss bar take `Frame kind="card"` with their old padding and 1px (now transparent)
+  border, so their boxes did not move. The prompt is a gold banner with pointed ends (clip-path in the side padding).
+  Bars get a gold ring outside the box. Dialogue box takes `Frame kind="dialogue"`, speaker name gets coral diamonds,
+  portrait a gold double ring. Waypoint arrow, crosshair and draw gauge untouched apart from token colours.
+- **Existing violations fixed**: boss numerals 14px → 16px, subtitles checkbox 32px → 48px, astra tabs 11px/~20px
+  → 16px/48px, astra key 13px → 16px (the last two not captured; see TODO).
+
+### Measured
+- Screenshot script (scratch, 1366×768, low tier under SwiftShader) visits 17 states and audits every visible text
+  node and control. **Before: 4 violations** (3 × 14px boss text, 1 × 32px checkbox). **After: 0.**
+- HUD rects (objective, prompt, health bar, boss bar, waypoint arrow, dialogue) identical before and after. A first
+  pass moved the health bar 2px (a stat gap I widened); reverted.
+- Contrast (WCAG 2.1, token colours): lowest pair is ivory on the crimson hover top at 5.4:1; every pair ≥ 4.5.
+
+### Judged by eye against the references (sheets `docs/screenshots/ui-royal-*.png`, before left, after right)
+- **Kept**: the double rule, chamfer corners with a gem in the cut, the arch crest, crimson buttons with diamond
+  finials, the stencil fading out behind text. Every screen now reads as belonging to the court; nothing is harder to
+  read than before.
+- **Changed after looking**:
+  - first corners were a gold line floating over a square dark box, so the ground is now cut on the chamfer;
+  - first crest was a small bump, so it was rebuilt twice the width with an inner line;
+  - the inner rule in gold-deep went muddy on lapis, so it now uses `--gold-mid`;
+  - panel headings in settings and codex sat left of centre;
+  - codex paragraphs had double margins;
+  - the inward corner gem sat beside the first letter of dialogue narration, so it is now panels only.
+- **Deleted**: `filter: drop-shadow` on the dialogue box and objective card. The typewriter would re-rasterise the
+  filtered layer every character on the lab PCs. Menu panels keep theirs.
+
+### Verification
+- `tsc -b`, `eslint .` clean. Vitest: 135 passed, 2 skipped, 1 failed in the full run
+  (`lint-boundary.test.ts`, timed out at load average ~94); the file passes alone (6/6).
+- e2e (local config `playwright.royal.config.ts` on port 4183, never 4173; deleted afterwards), full suite, 20.6 min
+  at load average up to 117: archery-mouse, L2, L4 **pass**; L3 fails at `result-title` and L5 on the 1200 s
+  timeout, both as before, specs untouched. **L1 failed once** on its last line: L2's loading screen came and went
+  inside the 15 s poll, so `loading-title` was never seen (the page was already on `l2.intro` 1/2; the spec's own
+  comment names this race). Rerun alone on the final build: **L1 passes** (2.3 min). Spec-written screenshots were
+  reverted, not committed.
+
+### Not done
+- **Rama's quiver.** Asked for at the end of the pass. The arrow through his back is the quiver stand-in
+  (`render/character-factory.ts` attaches `arrow.glb` to `spine_03`); a real quiver is a factory/render change,
+  outside this pass's `src/ui` scope and in the rendering agent's area, so it went to TODO with a spec instead.
 
 ## 2026-09-14 — Claude Code (Opus 5) — L1 court defects: leaded glass, Rama's shadow, the right platform, the stencil
 

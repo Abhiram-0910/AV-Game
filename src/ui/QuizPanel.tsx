@@ -11,6 +11,7 @@ import { gateById } from '@core/progression'
 import { playAudio } from '@systems/audio'
 import { fmt } from './format'
 import { useGame } from './use-game'
+import { Panel } from './Frame'
 
 function Options({ question, selected, onPick }: { question: Question; selected: number | null; onPick: (i: number) => void }) {
   return (
@@ -69,21 +70,23 @@ export function QuizPanel() {
 
   return (
     <div className="screen quiz" data-testid="quiz">
-      <h1>{UI['quiz.title']}</h1>
-      <p data-testid="quiz-progress">{fmt(UI['quiz.progress'], { n: quiz.index + 1, total })}</p>
-      <p className="quiz-prompt">{question.prompt}</p>
-      <Options question={question} selected={selected} onPick={onPick} />
-      {selected !== null && (
-        <Feedback
-          question={question}
-          selected={selected}
-          isLast={quiz.index === total - 1}
-          onNext={() => {
-            gameStore.getState().answerQuiz(selected)
-            setSelected(null)
-          }}
-        />
-      )}
+      <Panel>
+        <h1>{UI['quiz.title']}</h1>
+        <p data-testid="quiz-progress">{fmt(UI['quiz.progress'], { n: quiz.index + 1, total })}</p>
+        <p className="quiz-prompt">{question.prompt}</p>
+        <Options question={question} selected={selected} onPick={onPick} />
+        {selected !== null && (
+          <Feedback
+            question={question}
+            selected={selected}
+            isLast={quiz.index === total - 1}
+            onNext={() => {
+              gameStore.getState().answerQuiz(selected)
+              setSelected(null)
+            }}
+          />
+        )}
+      </Panel>
     </div>
   )
 }

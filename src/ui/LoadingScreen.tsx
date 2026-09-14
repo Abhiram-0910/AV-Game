@@ -1,6 +1,7 @@
 import { DIALOGUE, UI } from '@data/dialogue'
 import { levelDef } from '@core/progression'
 import { useGame, useWorld } from './use-game'
+import { Panel } from './Frame'
 
 export function LoadingScreen() {
   const level = useGame((s) => s.level)
@@ -10,13 +11,15 @@ export function LoadingScreen() {
   const pct = expected > 0 ? Math.round((loaded / expected) * 100) : 0
   return (
     <div className="screen" data-testid="loading">
-      <h1 data-testid="loading-title">{title}</h1>
-      <p>
-        {UI['loading.level']} {expected > 0 ? `${pct}%` : ''}
-      </p>
-      <div className="bar bar-wide">
-        <div className="bar-fill" style={{ width: `${pct}%` }} />
-      </div>
+      <Panel>
+        <h1 data-testid="loading-title">{title}</h1>
+        <p>
+          {UI['loading.level']} {expected > 0 ? `${pct}%` : ''}
+        </p>
+        <div className="bar bar-wide">
+          <div className="bar-fill" style={{ width: `${pct}%` }} />
+        </div>
+      </Panel>
     </div>
   )
 }

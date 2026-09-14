@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { BALANCE } from '@data/balance'
 import { DIALOGUE, UI, type DialogueKey, type Speech } from '@data/dialogue'
 import { platform } from '@platform/index'
+import { Frame } from './Frame'
 
 interface Props {
   speech: Speech
@@ -112,6 +113,7 @@ export function DialoguePanel({ speech, onDone }: Props) {
   const key = Object.keys(DIALOGUE).find((k) => DIALOGUE[k as DialogueKey] === speech)
   return (
     <div className="dialogue" data-testid="dialogue">
+      <Frame kind="dialogue" />
       <SpeakerPortrait speaker={speech.speaker} name={name} />
       <div className="dialogue-content">
         {name && (

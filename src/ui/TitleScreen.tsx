@@ -8,6 +8,7 @@ import { CodexPanel } from './CodexPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { screenStore } from './screen-store'
 import { useGame } from './use-game'
+import { Panel } from './Frame'
 
 type View = 'menu' | 'settings' | 'codex' | 'confirmNewGame'
 
@@ -20,15 +21,17 @@ function newGame() {
 function ConfirmNewGameModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
   return (
     <div className="screen" data-testid="title">
-      <p>{UI['menu.confirmNewGame']}</p>
-      <div className="title-actions">
-        <button type="button" className="btn" data-testid="title-confirm-yes" onClick={onConfirm} autoFocus>
-          {UI['menu.yes']}
-        </button>
-        <button type="button" className="btn" onClick={onCancel}>
-          {UI['menu.no']}
-        </button>
-      </div>
+      <Panel>
+        <p>{UI['menu.confirmNewGame']}</p>
+        <div className="title-actions">
+          <button type="button" className="btn" data-testid="title-confirm-yes" onClick={onConfirm} autoFocus>
+            {UI['menu.yes']}
+          </button>
+          <button type="button" className="btn" onClick={onCancel}>
+            {UI['menu.no']}
+          </button>
+        </div>
+      </Panel>
     </div>
   )
 }
@@ -95,15 +98,17 @@ export function TitleScreen() {
 
   return (
     <div className="screen" data-testid="title">
-      <h1>{UI['app.title']}</h1>
-      <TitleMenuActions
-        hasProgress={hasProgress}
-        onStart={newGame}
-        onContinue={continueGame}
-        onNewGame={() => nav('confirmNewGame')}
-        onCodex={() => nav('codex')}
-        onSettings={() => nav('settings')}
-      />
+      <Panel>
+        <h1>{UI['app.title']}</h1>
+        <TitleMenuActions
+          hasProgress={hasProgress}
+          onStart={newGame}
+          onContinue={continueGame}
+          onNewGame={() => nav('confirmNewGame')}
+          onCodex={() => nav('codex')}
+          onSettings={() => nav('settings')}
+        />
+      </Panel>
     </div>
   )
 }

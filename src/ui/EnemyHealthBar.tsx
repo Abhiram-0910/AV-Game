@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { UI } from '@data/dialogue'
 import type { BossHealth } from '@systems/world'
 import { useWorld } from './use-game'
+import { Frame } from './Frame'
 
 export function EnemyHealthBar({ customBoss }: { customBoss?: BossHealth | null }) {
   const storeBoss = useWorld((s) => s.boss)
@@ -36,6 +37,7 @@ export function EnemyHealthBar({ customBoss }: { customBoss?: BossHealth | null 
       data-boss={boss.kind}
       data-critical={isCritical}
     >
+      <Frame kind="card" />
       <div className="enemy-health-header">
         <span className="hud-label enemy-health-name">{UI[`name.${boss.kind}`]}</span>
         <span className="enemy-health-numeric">

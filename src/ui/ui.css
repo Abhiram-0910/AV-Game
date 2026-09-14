@@ -1,21 +1,13 @@
-/* 1366×768 first. Nothing under 16px, hit targets ≥ 48px, light text on a dark scrim. */
+/* Tokens, frames, panels and buttons live in royal.css (DESIGN.md). @import must stay the first rule. */
+@import './royal.css';
+
+/* 1366×768 first. Nothing under 16px, hit targets ≥ 48px, light text on lapis panels. */
 /* Yatra One (SIL OFL 1.1, public/fonts/OFL.txt): one heavy weight, for headings, titles and buttons only. */
 @font-face {
   font-family: 'Yatra One';
   src: url('/fonts/YatraOne-Regular.ttf') format('truetype');
   font-weight: 400;
   font-display: swap;
-}
-
-:root {
-  --ink: #f6eedc;
-  --ink-dim: #cdbf9f;
-  --gold: #e6b450;
-  --scrim: rgba(12, 8, 4, 0.78);
-  --danger: #ff5a4a;
-  --font-display: 'Yatra One', Georgia, serif;
-  /* The display face has no bold: never fake one on 600/700 headings. */
-  font-synthesis-weight: none;
 }
 
 .overlay {
@@ -39,15 +31,16 @@
   gap: 20px;
   background: var(--scrim);
   text-align: center;
-  padding: 24px;
+  padding: 16px;
 }
 .screen h1 {
   font-family: var(--font-display);
   font-size: 40px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--gold);
   margin: 0;
   letter-spacing: 0.02em;
+  text-shadow: 0 2px 0 var(--shadow);
 }
 .screen p {
   margin: 0;
@@ -58,8 +51,8 @@
 .bar {
   height: 16px;
   width: 220px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  background: var(--royal-ground);
+  box-shadow: 0 0 0 2px var(--royal-night), 0 0 0 3px var(--gold);
   overflow: hidden;
 }
 .bar-wide {
@@ -67,38 +60,20 @@
 }
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #d9a441, #ffd784);
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold) 45%, var(--gold-bright));
   transition: width 120ms linear;
-}
-
-.btn {
-  min-width: 200px;
-  min-height: 56px;
-  padding: 12px 32px;
-  font-size: 22px;
-  font-family: var(--font-display);
-  color: #1a120b;
-  background: var(--gold);
-  border: 0;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.btn:hover,
-.btn:focus-visible {
-  background: #ffd784;
-  outline: 3px solid #fff3d0;
-  outline-offset: 2px;
 }
 
 .codex-unlock {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px 28px;
-  border: 1px solid rgba(230, 180, 80, 0.5);
-  border-radius: 10px;
-  background: rgba(230, 180, 80, 0.08);
+  padding: 14px 32px;
+  border: 1px solid var(--gold);
+  background: var(--royal-night);
+  box-shadow: inset 0 0 0 3px var(--royal-night), inset 0 0 0 4px var(--gold-deep);
   font-size: 22px;
+  color: var(--ink);
 }
 
 /* Title screen, pause menu, quiz options — a vertical stack of full-size buttons. */
@@ -107,29 +82,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 14px;
-  width: min(420px, 90vw);
-}
-
-/* A selectable choice (quality tier, quiz option, codex entry): same hit-target size as .btn,
- * a pressed/selected state, and a legible disabled state instead of just dimming to nothing. */
-.btn-choice {
-  min-width: 0;
-  text-align: left;
-  /* Quiz answers and codex titles are body text in a button, not display type. */
-  font-family: inherit;
-}
-.btn-choice[aria-pressed='true'] {
-  background: #ffd784;
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
-}
-.btn-choice:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-.btn-choice:disabled:hover {
-  background: var(--gold);
-  outline: none;
+  width: min(420px, 80vw);
 }
 
 .settings,
@@ -142,41 +95,58 @@
   justify-content: center;
   gap: 18px;
   background: var(--scrim);
-  padding: 24px;
+  padding: 16px;
   overflow-y: auto;
 }
 .settings h2,
 .codex h2 {
   font-family: var(--font-display);
   font-size: 32px;
+  font-weight: 400;
   color: var(--gold);
   margin: 0;
+  text-shadow: 0 2px 0 var(--shadow);
 }
 .settings-row {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: min(420px, 90vw);
+  width: min(420px, 80vw);
 }
 .settings-options {
   display: flex;
-  gap: 10px;
+  gap: 20px;
 }
 .settings-row input[type='range'] {
   width: 100%;
-  height: 48px;
+  height: var(--hit);
+  accent-color: var(--gold);
 }
 .settings-row input[type='checkbox'] {
-  width: 32px;
-  height: 32px;
+  width: var(--hit);
+  height: var(--hit);
+  margin: 0;
+  accent-color: var(--gold);
+}
+.settings p,
+.codex p {
+  margin: 0;
+}
+.settings small {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--text-min);
+  color: var(--ink-dim);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .codex-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: min(560px, 90vw);
+  gap: 12px;
+  width: min(560px, 80vw);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -192,9 +162,16 @@
   line-height: 1.5;
 }
 
+.quiz h1 {
+  font-size: 34px;
+}
+.quiz .btn-choice {
+  min-height: 52px;
+  padding: 8px 32px;
+}
 .quiz-prompt {
   max-width: 640px;
-  font-size: 26px;
+  font-size: 24px;
   color: var(--ink);
   margin: 0;
 }
@@ -208,12 +185,12 @@
 .quiz-feedback p {
   margin: 0;
 }
-.quiz-correct {
-  color: #7ee787;
+.screen .quiz-correct {
+  color: var(--correct);
   font-size: 22px;
   font-weight: 600;
 }
-.quiz-wrong {
+.screen .quiz-wrong {
   color: var(--danger);
   font-size: 22px;
   font-weight: 600;
@@ -240,12 +217,14 @@
 .hud-stat b {
   font-size: 28px;
   color: var(--ink);
+  text-shadow: 0 2px 3px var(--shadow);
 }
 .hud-label {
-  font-size: 16px;
+  font-size: var(--text-min);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--ink-dim);
+  color: var(--gold);
+  text-shadow: 0 1px 2px var(--shadow);
 }
 .hud-boss {
   position: absolute;
@@ -257,11 +236,10 @@
   align-items: center;
   gap: 6px;
   width: min(440px, 80vw);
-  background: rgba(16, 12, 10, 0.75);
+  isolation: isolate;
   padding: 8px 16px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(200, 60, 50, 0.4);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  /* Transparent: the frame (Frame kind card) draws the rule; the 1px keeps the old box size. */
+  border: 1px solid transparent;
   z-index: 10;
 }
 .enemy-health-header {
@@ -273,25 +251,25 @@
 .enemy-health-name {
   font-family: var(--font-display);
   font-size: 18px;
-  color: #ff9580;
+  color: var(--coral);
   letter-spacing: 0.15em;
 }
 .enemy-health-numeric {
-  font-size: 14px;
+  font-size: var(--text-min);
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
 .enemy-health-track {
   width: 100%;
   height: 14px;
-  background: rgba(40, 10, 10, 0.8);
-  border-radius: 4px;
+  background: var(--crimson-deep);
+  box-shadow: none;
   overflow: hidden;
-  border: 1px solid rgba(255, 100, 80, 0.3);
+  border: 1px solid var(--gold-deep);
 }
 .hud-boss .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #991b1b, #ef4444);
+  background: linear-gradient(90deg, var(--crimson-bright), var(--danger));
   transition: width 0.2s ease-out;
 }
 .enemy-health-bar--damaged {
@@ -324,30 +302,30 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 8px;
   z-index: 10;
   pointer-events: auto;
 }
 .hud-astra-tabs {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 .hud-astra-tab {
-  background: rgba(20, 10, 5, 0.85);
-  border: 1px solid rgba(230, 180, 80, 0.5);
+  min-height: var(--hit);
+  padding: 8px 14px;
+  background: var(--royal-ground);
+  border: 1px solid var(--gold-deep);
   color: var(--ink-dim);
-  font-size: 11px;
+  font-size: var(--text-min);
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 120ms ease-out, color 120ms ease-out;
 }
 .hud-astra-tab.active,
 .hud-astra-tab:hover {
-  background: rgba(60, 25, 10, 0.95);
+  background: var(--royal-lapis);
   border-color: var(--gold);
-  color: #ffd784;
+  color: var(--gold-bright);
 }
 
 .hud-astra-btn {
@@ -355,18 +333,17 @@
   align-items: center;
   gap: 12px;
   padding: 10px 22px;
-  background: linear-gradient(135deg, rgba(40, 15, 8, 0.9), rgba(20, 8, 4, 0.95));
+  background: linear-gradient(180deg, var(--crimson-bright), var(--crimson) 55%, var(--crimson-deep));
   border: 2px solid var(--gold);
-  border-radius: 12px;
-  box-shadow: 0 0 16px rgba(230, 180, 80, 0.45), 0 4px 12px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 3px var(--crimson), inset 0 0 0 4px var(--gold-deep), 0 0 16px rgba(230, 180, 80, 0.45);
   cursor: pointer;
   pointer-events: auto;
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .hud-astra-btn:hover {
   transform: translateY(-2px) scale(1.03);
-  border-color: #ffe082;
-  box-shadow: 0 0 24px rgba(255, 200, 80, 0.7), 0 6px 16px rgba(0, 0, 0, 0.7);
+  border-color: var(--gold-bright);
+  box-shadow: inset 0 0 0 3px var(--crimson), inset 0 0 0 4px var(--coral), 0 0 24px rgba(255, 200, 80, 0.7);
 }
 .hud-astra-btn:active {
   transform: translateY(0) scale(0.98);
@@ -384,39 +361,41 @@
 }
 .hud-astra-title {
   font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  color: #ffd784;
+  font-size: 18px;
+  color: var(--gold-bright);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .hud-astra-key {
-  font-size: 13px;
+  font-size: var(--text-min);
   color: var(--ink-dim);
   font-weight: 600;
   letter-spacing: 0.05em;
 }
+/* Same padding box as the old left-bordered card (36px across), so the top-right anchor does not move. */
 .hud-objective {
   position: absolute;
   top: 20px;
   right: 24px;
   max-width: 420px;
-  padding: 10px 16px;
-  background: var(--scrim);
-  border-left: 4px solid var(--gold);
-  border-radius: 6px;
+  padding: 10px 18px;
+  isolation: isolate;
   font-size: 20px;
   color: var(--ink);
 }
+/* A gold banner with pointed ends; the ends cut only into the side padding. */
 .hud-prompt {
   position: absolute;
   left: 50%;
   bottom: 160px;
   transform: translateX(-50%);
   padding: 12px 24px;
-  background: var(--gold);
-  color: #1a120b;
-  border-radius: 8px;
+  color: var(--ink-on-gold);
+  background:
+    linear-gradient(var(--gold-deep), var(--gold-deep)) 16px 4px / calc(100% - 32px) 1px no-repeat,
+    linear-gradient(var(--gold-deep), var(--gold-deep)) 16px calc(100% - 4px) / calc(100% - 32px) 1px no-repeat,
+    linear-gradient(180deg, var(--gold-bright), var(--gold));
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
   font-size: 22px;
   font-weight: 600;
 }
@@ -424,8 +403,9 @@
   position: absolute;
   left: 24px;
   bottom: 20px;
-  font-size: 16px;
+  font-size: var(--text-min);
   color: var(--ink-dim);
+  text-shadow: 0 1px 2px var(--shadow);
 }
 
 .dialogue {
@@ -436,9 +416,9 @@
   width: min(900px, calc(100% - 48px));
   min-height: 140px;
   padding: 18px 24px 14px;
-  background: var(--scrim);
-  border: 1px solid rgba(230, 180, 80, 0.4);
-  border-radius: 12px;
+  isolation: isolate;
+  /* Transparent, not removed: the old 1px border is part of the box size the HUD was laid out with. */
+  border: 1px solid transparent;
   color: var(--ink);
   cursor: pointer;
   display: flex;
@@ -446,20 +426,22 @@
   align-items: flex-start;
 }
 .dialogue-content {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 .dialogue-portrait-frame {
+  position: relative;
   flex-shrink: 0;
   width: 92px;
   height: 92px;
   border-radius: 50%;
   border: 2px solid var(--gold);
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 12px rgba(255, 215, 132, 0.25);
-  background: #140e08;
+  box-shadow: 0 0 0 3px var(--royal-night), 0 0 0 4px var(--gold-deep), 0 4px 14px var(--shadow);
+  background: var(--royal-night);
 }
 .dialogue-portrait-img {
   width: 100%;
@@ -473,6 +455,20 @@
   color: var(--gold);
   margin-bottom: 6px;
 }
+.dialogue-speaker::before,
+.dialogue-speaker::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 10px 0 2px;
+  vertical-align: middle;
+  background: var(--coral);
+  transform: rotate(45deg);
+}
+.dialogue-speaker::after {
+  margin: 0 2px 0 10px;
+}
 .dialogue-text {
   margin: 0;
   font-size: 22px;
@@ -482,7 +478,7 @@
   display: flex;
   gap: 24px;
   margin-top: 10px;
-  font-size: 16px;
+  font-size: var(--text-min);
   color: var(--ink-dim);
 }
 .dialogue-count {
@@ -631,7 +627,7 @@
   height: 40px;
   margin: -20px 0 0 -20px;
   pointer-events: none;
-  color: #ffcf6e;
+  color: var(--gold-bright);
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
   display: none;
 }

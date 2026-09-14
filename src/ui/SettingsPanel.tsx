@@ -8,6 +8,7 @@ import { platform } from '@platform/index'
 import { useStore } from 'zustand'
 import { screenStore } from './screen-store'
 import { useGame } from './use-game'
+import { Panel } from './Frame'
 
 const TIERS: readonly QualityTier[] = ['auto', 'low', 'high']
 
@@ -96,14 +97,16 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
   const settings: Settings = useGame((s) => s.settings)
   return (
     <div className="settings" data-testid="settings">
-      <h2>{UI['menu.settings']}</h2>
-      <QualityRow current={settings.qualityTier} />
-      <ActiveTierNote current={settings.qualityTier} />
-      <VolumeRow volume={settings.volume} />
-      <SubtitlesRow subtitles={settings.subtitles} />
-      <button type="button" className="btn" data-testid="settings-back" onClick={onBack}>
-        {UI['settings.back']}
-      </button>
+      <Panel>
+        <h2>{UI['menu.settings']}</h2>
+        <QualityRow current={settings.qualityTier} />
+        <ActiveTierNote current={settings.qualityTier} />
+        <VolumeRow volume={settings.volume} />
+        <SubtitlesRow subtitles={settings.subtitles} />
+        <button type="button" className="btn" data-testid="settings-back" onClick={onBack}>
+          {UI['settings.back']}
+        </button>
+      </Panel>
     </div>
   )
 }

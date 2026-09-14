@@ -8,6 +8,7 @@ import { CodexPanel } from './CodexPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { screenStore } from './screen-store'
 import { useGame } from './use-game'
+import { Panel } from './Frame'
 
 type View = 'menu' | 'settings' | 'codex'
 
@@ -23,40 +24,42 @@ export function PauseMenu() {
   if (view === 'codex') return <CodexPanel onBack={() => setView('menu')} />
   return (
     <div className="screen" data-testid="pause">
-      <h1>{UI['pause.title']}</h1>
-      <div className="title-actions">
-        <button type="button" className="btn" data-testid="pause-resume" onClick={resume} autoFocus>
-          {UI['pause.resume']}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          data-testid="pause-restart"
-          onClick={() => {
-            resume()
-            gameStore.getState().startLevel(level)
-          }}
-        >
-          {UI['pause.restart']}
-        </button>
-        <button type="button" className="btn" onClick={() => setView('codex')}>
-          {UI['menu.codex']}
-        </button>
-        <button type="button" className="btn" onClick={() => setView('settings')}>
-          {UI['menu.settings']}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          data-testid="pause-menu"
-          onClick={() => {
-            resume()
-            screenStore.getState().setScreen('title')
-          }}
-        >
-          {UI['pause.menu']}
-        </button>
-      </div>
+      <Panel>
+        <h1>{UI['pause.title']}</h1>
+        <div className="title-actions">
+          <button type="button" className="btn" data-testid="pause-resume" onClick={resume} autoFocus>
+            {UI['pause.resume']}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            data-testid="pause-restart"
+            onClick={() => {
+              resume()
+              gameStore.getState().startLevel(level)
+            }}
+          >
+            {UI['pause.restart']}
+          </button>
+          <button type="button" className="btn" onClick={() => setView('codex')}>
+            {UI['menu.codex']}
+          </button>
+          <button type="button" className="btn" onClick={() => setView('settings')}>
+            {UI['menu.settings']}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            data-testid="pause-menu"
+            onClick={() => {
+              resume()
+              screenStore.getState().setScreen('title')
+            }}
+          >
+            {UI['pause.menu']}
+          </button>
+        </div>
+      </Panel>
     </div>
   )
 }
