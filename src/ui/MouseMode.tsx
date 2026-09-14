@@ -1,10 +1,9 @@
 // What the mouse is doing, always on screen in play: a chip that toggles look/aim ([M] does the same), the click-to-look
 // overlay while look mode waits for its lock, and a one-time note when the computer blocks pointer lock.
 import type { MouseEvent } from 'react'
-import { CONTROLS_TEXT as T } from '@data/controls-text'
+import { UI as T } from '@data/dialogue'
 import { platform } from '@platform/index'
 import { type MouseModeView, toggleMouseMode, useMouseLook } from './use-mouse-look'
-import './mouse-mode.css'
 
 const LABEL: Record<MouseModeView, string> = {
   look: T['mouse.look'],

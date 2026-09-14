@@ -1,6 +1,6 @@
 // While Manavastra charges with Maricha on the field: whether he stands in the wind's path. A wasted charge on L5 cannot
 // be recovered, so the answer is in words as well as the green cone on the ground (render/astra-aim.ts).
-import { CONTROLS_TEXT as T } from '@data/controls-text'
+import { UI as T } from '@data/dialogue'
 import { useWorld } from './use-game'
 
 export function AstraConeLabel() {

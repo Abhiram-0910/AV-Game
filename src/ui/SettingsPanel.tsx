@@ -3,8 +3,7 @@
 // here sets the saved preference; the note under it says what is running now and offers a restart.
 import type { QualityTier, Settings } from '@core/save'
 import { BALANCE } from '@data/balance'
-import { CONTROLS_TEXT as T, type ControlsTextKey } from '@data/controls-text'
-import { UI } from '@data/dialogue'
+import { UI, type UiKey } from '@data/dialogue'
 import { gameStore } from '@core/game-state'
 import { platform } from '@platform/index'
 import { useStore } from 'zustand'
@@ -95,11 +94,11 @@ function SubtitlesRow({ subtitles }: { subtitles: boolean }) {
   )
 }
 
-function ChoiceRow<K extends keyof Settings>({ field, label, options }: { field: K; label: ControlsTextKey; options: readonly Settings[K][] }) {
+function ChoiceRow<K extends keyof Settings>({ field, label, options }: { field: K; label: UiKey; options: readonly Settings[K][] }) {
   const current = useGame((s) => s.settings[field])
   return (
     <div className="settings-row">
-      <span className="hud-label">{T[label]}</span>
+      <span className="hud-label">{UI[label]}</span>
       <div className="settings-options">
         {options.map((o) => (
           <button
@@ -110,7 +109,7 @@ function ChoiceRow<K extends keyof Settings>({ field, label, options }: { field:
             data-testid={`settings-${field}-${String(o)}`}
             onClick={() => gameStore.getState().setSettings({ [field]: o } as Partial<Settings>)}
           >
-            {T[`${label}.${String(o)}` as ControlsTextKey]}
+            {UI[`${label}.${String(o)}` as UiKey]}
           </button>
         ))}
       </div>
@@ -123,7 +122,7 @@ function SensitivityRow({ field }: { field: 'mouseSensitivity' | 'trackpadSensit
   return (
     <div className="settings-row">
       <label className="hud-label" htmlFor={`settings-${field}`}>
-        {T[`settings.${field}`]}
+        {UI[`settings.${field}`]}
       </label>
       <input
         id={`settings-${field}`}

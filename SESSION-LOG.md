@@ -2,6 +2,19 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — Merge folds after voice / royal-ui / l5-winnable / astra-and-look
+
+Branch `feat/visual-grandeur`. Typecheck, lint, vitest (153 + 1 skipped) green; no e2e or preview run (Abhi runs those).
+- `src/data/controls-text.ts` folded into `UI` in `dialogue.ts` (settings keys after `settings.restart`, mouse and astra
+  keys after `hud.bowControls`); `MouseMode`, `AstraConeLabel`, `SettingsPanel` import `UI`. File deleted.
+- `src/ui/mouse-mode.css` appended to `ui.css`. Literals swapped for royal tokens: `#1a120b` → `--ink-on-gold`,
+  `#7ee787` → `--correct`. Rule fixes: chip `kbd` 14px and the blocked note 16px → `--text-min`; the chip was ~36px tall
+  → `min-height: var(--hit)` with `border-box` (content-box would have pushed it into the astra button at 84px). File deleted.
+- Checked, unchanged: chip (bottom-right, 20–68px) clears `.hud-astra-container` (84px up) and the top-right objective;
+  cone label (bottom 96, ~54px tall) clears `.hud-prompt` (bottom 160) by ~10px. Resume: `resume()` unpauses first,
+  then `lock.request()` only in look mode; a denied or unsupported request emits `denied` and changes nothing else, so
+  Resume works without a lock. Found: settings panel overflows 768px, blocked note vs dialogue (TODO).
+
 ## 2026-09-14 — Claude Code (Opus 5) — Voice-over for all 52 dialogue lines (Google Cloud TTS, generated once)
 
 Branch `feat/voice` (worktree `bk-voice`). Plan: `~/.claude/plans/use-port-4181-for-snappy-naur.md`. Scope: `tools/generate-vo.mjs`,

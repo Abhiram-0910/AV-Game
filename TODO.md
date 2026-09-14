@@ -64,10 +64,11 @@ Done on `feat/astra-and-look` (SESSION-LOG 2026-09-14, "Mouse look … and the s
   the wind's path" label with Maricha actually in the cone, and the render-side fling. The SwiftShader run that was
   photographing them was killed at ~16 min (SESSION-LOG). Next L5 play: watch both.
 - **No "before" frame of the old astra** (two spheres and a beam) in the sheets: the old-build capture was cut.
-- **Before this merges: fold two new files into the files other agents own today.**
-  - `src/data/controls-text.ts` goes into `dialogue.ts` `UI`.
-  - `src/ui/mouse-mode.css` goes into `ui.css`.
-- **Settings rows** for mouse mode, device and the two sensitivities use the plain `settings-row` look. Royal-ui may restyle.
+- **Settings panel is taller than 768px.** The four mouse rows use the same `settings-row` / `btn-choice` / `hud-label`
+  styling and meet 16px / 48px, but with them the panel adds up to ~930px (CSS estimate, not rendered) against 680px of
+  `.panel-body` max-height at 1366×768. It scrolls, and Back sits below the fold. Two columns or a Controls sub-view.
+- **Mouse-blocked note can sit under a dialogue box.** `.mouse-blocked-note` (bottom-left, 6 s) overlaps `.dialogue` at
+  1366 wide if a talk opens within 6 s of the denial. Rare; move the note above 172px if it shows up.
 - **L4 e2e fails on this branch: "the lateral target was never hit".** The HEAD baseline failed the same way before any
   change (6 browsers in parallel). The branch run was single-worker, but another agent's SwiftShader L5 run was loading
   the CPU. A clean single-worker L4 on HEAD and on this branch, with nothing else running, is still owed before merging.
