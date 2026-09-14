@@ -2,6 +2,175 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — Mouse look (pointer lock, aim mode, trackpad) and the staged astra
+
+Branch `feat/astra-and-look` (worktree `~/NewProjects/bk-astra`, e2e port 4182 only). Plan:
+`~/.claude/plans/read-session-log-md-todo-md-claude-md-lively-lerdorf.md`. Parallel agents: voice (4181), royal-ui (4183),
+l5-winnable (4184). Untouched here: `src/data/dialogue.ts`, `public/audio/`, `src/ui/ui.css`. New strings are in
+`src/data/controls-text.ts` and new styles in `src/ui/mouse-mode.css`. Fold both in on merge.
+
+### Decisions (Abhi, this session)
+- Free look via pointer lock is the default. This supersedes the 2026-09-09 "no pointer lock" rule. Arrow keys and A/D are
+  unchanged, and a denied lock falls back to cursor aim.
+- The level specs seed `settings.cameraMode: 'aim'`, because they drive absolute cursor coordinates.
+  `tests/e2e/mouse-look.spec.ts` covers the default path for real: engage, turn, aim and hit under lock, Escape, a
+  dropped lock, resume, [M], and a blocked lock.
+- The shared storm, charge and clear stages cover both astras. Manavastra and its cone readability come first.
+
+### Mouse look
+- **Settings** (`core/save.ts`): `cameraMode` ('look' | 'aim'), `pointer` ('mouse' | 'trackpad'), and
+  `mouseSensitivity` / `trackpadSensitivity`. Missing or invalid values take defaults and never reject a save, so old
+  saves and the seeds keep their progress.
+- **Adapter** (`platform/web/input-web.ts`): `lock.request/release/locked/everLocked/onChange/takeDelta`. Locked
+  movement accumulates, and `mouse.x/y` becomes the virtual aim cursor.
+  - A denial is read from `pointerlockerror`; the promise rejection is swallowed.
+  - `pointerLockElement` is tested by truthiness, because it is undefined where pointer lock is unsupported.
+- **Routing** (`systems/camera/mouse-look.ts`, pure, unit-tested):
+  - Look: dx turns Rama through `MoveInput.yaw`, consumed on the next tick. dy tilts the camera, which orbits the look point.
+  - A bow draw or astra charge steers the virtual cursor instead.
+  - A draw eases the tilt back to the follow pose, because the aim limits were measured from it.
+- **HUD** (`ui/MouseMode.tsx`, `ui/use-mouse-look.ts`):
+  - Chip (bottom right): look / aiming / aim / blocked, with an [M] toggle.
+  - Click-to-look overlay. It stops propagation, so the click never draws the bow.
+  - A lock dropped without being asked for (browser Escape, tab switch) pauses. Resume relocks.
+  - An Escape within 250 ms of a lock-loss pause is ignored.
+  - Talk, pause, quiz and result release the lock.
+  - "Blocked on this computer" shows once per session. It is only used when no lock has ever succeeded; Chrome's relock
+    cooldown after Escape is treated as transient.
+- **Crosshair** follows the adapter's cursor each frame, not mouse events. A dot marks the aim while locked.
+- **`BALANCE.mouseLook`** (new, reason: Abhi asked for mouse look):
+  - `RAD_PER_PX_MOUSE` 0.0025: a 1280 px sweep ≈ 183°.
+  - `RAD_PER_PX_TRACKPAD` 0.005: a trackpad reports about half the counts.
+  - `SENS_MIN/MAX` 0.25–3.
+  - `PITCH_DOWN_MAX` 0.2 and `PITCH_UP_MAX` 0.35: at +0.35 the camera still clears the ground by ~0.6 m.
+  - `AIM_CURSOR_START_Y` 0.36: derived from the camera pose, then **measured in the build**. The first locked draw
+    launched at −0.001 rad (mouse-look.spec log).
+- **`BALANCE.ui.RESULT_AFTER_ASTRA_MS`** 2600 (new): L4 is won in the astra's cast tick and the result panel covered the
+  strike.
+
+### Headless findings (for anyone testing pointer lock)
+- Headless Chromium grants `requestPointerLock` from a click and from a keydown. Escape arrives as a normal keydown and
+  does not release the lock. `document.exitPointerLock()` releases it.
+- Under lock, CDP input is unusable. Every injected move or button press comes with a large warp movement: a
+  `page.mouse.down` threw the virtual cursor to the top edge, and moves sum to ~0.
+- So the spec sends locked movement and the bow button as synthetic `mousemove` (with `movementX/Y`) and `mousedown`/`mouseup`.
+- Real Chrome's own Escape handling, a tab switch, trackpad feel and Electron are human checks (TODO).
+
+### The staged astra
+- **Timeline** (`systems/astra/sequence.ts`, pure, unit-tested, render time):
+  - The storm gathers in 1 s while a castable charge is held.
+  - After the strike: a 0.9 s hold, then a 1.8 s clear. A charge let go early eases back in 0.5 s.
+  - Bolt, flash, shockwave, dust, gale and shake run as strike stages.
+  - Charge to daylight ≈ 4.2 s.
+- **Aim, one function for the indicator and the cast** (`systems/astra/step.ts`):
+  - `resolveAstraAim()` (was `resolveImpactPoint`) returns the point and target.
+  - `inManavaCone()` is the cone test, pulled out of `castManavastra` unchanged.
+  - `canCastAstra()`.
+  - `stepAstra` writes `world.astraAim` and `world.astraCone` every tick, plus `worldStore.astraCharging/astraMaricha`.
+- **Render** (`entities/AstraVfx.tsx` rewritten; `render/astra-fx.ts`, `astra-fx-update.ts`, `astra-aim.ts`,
+  `astra-textures.ts`, `post-storm.ts`):
+  - Storm on the existing chain: exposure and fog everywhere; on high the grade cools, the vignette closes and the flash
+    lifts bloom (`POST.STORM`); on low the canvas's CSS sky darkens.
+  - Clouds: instanced billboards gathering over the strike.
+  - Charge: glow, instanced sparks, and on high a point light mounted at intensity 0 with the level, so no shader
+    recompiles mid-fight.
+  - Agneyastra: a jagged fire-gold bolt with forks on high, a shock ring and a dust ring.
+  - Manavastra: a wind column over Rama, a gale of instanced streaks swirling through the cone, a shock arc and dust
+    along the cone.
+  - Camera shake on the strike.
+  - The old version called `setState` every frame.
+  - Low: fewer particles, no forks, no light (`ASTRA_LOOK.COUNTS`).
+- **Aim indicators:**
+  - Agneyastra, while charging: a ground reticle and a light column at the strike, green when it lands on a target.
+  - Manavastra, whenever castable: the cone on the ground around Rama (faint, bright while charging). It turns green
+    with a ring at each rakshasa inside, and the HUD says "Maricha is in / outside the wind's path" while charging.
+- **Maricha's fling:** `castManavastra` records the direction; `Enemy.tsx` carries him up and away over the 1 s dissolve.
+  Render only.
+- **Audio** (synth, no files): `astra_charge` (a rising filtered saw, stopped on release or cancel), `thunder`, `gale`.
+- **Result delay:** `ui/Flow.tsx` keeps the HUD for `RESULT_AFTER_ASTRA_MS` after a cast.
+
+### Shared enemy code touched (for the l5-winnable merge)
+No targeting, damage, knockback or `stepEnemy` change. Line numbers are after this branch.
+- `src/systems/ai/enemy-ai.ts:30-31`: one optional field `flung?: { x: number; z: number }` on `EnemyRuntime`.
+- `src/entities/Enemy.tsx`:
+  - `:10` import `ASTRA_LOOK`
+  - `:19-29` `FLING` and `flingAway()`
+  - `:136` `const flungFor = useRef(0)`
+  - `:151` `if (runtime.flung) flingAway(...)` after the yaw write
+- `src/systems/astra/step.ts`:
+  - `:42-47` `AstraAim`
+  - `:49-66` `resolveImpactPoint` → `resolveAstraAim` (same ray, returns the target too)
+  - `:68-82` `inManavaCone`, `canCastAstra`
+  - `:125` `castAgneyastra` uses `.point`
+  - `castManavastra` `:153-163`: the inline cone test is replaced by `inManavaCone` (same arithmetic), plus
+    `enemy.flung = …` for Maricha
+  - `:183-197` `updateAstraAim`; `:198` `stepAstra` calls it
+
+### Visual iterations on the RTX 4050 (judged on real-GPU frames, `bench-gpu --astra --shots`)
+SwiftShader cannot show the strike: each frame and screenshot takes hundreds of ms, so the 0.7 s bolt is over before
+a capture. Every visual call below was made on 4050 frames. The raw frames were composed into the sheets and deleted.
+- **Rejected, kept in `astra-sheet-iterations.png`:**
+  - A charge glow up to 2.2 m at full HDR swallowed Rama.
+  - Flash exposure 1.4 plus bloom flash 1.6 made the strike's first frame white.
+  - Manavastra's "wind column" read as two glass slabs, so it was removed; the gale carries the strike.
+  - Gale streaks born 0.6 m from Rama whited out the frame. They now start 2 m out, fade in, at 0.5× HDR.
+  - Clouds at 9–17 m, then 6–12 m, sat above the frame and were darkened by the storm's exposure. Now 3–8 m up, 30–70 m
+    out, and not tone-mapped.
+- **Kept:** `astra-sheet-l5-agneya-high.png`, `astra-sheet-l5-manava-high.png`, `astra-sheet-l5-low.png`.
+- The bolt reads white-gold rather than deep fire under bloom (TODO).
+
+### Verification
+- **Unit and static checks:** `tsc -b` and `eslint .` are clean. `vitest`: 148 passed, 2 skipped. New tests:
+  save defaults, locomotion yaw, mouse-look routing, astra sequence, Manava cone edges.
+- **shoot-levels** (SwiftShader 1280×720, at spawn): triangles, calls and skinned counts are identical to HEAD on
+  every level and both tiers. The astra objects cost nothing until used.
+  - High: L1 408,866/159, L2 921,735/107, L3 872,610/118, L4 709,131/118, L5 147,336/119.
+  - Low: L1 84,286/53, L2 28,936/32, L3 77,371/53, L4 31,275/36, L5 48,415/55.
+- **bench-gpu high, all levels, 4050** (1536×864 @1.25): 141–144 fps, p95 7.1–7.6 ms. Triangles and calls sit within
+  the 2026-09-14 table; L5 spawn p99 was 13.8 ms, p95 7.6. No regression.
+- **bench-gpu `--astra`, L5** (whole sequence sampled from the first held frame; tris/calls are the peak):
+
+  | GPU | tier | astra | fps | p50 / p95 / p99 ms | peak tris | peak calls |
+  |---|---|---|---|---|---|---|
+  | RTX 4050 | high | Agneyastra | 142 | 6.9 / 7.1 / 8.0 | 182,604 | 168 |
+  | RTX 4050 | high | Manavastra | 142 | 6.9 / 7.2 / 8.1 | 182,604 | 168 |
+  | RTX 4050 | low | Agneyastra | 142 | 6.9 / 7.4 / 9.4 | 64,321 | 74 |
+  | RTX 4050 | low | Manavastra | 143 | 6.9 / 7.4 / 8.7 | 64,337 | 75 |
+  | Intel UHD | low | Agneyastra | 116 | 7.0 / 13.9 / 15.0 | 64,337 | 75 |
+  | Intel UHD | low | Manavastra | 116 | 7.0 / 13.9 / 14.4 | 64,337 | 75 |
+
+  - High holds 60 fps with a wide margin, and low stays under 80 calls and 120k triangles.
+  - There is no same-build UHD L5 run without the astra to set the 116 fps against; that run was cut for budget.
+- **mouse-look.spec** (new build): both tests pass. The first locked draw launched at −0.001 rad.
+- **e2e baseline on HEAD** (6 specs, 6 browsers in parallel, load average ~20):
+  - Pass: archery-mouse, L1, L2.
+  - L3 fail: "Try again" (known).
+  - L5 timeout at 20 min inside `face()`.
+  - **L4 fail: "the lateral target was never hit"**, all six attempts, before any change here.
+- **e2e on the final build** (one worker): archery-mouse, L1, L2 and both mouse-look tests pass. **L4 fails: "the lateral target was never hit"** (six attempts). That is the same failure as the HEAD baseline above, before any change here, with another agent's SwiftShader L5 run sharing the CPU. The lateral-shot path is untouched, and the level specs seed aim mode, where FollowCamera is float-identical at pitch 0. **Not proven unrelated:** no clean single-worker L4 rerun on HEAD (budget; TODO). L3 and L5 were not run on this branch.
+
+### What was lost and not re-run (budget)
+- **The killed screenshot run.** A SwiftShader run was photographing Manavastra on Maricha on high: the "Maricha is in the
+  wind's path" label and the fling. I killed it at ~16 min. My first liveness check (`pgrep` through rtk) wrongly showed
+  no processes; they were alive. The same kill also ended the rest of that queue:
+  - the low-tier SwiftShader frames (the 4050 low capture covers low)
+  - the old-build "before" frames
+  - a single-worker L4 baseline
+  - the full-suite run
+- **Not seen in a browser**, only unit-tested:
+  - the Maricha label
+  - the fling
+  - L3 and L5 on this branch
+- **The killed run's preview** (its Playwright webServer) was orphaned on 4182 and stopped by pid (cwd checked).
+- **Other agents' processes** (bk-l5 L5 probe, bk-ui) were filtered out by cwd and not touched.
+
+### Cleanup
+- The temporary `tests/e2e/astra-shots.spec.ts`, `playwright.4182.config.ts` and `dist-baseline/` were deleted. Mouse-look shots: `mouse-look-sheet.png`.
+- `tools/shoot-levels.mjs` takes `PORT`; `tools/bench-gpu.mjs` takes `--port`, `--astra` and astra `--shots`.
+- **Windows node from a worktree:** `node_modules` here is a WSL symlink Windows cannot follow. Run bench-gpu with
+  `NODE_PATH='\\wsl.localhost\Ubuntu\home\abhi\NewProjects\bala-kanda\node_modules' WSLENV=NODE_PATH`.
+
+
 ## 2026-09-14 — Claude Code (Opus 5) — L1 court defects: leaded glass, Rama's shadow, the right platform, the stencil
 
 Branch `feat/visual-grandeur`. Plan: `~/.claude/plans/read-session-log-md-todo-md-claude-md-optimized-zebra.md`. The

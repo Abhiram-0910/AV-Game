@@ -132,7 +132,7 @@ export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         </>
       )}
       <FollowCamera />
-      <AstraVfx />
+      <AstraVfx tier={tier} look={scenery.look} />
       <SimulationDriver bow={bow} onTick={handleTick} />
     </group>
   )

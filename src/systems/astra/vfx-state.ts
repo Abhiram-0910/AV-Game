@@ -11,8 +11,18 @@ export interface AstraVfxEvent {
 type VfxListener = (event: AstraVfxEvent) => void
 const listeners = new Set<VfxListener>()
 
+/** Render-side state of the staged sequence other views read: FollowCamera's shake (metres), written by AstraVfx. */
+export const astraView = { shake: 0 }
+
+let lastCastAt = -Infinity
+/** performance.now() of the last astra cast; ui/Flow holds the result panel back until the strike has been seen. */
+export function lastAstraCastAt(): number {
+  return lastCastAt
+}
+
 let nextVfxId = 1
 export function emitAstraVfx(vfx: Omit<AstraVfxEvent, 'id'>): void {
+  lastCastAt = performance.now()
   const event: AstraVfxEvent = { ...vfx, id: nextVfxId++ }
   listeners.forEach((l) => l(event))
 }

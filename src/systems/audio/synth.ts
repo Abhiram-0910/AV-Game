@@ -159,7 +159,39 @@ function playLocomotion(key: LocomotionSoundKey, c: AudioContext, vol: number): 
   return playNoise(c, key, dur, vol, freq, 'bandpass')
 }
 
+/** The astra charging at the bow: a filtered saw climbing in pitch, brightness and volume over the charge. */
+function playRise(c: AudioContext, key: SoundKey, vol: number, seconds: number): ActiveSoundHandle {
+  const id = nextHandleId++
+  const now = c.currentTime
+  const osc = c.createOscillator()
+  const filter = c.createBiquadFilter()
+  const gain = c.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(70, now)
+  osc.frequency.exponentialRampToValueAtTime(520, now + seconds)
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(260, now)
+  filter.frequency.exponentialRampToValueAtTime(3200, now + seconds)
+  gain.gain.setValueAtTime(0.0001, now)
+  gain.gain.exponentialRampToValueAtTime(vol, now + seconds)
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(masterGain ?? c.destination)
+  osc.start(now)
+  osc.stop(now + seconds + 0.4)
+  return { id, key, stop: () => stopWithFade(gain, [osc, filter, gain], c) }
+}
+
+/** The strike: a bright crack over a low rumble that rolls off. */
+function playThunder(c: AudioContext, key: SoundKey, vol: number): ActiveSoundHandle {
+  playNoise(c, key, 0.3, vol, 2200, 'highpass')
+  return playNoise(c, key, 2, vol, 150, 'lowpass')
+}
+
 function playCombat(key: CombatSoundKey, c: AudioContext, vol: number): ActiveSoundHandle {
+  if (key === 'astra_charge') return playRise(c, key, vol, 1.5)
+  if (key === 'thunder') return playThunder(c, key, vol)
+  if (key === 'gale') return playNoise(c, key, 2, vol, 650, 'bandpass')
   if (key === 'astra_cast') return playTone(c, key, 587, 1175, 0.38, vol, 'sine')
   if (key === 'whoosh') return playNoise(c, key, 0.35, vol, 450, 'bandpass')
   if (key === 'sword_slash') return playNoise(c, key, 0.14, vol, 850, 'bandpass')
@@ -225,7 +257,7 @@ export function playProceduralSound(key: SoundKey, opts: PlayOptions = {}): Acti
     if (key === 'footstep_walk' || key === 'footstep_run') {
       return playLocomotion(key, c, vol)
     }
-    if (key === 'astra_cast' || key === 'whoosh' || key === 'sword_slash' || key === 'enemy_hit' || key === 'enemy_death' || key === 'boss_groan') {
+    if (key === 'astra_cast' || key === 'astra_charge' || key === 'thunder' || key === 'gale' || key === 'whoosh' || key === 'sword_slash' || key === 'enemy_hit' || key === 'enemy_death' || key === 'boss_groan') {
       return playCombat(key, c, vol)
     }
     if (key === 'button_click' || key === 'quiz_correct' || key === 'quiz_incorrect' || key === 'level_win' || key === 'level_fail' || key === 'title_theme') {

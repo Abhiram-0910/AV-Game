@@ -27,6 +27,8 @@ export interface EnemyRuntime extends Combatant {
   /** Correlates this runtime back to a wave-scheduler spawn request (Level 5); unused elsewhere. */
   spawnId: string | null
   root: Object3D | null
+  /** Set by Manavastra on Maricha: the way he is flung, for the render-side arc only (entities/Enemy.tsx). */
+  flung?: { x: number; z: number }
 }
 
 export function spawnEnemy(kind: EnemyKind, pos: readonly [number, number, number], spawnId: string | null = null): EnemyRuntime {

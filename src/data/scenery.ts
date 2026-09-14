@@ -449,6 +449,68 @@ export const POST = {
   /** GTAO (LevelLook.ao): world-space radius in metres, the blend into the scene, samples, and the fraction of the
    * composer's resolution it renders at. */
   AO: { RADIUS: 1.6, DISTANCE_EXPONENT: 1, THICKNESS: 1, SCALE: 1.4, SAMPLES: 16, BLEND: 1, RESOLUTION: 0.5 },
+  /** The astra's storm on the same chain (entities/AstraVfx.tsx writes PostProcessing's postStorm): the grade cools, the
+   * vignette closes in, and the strike's flash lifts bloom. */
+  STORM: { GRADE_MUL: [0.8, 0.88, 1.08], VIGNETTE_ADD: 0.55, BLOOM_FLASH: 0.7 },
+} as const
+
+/** The astra's staged sequence (entities/AstraVfx.tsx, render/astra-*.ts, systems/astra/sequence.ts): the sky darkens
+ * and clouds gather while it charges, the strike lands on release, a shockwave and dust ring spread, then the sky clears.
+ * Seconds are render time: on L4 the cast wins the level in its own tick and the fixed loop stops, but the sky must
+ * still clear. Colours in arrays are linear HDR multipliers, above 1 so bloom catches them on high. */
+export const ASTRA_LOOK = {
+  GATHER_SEC: 1.0,
+  HOLD_SEC: 0.9,
+  CLEAR_SEC: 1.8,
+  CANCEL_SEC: 0.5,
+  BOLT_SEC: 0.7,
+  FLASH_SEC: 0.25,
+  SHOCK_SEC: 1.0,
+  DUST_SEC: 2.2,
+  GALE_SEC: 1.1,
+  SHAKE_SEC: 0.6,
+  SHAKE_M: 0.22,
+  /** Full storm: exposure multiplier; the flash adds this much exposure at its peak. At 1.4 (with bloom flash 1.6 and a
+   * 600 light) the strike's first frame was a white screen on the 4050 that hid the bolt (gpu-astra1-l5-*-3-strike-0). */
+  STORM_EXPOSURE: 0.42,
+  FLASH_EXPOSURE: 0.5,
+  STORM_FOG: '#2a2e36',
+  STORM_ZENITH: '#15181f',
+  STORM_HORIZON: '#454a55',
+  /** Lighter than L5's night sky and darker than L4's day sky, so the bank reads against both. */
+  CLOUD_COLOR: '#7a7f8e',
+  /** Cloud bank: ring around the strike centre (m), height above it (m), billboard size (m); they gather in from this
+   * many times the radius. The follow camera sees ~0–15° above the horizon: 9–17 m up at 10–46 m (the first try) sat
+   * above the frame on L5 (astra-l5-agneya-1-gather-high.png), so the bank is low and far. */
+  CLOUD_RADIUS: [30, 70],
+  // 6–12 m still sat at the frame's top edge on the 4050 (gpu-astra2-*-2-charged): 3–8 m puts the bank in the horizon band.
+  CLOUD_HEIGHT: [3, 8],
+  CLOUD_SIZE: [22, 38],
+  CLOUD_GATHER_FROM: 1.8,
+  BOLT_HEIGHT: 24,
+  BOLT_WIDTH: 0.55,
+  BOLT_JITTER: 1.6,
+  AGNEYA_COLOR: [5, 2.6, 0.9],
+  MANAVA_COLOR: [1.8, 3, 3.8],
+  SHOCK_RADIUS: 10,
+  /** Manavastra's gale races the cone this far past CONE_RANGE, swirling this many turns. */
+  GALE_OVERSHOOT: 1.35,
+  GALE_TURNS: 0.35,
+  /** High tier only: the point light at the bow while charging, and its flash at the strike. */
+  LIGHT: { CHARGE: 40, FLASH: 250, DISTANCE: 40 },
+  COUNTS: {
+    high: { clouds: 28, sparks: 28, dust: 64, gale: 110, branches: 3 },
+    low: { clouds: 8, sparks: 10, dust: 20, gale: 36, branches: 0 },
+  },
+  /** Aim indicators, readable before release. */
+  FAN_COLOR: '#bfefff',
+  FAN_HIT_COLOR: '#7ee787',
+  FAN_IDLE_OPACITY: 0.14,
+  FAN_CHARGE_OPACITY: 0.32,
+  RETICLE_COLOR: '#ffb347',
+  RETICLE_TARGET_COLOR: '#7ee787',
+  /** Maricha flung by Manavastra: carried up and away over the death dissolve (BALANCE.spawn.DESPAWN_TICKS). */
+  FLING: { SEC: 1, DIST: 40, HEIGHT: 16, TUMBLE: 4.5 },
 } as const
 
 /** Low tier has no reflection map; a neutral ambient of envIntensity × this stands in for its irradiance. */

@@ -96,7 +96,7 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         </>
       )}
       <FollowCamera />
-      <AstraVfx />
+      <AstraVfx tier={tier} look={scenery.look} />
       <SimulationDriver bow={bow} />
     </group>
   )

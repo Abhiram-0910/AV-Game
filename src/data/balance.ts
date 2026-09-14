@@ -301,6 +301,25 @@ export const BALANCE = {
     FAR: 120,
   },
 
+  /** Pointer-lock free look (systems/camera/mouse-look.ts). 2026-09-14, new: Abhi asked for mouse look. */
+  mouseLook: {
+    /** Radians of turn per CSS px of movement at sensitivity 1: a 1280 px sweep turns ~183° with a mouse. A trackpad
+     * reports about half the counts for the same finger travel, so it starts at double. */
+    RAD_PER_PX_MOUSE: 0.0025,
+    RAD_PER_PX_TRACKPAD: 0.005,
+    /** Settings slider range for either sensitivity multiplier. */
+    SENS_MIN: 0.25,
+    SENS_MAX: 3,
+    /** Camera tilt limits from the follow pose (radians, both magnitudes): down to see the ground ahead, up to see the
+     * sky and the astra's clouds. Up is capped where the camera still clears the ground by ~0.6 m. */
+    PITCH_DOWN_MAX: 0.2,
+    PITCH_UP_MAX: 0.35,
+    /** Virtual cursor height (NDC) on the first draw under lock: the camera ray there reaches AIM_MAX_DIST at muzzle
+     * height, so the launch is flat at whatever Rama faces. Derived from the camera pose (5.5 back, 2.6 up, looking at
+     * 1.3, FOV 45) and checked in the build (SESSION-LOG 2026-09-14). */
+    AIM_CURSOR_START_Y: 0.36,
+  },
+
   render: {
     /** Pixel ratio cap on the low tier; high tier lifts it to the device ratio. */
     PIXEL_RATIO_LOW: 1,
@@ -340,6 +359,9 @@ export const BALANCE = {
     HIT_FLASH_TICKS: 8,
     /** Duration in ms to display hit-marker and flash on crosshair. */
     HIT_FEEDBACK_MS: 160,
+    /** 2026-09-14, new: L4 is won in the astra's cast tick, and the result panel covered the strike. It now waits this
+     * long after a cast (the strike, the shockwave and most of the clearing, ASTRA_LOOK). */
+    RESULT_AFTER_ASTRA_MS: 2600,
     /** Milliseconds a win/unlock card stays before Continue is offered. */
     RESULT_MIN_MS: 600,
     /** Perf overlay refresh, Hz. */

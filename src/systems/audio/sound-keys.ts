@@ -1,7 +1,7 @@
 // Semantic sound keys and playback options for the audio system.
 export type ArcherySoundKey = 'bow_draw' | 'bow_release' | 'arrow_hit_target' | 'arrow_hit_flesh'
 export type LocomotionSoundKey = 'footstep_walk' | 'footstep_run'
-export type CombatSoundKey = 'astra_cast' | 'whoosh' | 'sword_slash' | 'enemy_hit' | 'enemy_death' | 'boss_groan'
+export type CombatSoundKey = 'astra_cast' | 'astra_charge' | 'thunder' | 'gale' | 'whoosh' | 'sword_slash' | 'enemy_hit' | 'enemy_death' | 'boss_groan'
 export type UiSoundKey = 'button_click' | 'quiz_correct' | 'quiz_incorrect' | 'level_win' | 'level_fail' | 'title_theme'
 export type AmbientSoundKey = 'ambient_court' | 'ambient_forest' | 'ambient_night'
 
@@ -22,6 +22,9 @@ export const DEFAULT_SOUND_VOLUMES: Record<SoundKey, number> = {
   footstep_walk: 0.25,
   footstep_run: 0.35,
   astra_cast: 0.8,
+  astra_charge: 0.45,
+  thunder: 0.95,
+  gale: 0.8,
   whoosh: 0.75,
   sword_slash: 0.6,
   enemy_hit: 0.7,
