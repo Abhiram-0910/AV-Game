@@ -31,7 +31,7 @@ function attachUnlockListeners(c: AudioContext): void {
   window.addEventListener('keydown', unlock, { once: true })
 }
 
-export function getAudioContext(): AudioContext | null {
+function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AudioCtx) return null

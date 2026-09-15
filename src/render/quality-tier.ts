@@ -43,7 +43,7 @@ function benchScene(renderer: WebGLRenderer) {
  * frames (shader compile). Chrome paces rAF to GPU completion, so a GPU that cannot keep up falls off vsync; the load is
  * heavy enough that a weak GPU does even on a 60 Hz screen. gl.finish() timing does not see GPU time on ANGLE/D3D11
  * (measured 2026-09-14: 0.6 ms on an Intel UHD delivering 13 fps), so it is not used. */
-export function benchmark(renderer: WebGLRenderer): Promise<number> {
+function benchmark(renderer: WebGLRenderer): Promise<number> {
   const { BENCH_WARMUP, BENCH_FRAMES, BENCH_KNOT, PIXEL_RATIO_HIGH_MAX } = BALANCE.render
   const ratio = renderer.getPixelRatio()
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, PIXEL_RATIO_HIGH_MAX))

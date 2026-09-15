@@ -39,11 +39,11 @@ export function damageFor(hit: HitKind, attacker: CombatantKind): number {
   }
 }
 
-export function invulnTicksFor(kind: CombatantKind): number {
+function invulnTicksFor(kind: CombatantKind): number {
   return kind === 'player' ? BALANCE.player.INVULN_TICKS : BALANCE.combat.INVULN_TICKS
 }
 
-export function isAlive(c: Combatant): boolean {
+function isAlive(c: Combatant): boolean {
   return c.health > 0
 }
 

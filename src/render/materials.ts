@@ -37,7 +37,7 @@ export interface TierMaterialOptions {
 
 let toonRamp: DataTexture | null = null
 
-export function getToonRamp(): DataTexture {
+function getToonRamp(): DataTexture {
   if (!toonRamp) {
     // 2-tone stepped cel-shading: shadow (115/255 = 0.45) and highlight (255/255 = 1.0)
     const data = new Uint8Array([115, 255])

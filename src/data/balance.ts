@@ -14,7 +14,6 @@ export const BALANCE = {
     MAX_HEALTH: 100,
     WALK_SPEED: 2.0,
     JOG_SPEED: 4.0,
-    SPRINT_SPEED: 6.5,
     /** Keyboard turn rate. 6.0 was a full spin in a second — uncontrollable on a lab keyboard. */
     TURN_SPEED_RAD: 3.0,
     /** 20 → 40 (2026-09-14): L5 now starts with 30 (levels.ts startArrows), and a pickup must never shrink the quiver. */
@@ -42,8 +41,6 @@ export const BALANCE = {
     DRAW_TICKS: 28,
     /** Minimum draw fraction that still fires. */
     MIN_DRAW: 0.2,
-    HIT_RADIUS: 0.45,
-    HEAD_RADIUS: 0.18,
   },
 
   astra: {
@@ -52,8 +49,6 @@ export const BALANCE = {
     CHARGE_TICKS: 90,
     COOLDOWN_TICKS: 180,
     DAMAGE: 60,
-    FLING_DISTANCE: 100,
-    SCATTER_RADIUS: 12,
     agneyastra: {
       DAMAGE: 120,
       RADIUS: 5.0,
@@ -87,7 +82,6 @@ export const BALANCE = {
     MAX_HIT_RANGE: 60,
     /** Boulder thrown by Tataka. */
     BOULDER_DAMAGE: 15,
-    BOULDER_SPEED: 14,
     /** Distance at which an idle enemy notices the player and starts chasing. */
     AGGRO_RADIUS: 16,
     /** Ticks an enemy telegraphs an attack before it lands, once in reach. */
@@ -99,7 +93,6 @@ export const BALANCE = {
   spawn: {
     /** Hard budget from the performance model: concurrent SkinnedMesh instances. */
     MAX_SKINNED: 12,
-    DEFAULT_INTERVAL_TICKS: 90,
     /** Defeated enemies dissolve over this many ticks before their slot frees. */
     DESPAWN_TICKS: 60,
   },
@@ -107,8 +100,6 @@ export const BALANCE = {
   yajna: {
     /** Sacred fire health (pass 3 phase G: 150; 2026-09-14: 200, a human lost it before Subahu ever came). */
     MAX_INTEGRITY: 200,
-    /** Level 5 total guard duration (the six days and nights, compressed). */
-    GUARD_TICKS: 5400,
     /** Ticks the fire ignores further hits after one lands (prevents multi-hit stacking). */
     HIT_INVULN_TICKS: 75,
     /** A rakshasa turns from the fire onto Rama when he is nearer to it than the fire is and within this many metres
@@ -119,11 +110,7 @@ export const BALANCE = {
   },
 
   targets: {
-    /** Level 2 tutorial and Level 4 challenge. */
-    L2_COUNT: 3,
-    L4_COUNT: 5,
     L4_TIME_LIMIT_TICKS: 3600,
-    L4_ARROW_BUDGET: 10,
   },
 
   archery: {
@@ -368,27 +355,17 @@ export const BALANCE = {
 
   ui: {
     DIALOGUE_CHARS_PER_SEC: 40,
-    HIT_FLASH_TICKS: 8,
     /** Duration in ms to display hit-marker and flash on crosshair. */
     HIT_FEEDBACK_MS: 160,
     /** 2026-09-14, new: L4 is won in the astra's cast tick, and the result panel covered the strike. It now waits this
      * long after a cast (the strike, the shockwave and most of the clearing, ASTRA_LOOK). */
     RESULT_AFTER_ASTRA_MS: 2600,
-    /** Milliseconds a win/unlock card stays before Continue is offered. */
-    RESULT_MIN_MS: 600,
     /** Perf overlay refresh, Hz. */
     OVERLAY_HZ: 4,
   },
 
   audio: {
-    MASTER_VOLUME: 0.8,
     FOOTSTEP_WALK_INTERVAL_SEC: 0.42,
     FOOTSTEP_RUN_INTERVAL_SEC: 0.28,
-  },
-
-  lighting: {
-    L3_AMBIENT_INTENSITY: 0.95,
-    L3_FILL_INTENSITY: 0.65,
-    L3_SUN_INTENSITY: 1.8,
   },
 } as const

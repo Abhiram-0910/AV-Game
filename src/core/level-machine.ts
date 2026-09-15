@@ -53,8 +53,3 @@ export function transition(phase: Phase, event: LevelEvent, ctx: TransitionConte
       return null
   }
 }
-
-/** Phases during which gameplay simulation ticks. */
-export function isSimulating(phase: Phase): boolean {
-  return phase === 'play'
-}

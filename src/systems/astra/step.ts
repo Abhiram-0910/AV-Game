@@ -9,7 +9,6 @@ import { NO_DRAW } from '../archery/draw'
 import { resolveHitRoot } from '../archery/hit-test'
 import { world, worldStore } from '../world'
 import { triggerAstraVfx } from './vfx-state'
-export { triggerAstraVfx } from './vfx-state'
 
 const ray = new Raycaster()
 const origin = new Vector3()
@@ -47,7 +46,7 @@ export interface AstraAim {
 
 /** An astra is a hitscan, so it lands on what the cursor is over: cast along the camera's cursor ray (world.aimRay), not
  * the bow's aimDir, which is lifted for an arrow's drop. The aim indicator and the cast both call this. */
-export function resolveAstraAim(): AstraAim {
+function resolveAstraAim(): AstraAim {
   origin.fromArray(world.aimRay.origin)
   dir.fromArray(world.aimRay.dir)
   ray.set(origin, dir)
@@ -137,7 +136,7 @@ export function castAgneyastra(
   return impact
 }
 
-export function castManavastra(
+function castManavastra(
   player = world.player,
   enemies = world.enemies,
   tick: number = world.tick,

@@ -15,7 +15,7 @@ export type MouseModeView = 'look' | 'aim-auto' | 'aim' | 'engage' | 'blocked'
 const session = { blocked: false, noted: false, lossPauseAt: -Infinity, intentional: false }
 const NOTE_MS = 6000
 /** An Escape arriving this soon after a lock-loss pause is the same key press (Firefox delivers both): ignore it. */
-export const ESCAPE_AFTER_LOSS_MS = 250
+const ESCAPE_AFTER_LOSS_MS = 250
 
 export function pausedByLockLoss(now: number): boolean {
   return now - session.lossPauseAt < ESCAPE_AFTER_LOSS_MS

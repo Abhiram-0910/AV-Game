@@ -91,5 +91,3 @@ export function QuizPanel() {
   )
 }
 
-export const QuizModal = QuizPanel
-

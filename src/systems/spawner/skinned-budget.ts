@@ -29,10 +29,6 @@ export function peakSkinned(): number {
   return peakCount
 }
 
-export function hasSkinnedSlot(): boolean {
-  return live.size < BALANCE.spawn.MAX_SKINNED
-}
-
 /** Tests only. */
 export function resetSkinnedBudget(): void {
   live.clear()

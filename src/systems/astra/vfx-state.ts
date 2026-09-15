@@ -21,7 +21,7 @@ export function lastAstraCastAt(): number {
 }
 
 let nextVfxId = 1
-export function emitAstraVfx(vfx: Omit<AstraVfxEvent, 'id'>): void {
+function emitAstraVfx(vfx: Omit<AstraVfxEvent, 'id'>): void {
   lastCastAt = performance.now()
   const event: AstraVfxEvent = { ...vfx, id: nextVfxId++ }
   listeners.forEach((l) => l(event))

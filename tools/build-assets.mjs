@@ -62,7 +62,6 @@ const JOBS = {
     steps: [['weld']],
     maxTris: PALACE_MAX_TRIS,
   },
-  royalRoom: { src: 'zips/props_royal_room.glb', out: 'env/royal-room.glb', steps: [['weld'], ['join']] },
   target: { ...verbatim('zips/Target by Quaternius - gKYbYR3z0M.glb'), out: 'props/target.glb' },
   bow: { ...verbatim('zips/Wooden Bow by Quaternius - QnpqjLSKFU.glb'), out: 'props/bow.glb' },
   arrow: { ...verbatim('zips/Arrow by Quaternius - Rt48KEPDGt.glb'), out: 'props/arrow.glb' },

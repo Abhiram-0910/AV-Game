@@ -139,5 +139,3 @@ export function DialoguePanel({ speech, onDone }: Props) {
     </div>
   )
 }
-
-export const DialogueBox = DialoguePanel

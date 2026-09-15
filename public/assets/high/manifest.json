@@ -49,11 +49,6 @@
     "tris": 39732,
     "bytes": 2059700
   },
-  "royalRoom": {
-    "file": "env/royal-room.glb",
-    "tris": 14390,
-    "bytes": 1370936
-  },
   "target": {
     "file": "props/target.glb",
     "tris": 352,

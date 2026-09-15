@@ -23,8 +23,6 @@ export type FailCondition = 'none' | 'healthZero' | 'yajnaZero' | 'arrowsOut' | 
  * longRange — far enough that the arrow drops noticeably;  occluded — small and half hidden
  * behind cover;  astraOnly — plain arrows bounce off, only a charged astra brings it down.
  */
-export type TargetKind = 'static' | 'lateral' | 'longRange' | 'occluded' | 'astraOnly'
-
 export type TargetDef =
   | { kind: 'static'; pos: Vec3 }
   | { kind: 'lateral'; pos: Vec3; amplitude: number; periodTicks: number }

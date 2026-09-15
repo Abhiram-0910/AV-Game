@@ -35,7 +35,6 @@ export const CLIPS = {
 } as const
 
 export type ClipKey = keyof typeof CLIPS
-export type ClipName = (typeof CLIPS)[ClipKey]
 
 /** Which GLB a clip lives in. Both are loaded once and merged (pass 2). */
 export const CLIP_SOURCES = {

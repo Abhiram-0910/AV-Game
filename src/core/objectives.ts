@@ -61,7 +61,7 @@ export function applyObjectiveEvent(
   return progress.map((p, idx) => (idx === i ? { done: next >= requiredFor(o), progress: next } : p))
 }
 
-export function allDone(progress: readonly ObjectiveProgress[]): boolean {
+function allDone(progress: readonly ObjectiveProgress[]): boolean {
   return progress.every((p) => p.done)
 }
 

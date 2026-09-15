@@ -6,7 +6,7 @@ import { levelDef } from '@core/progression'
 import { platform } from '@platform/index'
 import { applyArrowHit } from '../ai/enemy-ai'
 import { aimFromRay, grounded, launchArrow, muzzleOrigin, shouldFailArrowsOut, stepArrow } from './ballistics'
-import { drawFraction, stepDraw } from './draw'
+import { stepDraw } from './draw'
 import { createHitTester, resolveHitRoot } from './hit-test'
 import { playAudio } from '../audio'
 import { world, worldStore } from '../world'
@@ -120,5 +120,3 @@ export function stepArchery(dt: number): void {
   const s = gameStore.getState()
   if (shouldFailArrowsOut(s.arrows, world.arrows.length, targetsRemaining())) s.fail('arrowsOut')
 }
-
-export { drawFraction }

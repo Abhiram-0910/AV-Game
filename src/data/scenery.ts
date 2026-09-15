@@ -15,7 +15,6 @@ export type AssetId =
   | 'ual1'
   | 'ual2'
   | 'palace'
-  | 'royalRoom'
   | 'target'
   | 'bow'
   | 'arrow'
@@ -38,7 +37,6 @@ export const ASSET_FILES: Readonly<Record<AssetId, string>> = {
   ual1: 'anims/ual1.glb',
   ual2: 'anims/ual2.glb',
   palace: 'env/palace.glb',
-  royalRoom: 'env/royal-room.glb',
   target: 'props/target.glb',
   bow: 'props/bow.glb',
   arrow: 'props/arrow.glb',

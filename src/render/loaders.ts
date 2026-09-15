@@ -11,7 +11,7 @@ let loader: GLTFLoader | null = null
 const cache = new Map<AssetId, Promise<GLTF>>()
 let clipLibrary: Promise<AnimationClip[]> | null = null
 
-export class SkeletonMismatchError extends Error {
+class SkeletonMismatchError extends Error {
   constructor(name: string, joints: number) {
     super(`${name}: expected ${SKELETON.JOINT_COUNT} joints, got ${joints}. Every humanoid must share the one skeleton.`)
     this.name = 'SkeletonMismatchError'
@@ -68,11 +68,4 @@ export function evictAssets(ids: readonly AssetId[]): void {
     cache.delete(id)
     p.then((g) => disposeTree(g.scene)).catch(() => undefined)
   }
-}
-
-/** Tests only. */
-export function resetLoaders(): void {
-  loader = null
-  cache.clear()
-  clipLibrary = null
 }
