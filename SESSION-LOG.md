@@ -2,6 +2,56 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-15 — Claude Code (Opus 5) — The Windows package had no game in it
+
+Branch `main`. The packaged Windows build failed at launch with `ENOENT, dist not found in ...\resources\app.asar`.
+
+### 1. Packager output and Vite output were the same folder
+- **Cause.** `build` in `package.json` set no `directories.output`, so electron-builder wrote `win-unpacked/`, the
+  NSIS 7z and `builder-debug.yml` into `dist/`. electron-builder always drops its own output directory from
+  `build.files`, so `"dist/**/*"` matched nothing and the asar held only `dist-electron/`, `package.json` and
+  `node_modules`.
+- **Change.** `"directories": { "output": "release" }`. `release/` was already gitignored. Vite still builds to `dist/`,
+  so Vercel, `npm run build` and `electron:dev` see no change (`electron:dev` loads Vite's dev server, not `dist/`).
+- **Asar after `npm run package:win`** (`@electron/asar` listing, compared file by file against `dist/` on disk):
+
+  | part | contents |
+  |---|---|
+  | `/dist` | 96 of 96 files, 0 missing, 61.0 MB: `index.html`, `favicon.svg`, `assets/` (11 entries incl. `high/`), `audio/`, `fonts/`, `vendor/draco`, `vendor/basis` |
+  | `/dist-electron` | `main.js`, `preload.js`, 5.4 KB |
+  | `/node_modules` | 128.5 MB of runtime deps Vite already bundled (TODO) |
+  | `/package.json` | |
+
+  `dist/index.html` extracted from the asar is the Vite build's (`/assets/index-CTWy3q3N.js`). The Windows Electron
+  binary itself (`ELECTRON_RUN_AS_NODE`) listed `resources/app.asar/dist` as present.
+- **NSIS.** `npm run package:win` exits 1 at `wine process failed ENOENT` after `release/win-unpacked/` is complete.
+  Expected on WSL; Wine was not installed.
+
+### 2. The packaged app then failed its first load on Windows
+- **Measured.** With `dist/` in the asar, the app (run from a local-disk copy under `C:\Users\...\AppData\Local`)
+  logged `ERR_FAILED (-2) loading 'http://127.0.0.1:61242/'`. From the `\\wsl.localhost` path it never got that far:
+  `GPU process isn't usable. Goodbye.`
+- **Cause.** `serveDist` served a path when `existsSync(reqPath) && !reqPath.endsWith('/')`. Windows `node.exe`:
+  `join(distDir, '/')` ends in `\`, so `/` streamed the `dist` directory itself. On Linux it ends in `/`, which is why
+  dev and Linux never showed it. The same join reached `app-update.yml` outside the asar through `/../../../`.
+- **Change** (`electron/main.ts` `serveDist`, 2 lines + imports): serve only when `statSync(reqPath).isFile()` and
+  `reqPath.startsWith(distDir + sep)`; everything else gets `index.html` as before.
+- **After**, repackaged and launched on the laptop, probed over CDP from Windows `node.exe` 25 s in: title `bala-kanda`,
+  React mounted, canvas present, WebGL `ANGLE (NVIDIA GeForce RTX 4050 Laptop GPU, D3D11)`, L1 running with its HUD;
+  `palace.glb`, `male.glb`, `ual1/ual2.glb`, both hair glbs, `YatraOne-Regular.ttf` and `l1.intro.0.ogg` all 200.
+  The screenshot showed the court, Rama and the objective. Abhi confirmed the offline exe works.
+  - That also closes two TODO lines: `force_high_performance_gpu` takes the dGPU on Windows, and `.ogg` without a MIME
+    entry plays in a packaged build.
+  - An earlier probe of the first launch (fresh `userData`) read an empty page and a black frame at 25 s; the tier
+    benchmark had not finished. Not a failure.
+
+### Verification
+- `npm run build` (inside `package:win`, twice): typecheck and Vite build pass; `dist/` holds only the web build again.
+- `vitest run`: 23 files, 155 passed, 1 skipped (same as before). `eslint .`: clean.
+- e2e not run: no `src/` change, and the web build output is unchanged.
+- The launch copy at `C:\Users\drona\AppData\Local\bk-launch-check` (550 MB) is still there; deleting it was not
+  allowed from this session.
+
 ## 2026-09-14 — Claude Code (Opus 5) — First human playthrough: the hiss, a sword nobody could use, the quiver, both tiers
 
 Branch `feat/visual-grandeur`. A human played all five levels for the first time and reported four things. Each was

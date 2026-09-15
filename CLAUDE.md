@@ -111,5 +111,14 @@ the gotchas that are not derivable from the tree.
   80–105k tris). On a software renderer (SwiftShader: every e2e and `shoot-levels` run in WSL) `WildsDressing` builds
   nothing. With it, L2's and L3's e2e ran past their 15-minute timeouts. Measure low on the Intel UHD with
   `tools/bench-gpu.mjs`, never from a SwiftShader count.
+- **electron-builder writes to `release/`, never `dist/`.** Its default output is `dist/`, and it always drops its own
+  output directory from `build.files`, so the packaged asar had no `dist/` ("ENOENT, dist not found in app.asar").
+  Vercel deploys `dist/`; keep `directories.output` off it.
+- **Check a packaged Windows build from a local disk, not `\\wsl.localhost`.** Launched from the UNC path its GPU
+  process dies ("GPU process isn't usable. Goodbye."). Copy `release/win-unpacked` under `C:\`, start it with
+  `--remote-debugging-port`, and probe from Windows `node.exe`. `package:win` exits 1 at NSIS (no Wine) after the
+  unpacked build is complete.
+- **`serveDist` must not test paths for `/`.** On Windows `join()` ends a directory in `\`; the old `endsWith('/')`
+  check streamed the `dist` directory and the packaged app's first load failed with `ERR_FAILED`.
 - **A sword slash has a cooldown** (`melee.SLASH_TICKS`), and a strike counts at its first tick. A spec that presses F
   again as soon as a count rises is ignored: wait for `world.tick >= world.swordSlashUntilTick`.

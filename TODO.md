@@ -1,5 +1,16 @@
 # TODO
 
+## Open after the Windows package fix (2026-09-15, Claude Code)
+
+SESSION-LOG 2026-09-15, "The Windows package had no game in it". Done: packager output in `release/`, the Windows
+first-load failure in `serveDist`, a launch of the packaged build on this machine. Open:
+- **The NSIS installer is not built.** electron-builder needs Wine for it and WSL has none, so `npm run package:win`
+  exits 1 after `release/win-unpacked/` is complete. Build the installer from a Windows shell.
+- **`app.asar` carries 128.5 MB of `node_modules`** beside 61.0 MB of `dist/`. Vite already bundles every runtime
+  dependency and `main.ts` imports only `electron` and `node:*`. Excluding `node_modules` in `build.files` would cut
+  the asar to a third; launch the packaged build before keeping that.
+- **`npm run package:linux` was not run** after the output move. It writes to `release/` too.
+
 ## Open after the first human playthrough (2026-09-14, Claude Code)
 
 SESSION-LOG 2026-09-14, "First human playthrough". Done: the hiss, the sword (HUD, reach, L4 lesson), L5 pressure, the
@@ -37,7 +48,6 @@ All 52 lines are voiced (SESSION-LOG 2026-09-14, "Voice-over"). Open:
   (`l4.vishwamitra.astras.0`), L1 total 428,921 B over 15 files. Voice start lead on a local preview (Windows Chrome):
   ~25–300 ms, once 1.25 s on the first line after level load. Measure on a throttled or school link before deciding to
   preload a level's VO behind the progress bar.
-- `electron/main.ts` MIME map has no `.ogg` (harmless with Howler's XHR decode; confirm in a packaged build).
 - Safari gets subtitles only (Howler's `.ogg` probe checks Vorbis). Fine for Chrome labs and Electron.
 - The `subtitles` setting does nothing yet.
 ## Open after the royal UI pass (2026-09-14, Claude Code)
@@ -142,7 +152,6 @@ changed:
 - **L3 e2e loses the melee race again.** It failed in three runs on 2026-09-14: in the suite, alone, and on baseline
   4a3ea76 with the same spec, reaching Tataka 150 → 15 at best. L3's code did not change. It passed in the previous
   session's final suite, so it is timing-dependent. It needs the TODO's melee-pacing work, not a spec loosening.
-- The Electron `force_high_performance_gpu` switch is not yet confirmed on Windows (`[gpu]` log line).
 
 ## Playtest follow-ups (2026-09-13, Claude Code)
 
@@ -238,6 +247,10 @@ for nothing. Deleted; `render/manifest.ts` serves `high/` to both tiers again. C
 and check the output actually contains KTX2 (`KHR_texture_basisu` in the GLB JSON).
 
 ## KNOWN — Electron shows a blank/crashed window in a GPU-less sandbox; not verified on a real target machine (pass 3 phase H, 2026-09-10)
+
+**2026-09-15:** the packaged Windows build runs on this laptop: WebGL on ANGLE D3D11, RTX 4050 (so
+`force_high_performance_gpu` works), L1 mounted with its HUD, and the glb, font and `.ogg` requests all returned 200.
+A real Linux desktop and the Wayland switch below are still unverified.
 
 `electron/main.ts` launches, serves `dist/` over a local static server, and loads correctly —
 confirmed via `electron .` in this session's dev container. But that container (unlike the

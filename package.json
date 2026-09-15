@@ -20,6 +20,7 @@
   "build": {
     "appId": "org.balakanda.app",
     "productName": "Bala Kanda",
+    "directories": { "output": "release" },
     "files": ["dist/**/*", "dist-electron/**/*"],
     "win": { "target": "nsis" },
     "linux": { "target": "AppImage", "category": "Game" }

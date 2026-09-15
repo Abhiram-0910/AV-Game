@@ -2,9 +2,9 @@
 // GPU-renderer log are the only things this touches that the web build doesn't need — the
 // window renders the exact same React/R3F bundle over Chromium + ANGLE as the browser build.
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { createReadStream, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
-import { extname, join } from 'node:path'
+import { extname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -48,7 +48,10 @@ function serveDist(): Promise<string> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       const reqPath = join(distDir, decodeURIComponent((req.url ?? '/').split('?')[0]))
-      const file = existsSync(reqPath) && !reqPath.endsWith('/') ? reqPath : join(distDir, 'index.html')
+      // isFile(), not a trailing '/': on Windows join() ends a directory in '\', and streaming a directory failed the
+      // first load of the packaged app. The prefix check keeps '..' from reading outside dist.
+      const inDist = reqPath.startsWith(distDir + sep) && existsSync(reqPath) && statSync(reqPath).isFile()
+      const file = inDist ? reqPath : join(distDir, 'index.html')
       res.setHeader('Content-Type', MIME[extname(file)] ?? 'application/octet-stream')
       createReadStream(file).pipe(res)
     })
