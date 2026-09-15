@@ -10,6 +10,7 @@ export type Objective =
   | { kind: 'talk'; npc: NpcId; dialogueKey: string }
   | { kind: 'reach'; waypoint: string }
   | { kind: 'hitTargets'; count: number }
+  | { kind: 'strike'; count: number }
   | { kind: 'chargeAstra'; count: number }
   | { kind: 'defeat'; enemy: EnemyKind; count: number }
   | { kind: 'survive'; ticks: number }
@@ -55,6 +56,11 @@ export interface LevelDef {
   waypoints: Readonly<Record<string, Vec3>>
   /** Archery targets, empty where there is nothing to shoot at. */
   targets: readonly TargetDef[]
+  /** Where the sword lesson's straw man stands; a 'strike' objective counts blows on it. */
+  strikeDummy?: Vec3
+  /** Quiver and astra charges at the start, where the level differs from player.START_ARROWS / astra.START_CHARGES. */
+  startArrows?: number
+  startAstraCharges?: number
   objectives: readonly Objective[]
   fail: readonly FailCondition[]
   /** Static (non-wave) enemies present from play start. */
@@ -164,8 +170,12 @@ export const LEVELS: readonly LevelDef[] = [
       { kind: 'occluded', pos: [-9, 0, -28], scale: 0.6, coverPos: [-9, 0, -25] },
       { kind: 'astraOnly', pos: [10, 0, -34], scale: 2.5 },
     ],
+    // The sword lesson before the bow trial (2026-09-14): a human reached L5 never having swung it. Beside the brothers,
+    // behind the firing line, so no arrow flies near it; 3.5 m from Lakshmana and 5.7 m from the spawn.
+    strikeDummy: [-4, 0, 4],
     objectives: [
       { kind: 'talk', npc: 'vishwamitra', dialogueKey: 'l4.vishwamitra.astras' },
+      { kind: 'strike', count: 3 },
       { kind: 'reach', waypoint: 'firingLine' },
       { kind: 'hitTargets', count: 5 },
       { kind: 'chargeAstra', count: 1 },
@@ -195,20 +205,20 @@ export const LEVELS: readonly LevelDef[] = [
     ],
     fail: ['healthZero', 'yajnaZero'],
     enemies: [],
-    // 3 persistent + maxAlive must stay ≤ 12. Waves overlap only at their tails, and the
-    // spawner treats maxAlive as a global cap across concurrent waves (see content test).
+    // A human never saw Subahu: the yajna fell before tick 4600 every time (2026-09-14). 30 arrows instead of 12, and
+    // three astra charges so an Agneyastra spent on rakshasas still leaves the Manava for Maricha (no charge comes back).
+    startArrows: 30,
+    startAstraCharges: 3,
+    // 3 persistent + maxAlive must stay ≤ 12 (see content test; the spawner also holds the global budget).
+    // 2026-09-14: 19 rakshasas at maxAlive up to 5 → 14 at 2–3, and Subahu and Maricha at ~55 s instead of ~77 s,
+    // so the level's second act arrives while a child is still holding the fire. Tuned with runs: SESSION-LOG.
     waves: [
-      // maxAlive 3 (was 4): a player's first concurrent-enemy fight, straight from spawn —
-      // pass 3 phase G playtesting found 4-at-once here gave no room to learn the mechanic.
-      // spawnIntervalTicks widened on the first two waves (120→150, 90→120) for the same
-      // reason: a bow-only kill takes two arrows per rakshasa, and the original cadence
-      // outpaced how fast a well-aimed player can drop one and reload for the next.
-      { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 150, maxAlive: 3 },
-      { startTick: 1500, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 5 },
-      { startTick: 3100, kind: 'rakshasa', count: 6, spawnIntervalTicks: 120, maxAlive: 4 },
-      { startTick: 4600, kind: 'rakshasa', count: 3, spawnIntervalTicks: 130, maxAlive: 3 },
-      { startTick: 4600, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
-      { startTick: 4680, kind: 'maricha', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
+      { startTick: 300, kind: 'rakshasa', count: 4, spawnIntervalTicks: 180, maxAlive: 2 },
+      { startTick: 1400, kind: 'rakshasa', count: 5, spawnIntervalTicks: 150, maxAlive: 3 },
+      { startTick: 2500, kind: 'rakshasa', count: 3, spawnIntervalTicks: 150, maxAlive: 2 },
+      { startTick: 3300, kind: 'subahu', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
+      { startTick: 3420, kind: 'maricha', count: 1, spawnIntervalTicks: 1, maxAlive: 1 },
+      { startTick: 4000, kind: 'rakshasa', count: 2, spawnIntervalTicks: 180, maxAlive: 2 },
     ],
     quizGate: null,
     codexCard: 'maricha-subahu',

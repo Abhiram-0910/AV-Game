@@ -228,19 +228,51 @@ function playMelody(c: AudioContext, key: SoundKey, freqs: readonly number[], st
   return { id, key, stop: () => stopWithFade(totalGain, nodes, c) }
 }
 
-function playUi(key: UiSoundKey, c: AudioContext, vol: number, loop: boolean): ActiveSoundHandle {
+function playUi(key: UiSoundKey, c: AudioContext, vol: number): ActiveSoundHandle {
   if (key === 'button_click') return playTone(c, key, 1100, 750, 0.02, vol, 'sine')
   if (key === 'quiz_correct') return playMelody(c, key, [523.25, 659.25, 783.99], 0.1, vol)
   if (key === 'quiz_incorrect') return playTone(c, key, 260, 180, 0.22, vol, 'sawtooth')
   if (key === 'level_win') return playMelody(c, key, [261.63, 329.63, 392.0, 523.25], 0.12, vol)
-  if (key === 'level_fail') return playMelody(c, key, [293.66, 261.63, 220.0], 0.18, vol)
-  return playTone(c, key, 146.83, 146.83, 2, vol, 'triangle', loop)
+  return playMelody(c, key, [293.66, 261.63, 220.0], 0.18, vol)
 }
 
+/** Wind: lowpass cutoff (Hz), how far it sways (fraction of the cutoff), the gust swell (fraction of the level), their
+ * rates (Hz), and the fade-in. The old loops were one noise buffer through a single bandpass (Q 1) or lowpass, so a
+ * third of their energy sat above 1 kHz and read as static (2026-09-14). */
+const WIND = { forestCutoff: 520, nightCutoff: 340, sway: 0.35, swayHz: 0.05, gust: 0.55, gustHz: 0.11, fadeInSec: 3 }
+
+/** A slow oscillator added onto an AudioParam. */
+function lfo(c: AudioContext, hz: number, depth: number, param: AudioParam): AudioNode[] {
+  const osc = c.createOscillator()
+  const amount = c.createGain()
+  osc.frequency.setValueAtTime(hz, c.currentTime)
+  amount.gain.setValueAtTime(depth, c.currentTime)
+  osc.connect(amount).connect(param)
+  osc.start()
+  return [osc, amount]
+}
+
+/** Outdoor air: looped noise through two lowpasses in series (24 dB/octave, so nothing reaches the band where hiss
+ * lives), its cutoff swaying and its level swelling on slow oscillators so it moves like wind, not one steady rush. */
 function playAmbient(key: AmbientSoundKey, c: AudioContext, vol: number): ActiveSoundHandle {
-  if (key === 'ambient_court') return playTone(c, key, 110, 110, 2, vol, 'sine', true)
-  if (key === 'ambient_forest') return playNoise(c, key, 2, vol, 450, 'bandpass', true)
-  return playNoise(c, key, 2, vol, 220, 'lowpass', true)
+  const id = nextHandleId++
+  const now = c.currentTime
+  const cutoff = key === 'ambient_night' ? WIND.nightCutoff : WIND.forestCutoff
+  const src = c.createBufferSource()
+  src.buffer = createNoiseBuffer(c, 4)
+  src.loop = true
+  const low = [c.createBiquadFilter(), c.createBiquadFilter()]
+  for (const f of low) {
+    f.type = 'lowpass'
+    f.frequency.setValueAtTime(cutoff, now)
+  }
+  const gain = c.createGain()
+  gain.gain.setValueAtTime(0.0001, now)
+  gain.gain.linearRampToValueAtTime(vol, now + WIND.fadeInSec)
+  const mods = [...lfo(c, WIND.swayHz, cutoff * WIND.sway, low[0].frequency), ...lfo(c, WIND.gustHz, vol * WIND.gust, gain.gain)]
+  src.connect(low[0]).connect(low[1]).connect(gain).connect(masterGain ?? c.destination)
+  src.start(now)
+  return { id, key, stop: () => stopWithFade(gain, [src, ...low, ...mods, gain], c) }
 }
 
 export function playProceduralSound(key: SoundKey, opts: PlayOptions = {}): ActiveSoundHandle | null {
@@ -248,7 +280,6 @@ export function playProceduralSound(key: SoundKey, opts: PlayOptions = {}): Acti
   if (!c) return null
   const baseVol = DEFAULT_SOUND_VOLUMES[key] ?? 0.5
   const vol = baseVol * (opts.volume ?? 1)
-  const loop = opts.loop ?? false
 
   try {
     if (key === 'bow_draw' || key === 'bow_release' || key === 'arrow_hit_target' || key === 'arrow_hit_flesh') {
@@ -260,8 +291,8 @@ export function playProceduralSound(key: SoundKey, opts: PlayOptions = {}): Acti
     if (key === 'astra_cast' || key === 'astra_charge' || key === 'thunder' || key === 'gale' || key === 'whoosh' || key === 'sword_slash' || key === 'enemy_hit' || key === 'enemy_death' || key === 'boss_groan') {
       return playCombat(key, c, vol)
     }
-    if (key === 'button_click' || key === 'quiz_correct' || key === 'quiz_incorrect' || key === 'level_win' || key === 'level_fail' || key === 'title_theme') {
-      return playUi(key, c, vol, loop)
+    if (key === 'button_click' || key === 'quiz_correct' || key === 'quiz_incorrect' || key === 'level_win' || key === 'level_fail') {
+      return playUi(key, c, vol)
     }
     return playAmbient(key, c, vol)
   } catch {

@@ -30,8 +30,6 @@ describe('audio sound keys and defaults', () => {
     'quiz_incorrect',
     'level_win',
     'level_fail',
-    'title_theme',
-    'ambient_court',
     'ambient_forest',
     'ambient_night',
   ]
@@ -44,8 +42,6 @@ describe('audio sound keys and defaults', () => {
   })
 
   it('contains all ambient loops in AMBIENT_SOUND_KEYS', () => {
-    expect(AMBIENT_SOUND_KEYS).toContain('title_theme')
-    expect(AMBIENT_SOUND_KEYS).toContain('ambient_court')
     expect(AMBIENT_SOUND_KEYS).toContain('ambient_forest')
     expect(AMBIENT_SOUND_KEYS).toContain('ambient_night')
   })

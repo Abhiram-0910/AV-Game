@@ -20,7 +20,7 @@ const ALTAR = { x: L5.waypoints.altar[0], z: L5.waypoints.altar[2] }
 const GUARD_RADIUS = 2.6
 /** Slash when an enemy is this close: under melee.RANGE, so it is still in reach after a poll of approach. */
 const SLASH_DIST = BALANCE.melee.RANGE - 0.3
-/** The sword's cone is ±60°; inside this heading error a slash lands. Manava's cone is also ±60°. */
+/** Inside this heading error a slash lands (the sword's cone is ±90°, melee.CONE_ANGLE_DEG) and Manava's ±60° cone holds Maricha. */
 const CONE_TOL = 0.9
 /** Heading error tolerated while walking; tighter would oscillate, one poll turns Rama ~0.75 rad under SwiftShader. */
 const WALK_TOL = 0.5

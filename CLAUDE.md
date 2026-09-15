@@ -107,3 +107,9 @@ the gotchas that are not derivable from the tree.
 - **Retry is a remount.** `RETRY` bumps `gameStore.attempt` and `App.tsx` keys the scene on it, so every entity
   re-registers. Never reset level state in place; entities that register on mount (targets, enemies) will not come back.
 - **`arrow.glb` stands upright** (head at −Y). Orient arrows only through `render/arrow-model.ts`.
+- **The low tier's outdoor dressing depends on the renderer.** On a real GPU, low mounts `WILDS.<level>.low` (L2–L4 at
+  80–105k tris). On a software renderer (SwiftShader: every e2e and `shoot-levels` run in WSL) `WildsDressing` builds
+  nothing. With it, L2's and L3's e2e ran past their 15-minute timeouts. Measure low on the Intel UHD with
+  `tools/bench-gpu.mjs`, never from a SwiftShader count.
+- **A sword slash has a cooldown** (`melee.SLASH_TICKS`), and a strike counts at its first tick. A spec that presses F
+  again as soon as a count rises is ignored: wait for `world.tick >= world.swordSlashUntilTick`.

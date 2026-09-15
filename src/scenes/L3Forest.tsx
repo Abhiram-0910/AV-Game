@@ -30,7 +30,7 @@ const CLEARING_DONE_AT = def.objectives.findIndex((o) => o.kind === 'reach' && o
 function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.enemies.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.enemies.length + 1 + 1) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -80,7 +80,7 @@ export function L3Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
-      {tier === 'high' && <WildsDressing level="l3" />}
+      <WildsDressing level="l3" tier={tier} />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}

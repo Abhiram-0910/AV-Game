@@ -23,6 +23,8 @@ function objectiveText(o: Objective | undefined, p: ObjectiveProgress | undefine
       return fmt(UI['objective.talk'], { npc: UI[`name.${o.npc}`] })
     case 'hitTargets':
       return fmt(UI['objective.hitTargets'], { done: p.progress, total: o.count })
+    case 'strike':
+      return fmt(UI['objective.strike'], { done: p.progress, total: o.count })
     case 'chargeAstra':
       return UI['objective.chargeAstra']
     case 'defeat':
@@ -100,12 +102,9 @@ export function Hud({ bow }: { bow: boolean }) {
   const objective = objectiveText(def.objectives[i], progress[i])
   const guardsYajna = def.fail.includes('yajnaZero')
   const timeLeft = secondsLeft(def.objectives[i], progress[i])
-  const controlsText =
-    bow && astraReady
-      ? `${UI['hud.bowControls']} · [Space/Q] ${UI['hud.astra']}`
-      : bow
-        ? UI['hud.bowControls']
-        : UI['hud.controls']
+  const bowText = `${UI['hud.bowControls']} · ${UI['hud.swordSlash']}`
+  const controlsText = bow && astraReady ? `${bowText} · [Space/Q] ${UI['hud.astra']}` : bow ? bowText : UI['hud.controls']
+  const promptText = prompt === 'pickup' ? UI['hud.pickup'] : prompt === 'strike' ? UI['hud.strike'] : UI['hud.interact']
 
   return (
     <div className="hud" data-testid="hud">
@@ -115,7 +114,7 @@ export function Hud({ bow }: { bow: boolean }) {
       <ObjectiveRow text={objective} timeLeft={timeLeft} astraReady={level === 'l4' && astraReady} />
       {prompt && (
         <div className="hud-prompt" data-testid="hud-prompt">
-          {prompt === 'pickup' ? UI['hud.pickup'] : UI['hud.interact']}
+          {promptText}
         </div>
       )}
       <WaypointIndicator />

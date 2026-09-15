@@ -32,7 +32,7 @@ const VISHWAMITRA_AT_RANGE: Vec3 = [def.waypoints.range[0] - 1.5, 0, def.waypoin
 function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + 1) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -55,7 +55,7 @@ export function L2Forest({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
-      {tier === 'high' && <WildsDressing level="l2" />}
+      <WildsDressing level="l2" tier={tier} />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}

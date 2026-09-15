@@ -8,7 +8,7 @@ import { currentObjectiveIndex } from '@core/objectives'
 import { levelDef } from '@core/progression'
 import { stepEnemy } from '@systems/ai/enemy-ai'
 import { stepAstra } from '@systems/astra/step'
-import { checkMeleeHit } from '@systems/combat-rules'
+import { checkMeleeHit, swordTargetInReach } from '@systems/combat-rules'
 import { createFixedLoop } from '@systems/loop/fixed-loop'
 import { IDLE_INPUT, type MoveInput, stepLocomotion, turnToward } from '@systems/locomotion/kinematic'
 import { createGroundProbe } from '@systems/locomotion/ground'
@@ -35,7 +35,8 @@ function takeLookYaw(): number {
   return yaw
 }
 
-function stepInteraction(): void {
+/** `bow`: the level arms Rama, so the sword prompt can show when a foe or the straw man is in reach. */
+function stepInteraction(bow: boolean): void {
   const s = gameStore.getState()
   const def = levelDef(s.level)
   const i = currentObjectiveIndex(s.objectives)
@@ -51,7 +52,7 @@ function stepInteraction(): void {
     return
   }
   const pickup = nearestPickupIndex(world.arrowPickups, x, z)
-  worldStore.getState().setPrompt(pickup >= 0 ? 'pickup' : null)
+  worldStore.getState().setPrompt(pickup >= 0 ? 'pickup' : bow && swordTargetInReach(world.player) ? 'strike' : null)
   if (pickup >= 0 && platform.input.pressed(KEY_E)) {
     world.arrowPickups.splice(pickup, 1)
     s.pickupArrows()
@@ -79,7 +80,7 @@ function stepFacing(dt: number): void {
   }
 }
 
-/** Cosmetic secondary action — no target, no damage; the sword doesn't fight until Level 3. */
+/** F or the right button: a slash that strikes every enemy and straw man in reach (systems/combat-rules.ts). */
 function stepSword(tick: number): void {
   const slash = platform.input.pressed(KEY_SWORD) || platform.input.pressed('MouseRight')
   if (slash && tick >= world.swordSlashUntilTick) {
@@ -132,7 +133,7 @@ export function SimulationDriver({ bow, onTick }: { bow: boolean; onTick?: (tick
       if (phase === 'play' && !talking && !paused) {
         const query = { bounds: sceneBounds(bounds), obstacles: world.npcs.map((n) => ({ x: n.x, z: n.z, radius: BALANCE.locomotion.NPC_RADIUS })), groundY }
         world.player = stepLocomotion(world.player, readMove(), loop.dt, query)
-        stepInteraction()
+        stepInteraction(bow)
         stepEnemies(tick, loop.dt, objective)
         gameStore.getState().regenHealth(tick)
         onTick?.(tick)

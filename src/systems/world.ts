@@ -21,7 +21,7 @@ export interface BossHealth {
 
 export interface WorldUi {
   /** 'pickup' when standing over a spent-arrow pile, an NpcId while in talk range, else null. */
-  prompt: NpcId | 'pickup' | null
+  prompt: NpcId | 'pickup' | 'strike' | null
   /** Speech currently on screen from a talk interaction. */
   dialogue: DialogueKey | null
   /** Asset promises resolved vs. expected for the current scene. */
@@ -49,7 +49,7 @@ export interface WorldUi {
   /** The active reach waypoint on screen (entities/WaypointMarker projects it): a spot, or an edge point with the
    * arrow angle when it is off camera. Null when no reach objective is active. */
   waypoint: WaypointScreen | null
-  setPrompt(p: NpcId | 'pickup' | null): void
+  setPrompt(p: NpcId | 'pickup' | 'strike' | null): void
   openDialogue(key: DialogueKey | null): void
   expect(n: number): void
   markLoaded(): void
@@ -118,6 +118,13 @@ export const worldStore = createStore<WorldUi>()((set) => ({
     }),
 }))
 
+/** A straw man: where it stands and the tick the sword last struck it (-1: never). */
+export interface StrikeDummy {
+  x: number
+  z: number
+  struckTick: number
+}
+
 export interface WorldSim {
   player: LocomotionState
   draw: DrawState
@@ -136,6 +143,8 @@ export interface WorldSim {
   arrowPickups: { x: number; z: number }[]
   /** Tick until which Rama plays the one-shot sword slash instead of the locomotion clip. */
   swordSlashUntilTick: number
+  /** Straw men the sword can strike (Level 4's lesson), registered by entities/StrikeDummy.tsx on mount. */
+  dummies: StrikeDummy[]
   /** Hold-to-charge state for the astra cast, same shape as the bow's draw. */
   astraCharge: DrawState
   /** Whether the on-screen Astra button is being held down. */
@@ -174,6 +183,7 @@ export const world: WorldSim = {
   arrows: [],
   arrowPickups: [],
   swordSlashUntilTick: 0,
+  dummies: [],
   astraCharge: NO_DRAW,
   astraButtonHeld: false,
   astraReady: false,
@@ -191,7 +201,7 @@ export const world: WorldSim = {
 
 /**
  * Called from the scene's mount effect, which React runs AFTER the children's effects — so
- * this must not touch npcs/ground/hittable/enemies: entities register there on mount and
+ * this must not touch npcs/ground/hittable/enemies/dummies: entities register there on mount and
  * remove themselves on unmount, and clearing here would wipe registrations that already
  * happened.
  */

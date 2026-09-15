@@ -6,7 +6,7 @@ import { BALANCE } from '@data/balance'
 import { CLIPS, CLIP_SOURCES } from '@data/clips'
 import { CODEX } from '@data/codex'
 import { DIALOGUE, UI } from '@data/dialogue'
-import { LEVELS, LEVEL_ORDER } from '@data/levels'
+import { LEVELS, LEVEL_ORDER, type Wave } from '@data/levels'
 import { QUIZ_GATES } from '@data/quiz'
 import { ASSET_FILES, SCENERY, WILDS } from '@data/scenery'
 import { inCapsule } from '@render/wilds-dressing'
@@ -55,6 +55,7 @@ describe('levels', () => {
       for (const o of l.objectives) {
         if (o.kind === 'talk') expect(o.dialogueKey in DIALOGUE, o.dialogueKey).toBe(true)
         if (o.kind === 'reach') expect(o.waypoint in l.waypoints, `${l.id}:${o.waypoint}`).toBe(true)
+        if (o.kind === 'strike') expect(l.strikeDummy, `${l.id} asks for a strike with no straw man`).toBeDefined()
       }
       if (l.quizGate) expect(gates.has(l.quizGate)).toBe(true)
       expect(cards.has(l.codexCard as never)).toBe(true)
@@ -63,11 +64,11 @@ describe('levels', () => {
 
   it('L5 waves respect the 12 concurrent SkinnedMesh budget, staggered not burst', () => {
     const l5 = LEVELS[4]
-    const peak = Math.max(...l5.waves.map((w) => w.maxAlive))
-    const overlapping = l5.waves
-      .filter((w) => w.startTick >= 4500)
-      .reduce((n, w) => n + w.maxAlive, 0)
-    expect(l5.persistentSkinned.length + Math.max(peak, overlapping)).toBeLessThanOrEqual(BALANCE.spawn.MAX_SKINNED)
+    // A wave may have enemies up from its start to its last spawn; a lone boss stays until he is beaten.
+    const end = (w: Wave) => (w.count === 1 ? Infinity : w.startTick + w.count * w.spawnIntervalTicks)
+    const alongside = (w: Wave) => l5.waves.filter((v) => v.startTick <= w.startTick && end(v) >= w.startTick)
+    const peak = Math.max(...l5.waves.map((w) => alongside(w).reduce((n, v) => n + v.maxAlive, 0)))
+    expect(l5.persistentSkinned.length + peak).toBeLessThanOrEqual(BALANCE.spawn.MAX_SKINNED)
     for (const w of l5.waves) {
       if (w.count > 1) expect(w.spawnIntervalTicks, `${w.kind}@${w.startTick}`).toBeGreaterThanOrEqual(60)
       expect(w.maxAlive).toBeLessThanOrEqual(w.count)

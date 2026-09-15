@@ -2,6 +2,260 @@
 
 Newest first. Note which agent did the work.
 
+## 2026-09-14 — Claude Code (Opus 5) — First human playthrough: the hiss, a sword nobody could use, the quiver, both tiers
+
+Branch `feat/visual-grandeur`. A human played all five levels for the first time and reported four things. Each was
+measured on HEAD 553fe4a before anything changed. That build was kept and served on :4175 for the Intel UHD A/B. Nothing
+else ran on the machine, and no GPU bench ever overlapped a SwiftShader run.
+
+### 1. The hiss: two drones and two noise loops
+- **Measured on HEAD.** Headless Chromium, an AnalyserNode tapped onto every connection to a destination (synth and
+  Howler), 3 s after the scene settles, volume 0.8 (scratch `audio-probe.mjs`):
+
+  | scene | RMS | dBFS | energy <250 Hz / 250–1k / 1–3k / >3k | what it was |
+  |---|---|---|---|---|
+  | title, nothing happening | 0.231 | −12.7 | 99 / 1 / 0 / 0 % | `title_theme`: a looped 147 Hz triangle |
+  | L1 | 0.170 | −15.4 | 100 % | `ambient_court`: a looped 110 Hz sine |
+  | L2 | 0.024 | −32.4 | 5 / 67 / 21 / 7 % | `ambient_forest`: white noise through one bandpass at Q 1, the static |
+  | L5 | 0.021 | −33.6 | 81 / 19 / 0 / 0 % | `ambient_night`: white noise through one lowpass |
+
+- **Change** (`systems/audio/`):
+  - The title theme and the court hum are deleted, keys and all. Both screens are silent.
+  - The two outdoor loops became wind: 4 s of noise through two lowpasses in series (24 dB/octave; 520 Hz forest, 340 Hz
+    night). The cutoff sways at 0.05 Hz, the level swells at 0.11 Hz, and it fades in over 3 s.
+  - A level start now stops any other level's loop. Before, L4's loop kept playing under L5's.
+- **After** (same probe, final build, levels 0.07):
+
+  | scene | RMS | dBFS | energy <250 Hz / 250–1k / 1–3k / >3k |
+  |---|---|---|---|
+  | title, nothing happening | **0.00000** | silent | — |
+  | L1 | 0.00000 | silent | — |
+  | L2 | 0.0078 | −42.1 | 27 / 72 / 0 / 0 % |
+  | L4 | 0.0075 | −42.5 | 27 / 73 / 0 / 0 % |
+  | L5 | 0.0063 | −44.0 | 51 / 49 / 0 / 0 % |
+
+  - Nothing reaches the band above 1 kHz, where hiss lives.
+  - The wind sits ~28 dB under the voice-over (RMS 0.18–0.36).
+  - An ear has not judged it (TODO).
+
+### 2. Level 5: why no human landed the sword, and a fight a child can finish
+**Why the sword did nothing for a human** (the e2e bot lands slashes, so the rule works):
+- **Undiscoverable.** `hud.swordSlash` ("[F/RMB] Sword Slash") existed and nothing rendered it. No dialogue, objective or
+  prompt mentions F.
+- **Unforgiving for a trackpad.** ±60° at 2.2 m, with no feedback about whether a foe was in the cone.
+- **The one astra charge could strand the level.** L5 started with 1 charge and nothing gives one back. Agneyastra is
+  selected first, so a child who cast it at rakshasas could never fling Maricha, and the level could not be won.
+- **The sword could kill Maricha** (3 × 35 > 90), against the content rule (TODO since the interception work).
+
+**Changes:**
+- `systems/combat-rules.ts`:
+  - `inSwordReach` (pure, unit-tested) and `swordTargetInReach`.
+  - The slash strikes straw men, and never Maricha.
+- `melee.RANGE` 2.2 → 2.5 and `CONE_ANGLE_DEG` 120 → 180 (reason in balance.ts):
+  - the cone is now the whole front half;
+  - a knocked-back rakshasa (1.6 + 1.5 = 3.1 m) and Subahu (3.5 m) still leave reach until they step back in.
+- **HUD:** the controls line on bow levels ends "· F or right click: sword". A gold "Press F to strike with your sword"
+  prompt shows whenever a foe or the straw man is in reach (after talk and pickup).
+- **L4: the sword lesson.** A new `strike` objective (count 3) comes after Vishwamitra's talk, before the firing line,
+  against a straw man:
+  - `levels.ts` `strikeDummy` [−4, 0, 4], `render/straw-dummy.ts`, `entities/StrikeDummy.tsx`;
+  - bound straw on a post, saffron waist cloth, RANGE palette; it rocks away from Rama when struck;
+  - the waypoint ring marks it while the objective is current;
+  - it is not in `world.hittable`, so arrows ignore it and the retry spec's target count is unchanged.
+  - No new dialogue: every line is voiced and there is no TTS key on this machine. The objective text and the prompt
+    teach it (TODO).
+- **L5:**
+  - `startArrows` 30 (was 12); `player.MAX_ARROWS` 20 → 40, so a pickup never shrinks the quiver.
+  - `startAstraCharges` 3 (was 1).
+  - Manavastra is selected automatically when Maricha arrives.
+  - Waves: 19 rakshasas at maxAlive up to 5 → 14 at 2–3. Subahu and Maricha now come at ticks 3300 and 3420, not 4600
+    and 4680.
+  - `yajna.MAX_INTEGRITY` 150 → 200. `YAJNA_DAMAGE`: rakshasa 3 → 2, Subahu 7 → 5, Maricha 6 → 4.
+  - Survive stays 5400.
+  - The content test's L5 budget check is rewritten: waves overlapping at each wave's start, with a lone boss counted
+    until the end.
+- **Runs** (scratch probe spec in the scratchpad, never in `tests/e2e`; SwiftShader, low tier). `guard` is `l5.spec.ts`'s
+  bot. `chase` is a weaker, child-like bot that walks at the nearest foe and swings, never guarding the fire:
+
+  | bot | result | lowest health | lowest yajna (of 200) | Subahu / Maricha arrive (tick) | Subahu / Maricha gone |
+  |---|---|---|---|---|---|
+  | guard | win, tick 5527 | 88 | 196 | 3304 / 3425 | 4154 / 3981 |
+  | guard | win, tick 5550 | 88 | 196 | 3307 / 3425 | 4161 / 3986 |
+  | chase | win, tick 5523 | 100 | 140 | 3318 / 3427 | 3917 / 4992 |
+  | chase | win, tick 5520 | 100 | 170 | 3307 / 3432 | 3916 / 4190 |
+
+  - Subahu appears in every run, about 55 s in.
+  - The yajna margin is 70–98 %. The bots never came close to losing, so for a bot this is easy.
+  - A child hits less often and stands worse than a bot that never misses its slash. Nothing here measures that; a human
+    must play it (TODO).
+  - A player who does nothing still loses: Subahu and Maricha must be beaten, and their fire damage outlasts 200.
+- `l5.spec.ts` still asserts the real win title, the ending and the codex count (only a cone comment changed).
+- `l4.spec.ts` now walks to the straw man, waits for the "Press F" prompt, and strikes it 3 times; screenshot
+  `l4-strike.png`.
+
+### 3. The quiver
+- **What it is.** `render/quiver.ts` replaces the bare arrow.glb stand-in, for Rama and Lakshmana.
+  - A tapered crimson leather tube (0.58 m, radius 0.05 → 0.068) with three gold bands and an arrow bed inside the mouth.
+  - Five ivory shafts with crossed fletching.
+  - DESIGN.md colours (`scenery.ts` QUIVER). One mesh with three material groups; gold takes REGALIA_PBR on high.
+  - About 250 triangles and 3 draw calls. arrow.glb was 224 triangles in 4 materials, so each archer costs one call fewer.
+- **Placement, measured** (scratch `quiver-probe.mjs` on the 4050, Rama in L4; every vertex of the skinned body, hair,
+  sword and bow, every frame):
+  - A back profile in Rama's frame found the surface at z −0.275 (hips, the dhoti) up to −0.116 (shoulder).
+  - The axis was fitted so every height clears the back by 2.5 cm, base 0.30 m under spine_03.
+  - Result: `QUIVER_POS` [−0.135, −0.349, −0.186], `QUIVER_ROT` [−0.297, 0.056, −0.37], `QUIVER_SCALE` 1.
+- **The sword went through it in the draw.** First placement (mouth over the right shoulder): body −0.06 m, sword −0.06
+  m. With the mouth over the left shoulder the body cleared, but the sword was still −0.061 m. Its deepest vertex sat on
+  the quiver's axis, 0.36 m up, so the blade crossed the whole tube. The string hand holds the sword behind the head (the
+  2026-09-13 TODO), and no offset fixes that. **Fix:** `entities/Player.tsx` hides the sword while the bow is drawn
+  (`aimBlend > 0`).
+- **Final clearance** (metres; minimum over each phase):
+
+  | phase | body | hair | sword | bow |
+  |---|---|---|---|---|
+  | idle | 0.048 | 0.159 | 0.200 | 0.306 |
+  | walk | 0.045 | 0.162 | 0.148 | 0.233 |
+  | jog | 0.040 | 0.141 | 0.165 | 0.239 |
+  | draw (centre / right / low left) | 0.047 / 0.047 / 0.045 | 0.159 | hidden | 0.446 / 0.668 / 0.665 |
+  | slash (4 slashes) | 0.030 (spine_02) | 0.155 | 0.200 | 0.334 |
+
+- **Shots** (`docs/screenshots/quiver-q3-*`): idle left, right and back; draw left and right; five frames through a slash
+  from each side. Verdict: it reads as a quiver. From dead side-on it stands off the mid-back by up to a tube's width,
+  because a straight tube has to clear the shoulder blade (TODO: a strap).
+
+### 4. Both tiers
+**Triangles, draw calls and skinned meshes at spawn** (`shoot-levels`, SwiftShader 1280×720, measured before the
+software-renderer rule below; the low rows match the Intel UHD's spawn counts exactly):
+
+| level | tier | before (HEAD) | after | why |
+|---|---|---|---|---|
+| L1 | high | 408,866 / 159 / 4 | 408,866 / 159 / 4 | |
+| L2 | high | 921,735 / 107 / 3 | 887,127 / 105 / 3 | shadow casters that cannot reach the map dropped |
+| L3 | high | 872,610 / 118 / 4 | 820,542 / 117 / 4 | same |
+| L4 | high | 709,131 / 118 / 3 | 638,459 / 124 / 3 | same; straw man +4 calls |
+| L5 | high | 147,336 / 119 / 3 | 147,408 / 117 / 3 | quiver: one call fewer per archer |
+| L1 | low | 84,286 / 53 / 4 | 84,286 / 53 / 4 | |
+| L2 | low | 28,936 / 32 / 3 | 80,088 / 39 / 3 | wilds on low |
+| L3 | low | 77,371 / 53 / 4 | 103,192 / 57 / 4 | wilds on low |
+| L4 | low | 31,275 / 36 / 3 | 84,251 / 55 / 3 | wilds, range and straw man on low |
+| L5 | low | 48,415 / 55 / 3 | 48,451 / 54 / 3 | |
+
+**Low: the wilds on the lab tier.**
+- **What mounts.** `WildsDressing` now mounts on both tiers, with `WILDS.<level>.low`:
+  - counts scattered only inside the bounds grown by `reach`;
+  - toon materials through `tierMaterial` / `authoredMaterial`, which now copies polygon offset so decals keep winning
+    the depth test;
+  - no shadow casters, so one mesh per part;
+  - no fire point light and no L3 curse-lift sun (both high only).
+- **What is in, per level.**
+  - L2: trees 18, rocks 10, shrubs 160, grass 1000, 60 reeds, the Sarayu and bank, hills.
+  - L3: 3 bare trees, rocks 12, shrubs 120, grass 700, mist.
+  - L4: trees 18, rocks 10, shrubs 140, grass 1000, hills, the whole range.
+- **Prototype costs.** Leafy tree 2,040 tris, bare tree 4,345, rock 632.
+- **Steps on the Intel UHD** (bench-gpu, 1536×864 at DPR 1.25, low):
+  - The first cut (trees 24, more rocks) reached 119,574 tris at L2 bank and 117,622 at the L4 line. That is inside
+    120k with no margin.
+  - Trimmed to the counts above: worst views 103,542 (L2 bank), 103,192 (L3 spawn), 105,382 (L4 line). Calls at most 62.
+- **Per piece on the UHD** (scratch `decompose.mjs`, uncapped mean frame interval, piece hidden):
+  - L3 mist costs 1.35 ms of 4.9 ms. Rocks 0.52 ms; grass 0.18 ms; shrubs, trunks and bare trees under 0.1.
+  - L2 leaves 0.74 ms of 4.6 ms; grass 0.29 ms.
+  - L4 leaves 0.52 ms of 3.95 ms. The other L4 deltas are inside the UHD's ±1 ms noise.
+  - Everything was kept: the most expensive piece, L3's mist, is the level's cursed look, and L3 still delivers
+    137–143 fps.
+- **Intel UHD frame times, low** (fps; p50 / p95 ms):
+
+  | level | view | before (HEAD) | after |
+  |---|---|---|---|
+  | L1 | spawn / throne | 113 / 117; 7.0 / 14.1, 7.0 / 14.0 | 115 / 120; 7.0 / 14.1, 7.0 / 14.0 |
+  | L2 | spawn / bank / east / river | 144 all; 6.9 / 7.2 | 144 all; 6.9 / 7.1–7.2 |
+  | L3 | spawn / clearing / wood | 144 all; 6.9 / 7.2 | 137 / 138 / 143; 7.0 / 13.5, 7.0 / 7.3, 6.9 / 7.2 |
+  | L4 | spawn / line / trees | 144 all; 6.9 / 7.2 | 144 all; 6.9–7.0 / 7.1–7.3 |
+  | L5 | spawn / altar | 144 / 143; 6.9 / 7.1–7.2 | 143 / 144; 6.9 / 7.1–7.2 |
+
+  - Every level stays far above 60 fps.
+  - The cost of the dressing shows only on L3: 144 → 137–138 fps at two views, with p95 at 13.5 ms (one frame in ~20
+    misses the 144 Hz vsync). That is the mist.
+  - L2 and L4 show no difference at vsync.
+  - L1 and L5 are unchanged; nothing there changed on low.
+- **By eye** (`gpu-base13uhd-*` against `gpu-low13c-*`, UHD):
+  - L2 was bare grass under a fog line. It is now a riverside wood with reeds, rocks, grass and hills.
+  - L3 is a misty, cursed wood.
+  - L4 is a range with bale backstops in a clearing.
+  - A student on a lab PC would take all three as finished. L4's far tree line is sparse.
+
+**High: profiled on the RTX 4050** (bench-gpu `--uncapped`, new flag: no vsync or frame-rate limit).
+- **Where the frame goes** (decompose, L2 bank 8.3 ms): leaf cards 3.17 ms, the shadow map 1.93 ms; grass, shrubs,
+  trunks and rocks ≈ 0. L4 line: leaves 2.28 ms, shadow 0.76. L1, L3 and L5 have no dominant piece.
+- **A/B, 6 interleaved samples each, medians:**
+  - Leaf instances sorted near → far from the camera: L2 6.69 → 6.56 ms, L4 7.30 → 6.71 ms. The alpha test does not
+    depend on order, so no pixel changes.
+  - Upper bound of skipping every near leaf's shadow: L2 −1.84 ms, L4 −0.73 ms.
+- **Kept, both pixel-identical:**
+  1. Tree instances are sorted near → far from the play area's centre. At the spawn views, a camera-relative sort measured
+     the same as the centre sort (L2 6.65 vs 6.63 ms, L4 6.04 vs 6.09 ms), so no per-frame re-sort.
+  2. A tree casts only if its canopy can reach the key light's shadow box (`reachesShadowMap`, the same fit as
+     Atmosphere). A canopy outside that orthographic box writes nothing to the map. High-tier triangles per frame fell
+     34–71k on L2–L4, and `gpu-base13-*` vs `gpu-after13-*` show the same shadows.
+- **Rejected:** updating the shadow map every other frame, which is a visible lag on moving characters.
+- **RTX 4050 frame times, high** (1536×864 at DPR 1.25):
+
+  | level | capped fps before → after | uncapped fps before → after | tris per frame before → after |
+  |---|---|---|---|
+  | L1 spawn / throne | 144 / 144 → 144 / 144 | 170 / 172 → 150 / 151 (bimodal uncapped; see below) | 408,866 → 408,866 |
+  | L2 spawn / bank / east / river | 144 → 144 | 128 / 110 / 128 / 125 → 132 / 114 / 129 / 128 | 922–945k → 887–911k |
+  | L3 spawn / clearing / wood | 144 → 144 | 193 / 198 / 211 → 202 / 207 / 215 | 850–873k → 798–821k |
+  | L4 spawn / line / trees | 144 → 144 | 166 / 128 / 141 → 139 / 140 / 152 | 709–731k → 638–660k |
+  | L5 spawn / altar | 143 / 144 → 143 / 144 | 268 / 245 → 246 / 231 | 170–186k → 170–173k |
+
+  - Capped, every view holds 144 fps (p95 7.2–7.4 ms) before and after.
+  - Uncapped percentiles are not trustworthy: L1 reads p50 1.2 ms and p99 107–140 ms on both builds, so only mean fps is
+    reported.
+  - A single uncapped run is noisy. L4 spawn read 166 → 139 fps, but the interleaved A/B at that view put both orders at
+    6.0 ms.
+  - L5's change is enemy count at the sampled moment (new waves).
+
+### The first full e2e run failed 4 of 8, all caused by this work
+- **archery-mouse:** it read `objectives[2]` as L4's hit count, and the strike objective moved it to index 3. It now
+  finds the index by kind.
+- **L4:** the spec pressed F the moment the count rose, inside the slash's 36-tick cooldown, so the third strike never
+  counted. It now waits for `world.tick >= world.swordSlashUntilTick`.
+- **L2 and L3:** timed out at 15.4 and 15.2 min. SwiftShader resolves to the low tier and was now rasterising the
+  alpha-tested forest on the CPU. A software renderer keeps the bare low tier (`WildsDressing`, `isSoftwareRenderer`).
+  - Lab PCs with a real GPU still get the dressing.
+  - The cost: no e2e run exercises the low dressing path. It is covered by the UHD benches and screenshots above, and
+    the rule is a CLAUDE.md gotcha.
+
+### Verification
+- `tsc -b`: no errors. `eslint .`: clean.
+- `vitest`: 155 passed, 1 skipped. New and changed tests:
+  - sword reach at ±85° / ±95° / past RANGE;
+  - Maricha is never struck, and a straw man in reach is;
+  - strike objectives need a straw man;
+  - the marker marks the straw man;
+  - the L5 overlap budget;
+  - the audio keys.
+- `npm run build`, then the **full e2e suite single-worker on that build: 8 passed in 10.1 min**:
+
+  | spec | time |
+  |---|---|
+  | archery-mouse | 27.5 s |
+  | L1 | 3.8 min |
+  | L2 | 41.5 s |
+  | L3 | 1.0 min |
+  | L4 (loss, retry, straw man, trial) | 1.8 min |
+  | L5 (real win) | 1.6 min |
+  | mouse-look ×2 | 22.9 s, 18.2 s |
+
+- The same build on the Intel UHD, L2 low: spawn 80,088 tris / 39 calls, 133–144 fps across the four views. The
+  dressing is still there on a real GPU.
+
+### Found, not fixed
+- The quiver stands off the mid-back seen dead side-on (a strap would hide it).
+- The sword lesson has no spoken line (no TTS key here).
+- `l5.rama.maricha`, `l5.rama.subahu` and `l5.lakshmana.watch` are voiced and never triggered. Rama's Maricha line would
+  teach the Manava astra at the moment it matters, but mid-fight dialogue pauses play and the L5 bot would need to close it.
+- `L4_TIME_LIMIT_TICKS` (3600) is read by nothing, so L4's `timeOut` fail can never fire.
+
 ## 2026-09-14 — Claude Code (Opus 5) — Merge folds after voice / royal-ui / l5-winnable / astra-and-look
 
 Branch `feat/visual-grandeur`. Typecheck, lint, vitest (153 + 1 skipped) green; no e2e or preview run (Abhi runs those).

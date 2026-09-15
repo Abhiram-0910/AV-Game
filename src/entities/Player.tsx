@@ -75,6 +75,10 @@ export function Player({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
     else if (world.astraCharge.drawing) built.controller.play('CAST_LOOP')
     else built.controller.play(clipFor(p.speed), { speed: p.speed < 0 ? -1 : 1 })
     built.controller.update(delta)
+    // Both hands are on the bow while it is drawn: the sword in the string hand swung behind his head and through the
+    // quiver (quiver probe, 2026-09-14), so it is put away until the draw eases out.
+    const sword = built.props.get('sword')
+    if (sword) sword.visible = world.aimBlend === 0
     if (aimBones && world.aimBlend > 0) {
       wrapper.current.updateMatrixWorld(true)
       aim.set(world.aimDir[0], world.aimDir[1], world.aimDir[2])

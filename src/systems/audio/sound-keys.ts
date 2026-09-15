@@ -2,8 +2,10 @@
 export type ArcherySoundKey = 'bow_draw' | 'bow_release' | 'arrow_hit_target' | 'arrow_hit_flesh'
 export type LocomotionSoundKey = 'footstep_walk' | 'footstep_run'
 export type CombatSoundKey = 'astra_cast' | 'astra_charge' | 'thunder' | 'gale' | 'whoosh' | 'sword_slash' | 'enemy_hit' | 'enemy_death' | 'boss_groan'
-export type UiSoundKey = 'button_click' | 'quiz_correct' | 'quiz_incorrect' | 'level_win' | 'level_fail' | 'title_theme'
-export type AmbientSoundKey = 'ambient_court' | 'ambient_forest' | 'ambient_night'
+export type UiSoundKey = 'button_click' | 'quiz_correct' | 'quiz_incorrect' | 'level_win' | 'level_fail'
+/** Outdoor air only. The title and the court are silent: their drones (a 147 Hz triangle at −13 dBFS, a 110 Hz sine at
+ * −15 dBFS) played under everything, and the old noise loops hissed (2026-09-14). */
+export type AmbientSoundKey = 'ambient_forest' | 'ambient_night'
 
 export type SoundKey = ArcherySoundKey | LocomotionSoundKey | CombatSoundKey | UiSoundKey | AmbientSoundKey
 
@@ -35,15 +37,8 @@ export const DEFAULT_SOUND_VOLUMES: Record<SoundKey, number> = {
   quiz_incorrect: 0.65,
   level_win: 0.85,
   level_fail: 0.8,
-  title_theme: 0.5,
-  ambient_court: 0.3,
-  ambient_forest: 0.3,
-  ambient_night: 0.35,
+  ambient_forest: 0.07,
+  ambient_night: 0.07,
 }
 
-export const AMBIENT_SOUND_KEYS: readonly SoundKey[] = [
-  'title_theme',
-  'ambient_court',
-  'ambient_forest',
-  'ambient_night',
-]
+export const AMBIENT_SOUND_KEYS: readonly SoundKey[] = ['ambient_forest', 'ambient_night']

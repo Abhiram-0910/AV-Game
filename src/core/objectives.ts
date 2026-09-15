@@ -10,6 +10,7 @@ export type ObjectiveEvent =
   | { kind: 'talk'; dialogueKey: string }
   | { kind: 'reach'; waypoint: string }
   | { kind: 'hitTargets' }
+  | { kind: 'strike' }
   | { kind: 'chargeAstra' }
   | { kind: 'defeat'; enemy: EnemyKind }
   | { kind: 'survive'; ticks: number }
@@ -35,6 +36,7 @@ function matches(o: Objective, e: ObjectiveEvent): boolean {
 function requiredFor(o: Objective): number {
   switch (o.kind) {
     case 'hitTargets':
+    case 'strike':
     case 'chargeAstra':
     case 'defeat':
       return o.count
@@ -85,11 +87,13 @@ export function currentObjectiveIndex(progress: readonly ObjectiveProgress[]): n
   return progress.findIndex((p) => !p.done)
 }
 
-/** Where the current objective sends the player, or null when it is not a 'reach'. Drives the waypoint marker. */
+/** Where the current objective sends the player: a 'reach' waypoint, or the straw man a 'strike' asks for; null
+ * otherwise. Drives the waypoint marker. */
 export function activeWaypoint(
-  def: { objectives: readonly Objective[]; waypoints: Readonly<Record<string, Vec3>> },
+  def: { objectives: readonly Objective[]; waypoints: Readonly<Record<string, Vec3>>; strikeDummy?: Vec3 },
   progress: readonly ObjectiveProgress[],
 ): Vec3 | null {
   const o = def.objectives[currentObjectiveIndex(progress)]
+  if (o?.kind === 'strike') return def.strikeDummy ?? null
   return o?.kind === 'reach' ? (def.waypoints[o.waypoint] ?? null) : null
 }

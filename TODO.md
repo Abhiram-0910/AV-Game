@@ -1,5 +1,31 @@
 # TODO
 
+## Open after the first human playthrough (2026-09-14, Claude Code)
+
+SESSION-LOG 2026-09-14, "First human playthrough". Done: the hiss, the sword (HUD, reach, L4 lesson), L5 pressure, the
+quiver, and the wilds on low with a high-tier profile. Open:
+- **A human plays L5 again.**
+  - The bots win 4 of 4 with the yajna at 70–98 %, so it may now be too easy.
+  - A child on a trackpad hits and positions worse than a bot that never misses its slash.
+  - If it is too easy, raise one number at a time: wave counts, then `YAJNA_DAMAGE`.
+- **Listen to the wind.** Outdoor ambience is lowpassed noise at about −42 dBFS, with nothing above 1 kHz. It was
+  judged by the analyser, not an ear. Silencing it is `ambientForLevel` returning null.
+- **The sword lesson has no spoken line.** Every line is voiced and this machine has no TTS key. A one-line
+  Vishwamitra talk before the strike is `dialogue.ts` + `tools/generate-vo.mjs --only`.
+- **The quiver stands off the mid-back** by up to a tube's width seen dead side-on (`quiver-q3-idle-left.png`).
+  - A straight tube has to clear the shoulder blade.
+  - A leather strap across the chest would hide the gap. It has to be skinned (a garment part), not a prop.
+- **L5's voiced lines are never triggered:** `l5.rama.maricha`, `l5.rama.subahu`, `l5.lakshmana.watch`.
+  - Rama's Maricha line names the Manava astra at the moment it matters.
+  - Opening it pauses the fight, and `l5.spec.ts` would have to close it.
+- **`L4_TIME_LIMIT_TICKS` is dead**, so L4's `timeOut` fail cannot fire. Wire it, or delete it (and 'timeOut' from L4).
+- **L3 on low pays 1.35 ms for the mist** on the UHD: 137–138 fps at two views instead of 144.
+  - Kept, because it is the level's look.
+  - Two sheets instead of three is the lever if a lab PC is slower than this one.
+- **L4 on low: the far tree line is sparse** (18 trees). Raise it only against the UHD triangle count (105k at the line).
+- **Low-tier draw calls mid-fight on L5** were 104–106 before this work (80 budget). The quiver saves one call per
+  archer; not re-measured mid-fight.
+
 ## Open after voice-over (2026-09-14, Claude Code)
 
 All 52 lines are voiced (SESSION-LOG 2026-09-14, "Voice-over"). Open:
@@ -28,7 +54,7 @@ system in DESIGN.md; before|after sheets `docs/screenshots/ui-royal-*.png`). Obs
   glyphs in `AstraButton.tsx` would match.
 - **The captures are the low tier under SwiftShader.** A real-GPU pass (`tools/bench-gpu.mjs` pattern) on the high
   tier should confirm the panel `drop-shadow` costs nothing on the Intel UHD while a menu is open.
-- **Rama needs a real quiver (not started: it is a render change).** The arrow that reads as "through his back" is
+- ~~**Rama needs a real quiver**~~ done 2026-09-14 (`render/quiver.ts`, see the entry at the top). The arrow that reads as "through his back" is
   the quiver stand-in: `render/character-factory.ts:132-133` attaches a bare `arrow.glb` to `spine_03`
   (`BALANCE.archery.QUIVER_POS/ROT/SCALE`) because the pack has no quiver mesh. The fix is a procedural quiver
   built where the stand-in is now: a tapered gold-and-crimson leather tube with gold bands and a few fletched shafts
@@ -47,7 +73,7 @@ SESSION-LOG 2026-09-14, "L5: interception, dead regen wired". Observed, not chan
   bot for ~1400 ticks and made the L3 regen-on bot fire nothing at Tataka (yaw 2.7 ↔ 4.5 through her whole fight):
   the likeliest cause of the L3 "melee race" flake. `l5.spec.ts` now turns by holding A/D and watching the heading;
   `play.ts` is shared and was left alone.
-- **The sword can kill Maricha.** `systems/combat-rules.ts` `checkMeleeHit` has no Maricha guard (arrows and
+- ~~**The sword can kill Maricha.**~~ Fixed 2026-09-14: `checkMeleeHit` skips him. `systems/combat-rules.ts` `checkMeleeHit` has no Maricha guard (arrows and
   Agneyastra skip him), so 3 slashes (35 × 3 > 90) kill him, against the content rule "flung, never killed". Not in
   this task's files; the L5 bot keeps the sword off him.
 - **Regen was dead code** (`player.REGEN_PER_TICK`, `REGEN_DELAY_TICKS`): now wired, lines in the SESSION-LOG entry.
@@ -139,7 +165,7 @@ Observed or measured while fixing the six playtest failures (SESSION-LOG 2026-09
 
 ## Visual follow-ups (2026-09-13, Claude Code)
 
-- Rama holds the sword upright behind his head while drawing the bow (seen from the L4 firing line on low). The
+- ~~Rama holds the sword upright behind his head while drawing the bow~~ (fixed 2026-09-14: hidden during a draw) (seen from the L4 firing line on low). The
   melee PR's sword prop stays attached during archery.
 - L2 light shafts, second attempt (2026-09-14): additive crossed cards along a side-front sun ([10, 5, −4]). They read as
   faint haze in the canopy and as two thin diagonal streaks in the sky, not as beams, so the sun went back to the front

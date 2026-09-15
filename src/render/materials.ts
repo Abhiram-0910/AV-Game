@@ -84,6 +84,10 @@ export function tierMaterial(source: Material, tier: ResolvedTier, opts: TierMat
     // glTF BLEND foliage (tree.glb's leaf cards) arrives transparent; dropping that drew each card's clear
     // texels as solid. Cut out instead: no sorting, and the shadow pass honours it.
     alphaTest: src.transparent ? 0.5 : src.alphaTest,
+    // Decals authored on the ground (range-dressing.ts) keep winning the depth test on both tiers.
+    polygonOffset: src.polygonOffset,
+    polygonOffsetFactor: src.polygonOffsetFactor,
+    polygonOffsetUnits: src.polygonOffsetUnits,
   }
   if (tier === 'high') return standard(src, shared, opts)
   return new MeshToonMaterial({ ...shared, gradientMap: getToonRamp() })

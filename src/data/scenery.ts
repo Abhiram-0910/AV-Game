@@ -302,7 +302,7 @@ export const YAJNA = {
 type Capsule = readonly [x0: number, z0: number, x1: number, z1: number, r: number]
 type Span = readonly [number, number]
 
-/** Levels 2–4 outdoors, high tier only (render/wilds-dressing.ts, entities/WildsDressing.tsx). tree.glb and
+/** Levels 2–4 outdoors on both tiers (render/wilds-dressing.ts, entities/WildsDressing.tsx). tree.glb and
  * rock.glb scatter as InstancedMesh, one draw call per mesh however many trees. A leafy forest tree is
  * tree.glb's leaf cards on a flared, 10-sided bark-textured trunk (~2.1k tris; the full model's branches are 4.3k more); a
  * bare tree is its bark primitive alone. Shrubs are crossed cards of the same leaf texture, so undergrowth
@@ -329,6 +329,10 @@ export interface Wilds {
    * metres, base colour, and how far it is mixed toward the sky's horizon colour at the foot and at the crest. */
   hills?: { radius: number; height: Span; color: string; haze: Span; segments: number }
   curseLift?: { seconds: number; fog: string; sky: { zenith: string; horizon: string }; exposure: number; sun: { color: string; intensity: number; dir: Vec3 } }
+  /** The low tier (school lab PCs, Intel UHD): these counts scattered inside the play bounds grown by `reach` metres, not
+   * the whole area; no shadows, toon materials, no fire light or curse-lift sun, mist only where `mist`. Leafy tree 2,040
+   * tris, bare tree 4,345, rock 632, shrub 8, grass tuft 6, against 120k / 80 calls. Measured: SESSION-LOG 2026-09-14. */
+  low: { reach: number; trees: number; rocks: number; shrubs: number; grass: number; reeds: number; mist: boolean }
 }
 
 export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
@@ -350,6 +354,7 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
     grass: { count: 3600, height: [0.35, 0.75], colors: ['#b4cc78', '#a0bc66', '#c4d888', '#94b25e'] },
     water: { minX: -46, maxX: -14.5, minZ: -140, maxZ: 70, color: '#6aa6a2', bank: '#a89468', bankWidth: 3, reeds: 160, flow: 0.035 },
     hills: { radius: 84, height: [9, 18], color: '#4f6e4c', haze: [0.45, 0.62], segments: 72 },
+    low: { reach: 25, trees: 18, rocks: 10, shrubs: 160, grass: 1000, reeds: 60, mist: false },
   },
   l3: {
     seed: 3,
@@ -366,6 +371,7 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
     // 0.45 over [0.12, 0.35, 0.65] veiled Rama to the hips and cut bands into every trunk (2026-09-14): kept below the knee.
     mist: { color: '#9aa6a0', opacity: 0.35, heights: [0.06, 0.2, 0.38], size: 110, drift: 0.012 },
     curseLift: { seconds: 5, fog: '#b3a582', sky: { zenith: '#6f93b8', horizon: '#cdbb92' }, exposure: 1.05, sun: { color: '#ffc67a', intensity: 2.2, dir: [6, 8, 4] } },
+    low: { reach: 20, trees: 3, rocks: 12, shrubs: 120, grass: 700, reeds: 0, mist: true },
   },
   l4: {
     seed: 4,
@@ -381,8 +387,28 @@ export const WILDS: Readonly<Partial<Record<'l2' | 'l3' | 'l4', Wilds>>> = {
     shrubs: { count: 260, scale: [0.6, 1.3], colors: ['#ffffff', '#d8e6b0', '#c0d496'] },
     grass: { count: 2200, height: [0.3, 0.65], colors: ['#86a84c', '#739a44', '#98b45a'] },
     hills: { radius: 84, height: [9, 18], color: '#4f6e4c', haze: [0.45, 0.62], segments: 72 },
+    low: { reach: 25, trees: 18, rocks: 10, shrubs: 140, grass: 1000, reeds: 0, mist: false },
   },
 }
+
+/** Rama's and Lakshmana's quiver (render/quiver.ts), authored in metres along +Y from its base: length, base and mouth
+ * radius, sides; gold bands at these fractions of the length; fletched shafts showing above the mouth. Colours are the
+ * DESIGN.md tokens: --crimson leather, --gold bands, --ink ivory fletching. */
+export const QUIVER = {
+  length: 0.58,
+  radius: [0.05, 0.068] as const,
+  sides: 14,
+  bands: [0.05, 0.52, 0.95] as const,
+  bandHeight: 0.028,
+  bandLift: 0.006,
+  shafts: 5,
+  shaftRadius: 0.0065,
+  shaftShow: 0.19,
+  fletch: [0.03, 0.09] as const,
+  leather: '#7c1526',
+  gold: '#e6b450',
+  fletching: '#f6eedc',
+} as const
 
 /** Level 4's built pieces (render/range-dressing.ts): Vishwamitra's hermitage past the spawn edge (bounds maxZ
  * 6, so nobody walks into it), a whitewashed firing line, and a straw-bale backstop behind every target so
@@ -420,6 +446,9 @@ export const RANGE = {
   /** Firing-line pennant: pole height, node spacing; the triangle's length, hoist height, sag at the tip, ripple
    * amplitude and segments along it. */
   pennant: { pole: 2.2, nodeEvery: 0.45, length: 0.78, hoist: 0.42, droop: 0.12, ripple: 0.05, segments: 8 },
+  /** The sword lesson's straw man (entities/StrikeDummy.tsx) rocks when struck: first lean (radians), decay (seconds),
+   * and wobble rate (radians per second). */
+  dummy: { lean: 0.3, decay: 0.4, rate: 13 },
   /** Round mud-walled kuti with a conical thatch roof and a doorway facing the range. */
   hut: { x: 6.5, z: 11, r: 2.3, wallH: 2.1, roofH: 2.7, overhang: 0.6 },
   /** Stone-ringed fire pit: ring radius, stone count, flames (x, z, radius, height), and a flickering light. */

@@ -17,7 +17,8 @@ export const BALANCE = {
     SPRINT_SPEED: 6.5,
     /** Keyboard turn rate. 6.0 was a full spin in a second — uncontrollable on a lab keyboard. */
     TURN_SPEED_RAD: 3.0,
-    MAX_ARROWS: 20,
+    /** 20 → 40 (2026-09-14): L5 now starts with 30 (levels.ts startArrows), and a pickup must never shrink the quiver. */
+    MAX_ARROWS: 40,
     START_ARROWS: 12,
     // Raised 5→8 (pass 3 phase G): Level 5 is the only level where a player ever actually
     // empties the quiver and has to recover spent arrows mid-fight (see
@@ -68,14 +69,15 @@ export const BALANCE = {
 
   enemies: {
     // Tuned for margin: player hit-invuln caps incoming damage; health allows realistic kill rates.
-    rakshasa: { HEALTH: 30, SPEED: 2.8, DAMAGE: 6, ATTACK_COOLDOWN: 90, REACH: 1.6, YAJNA_DAMAGE: 3 },
+    // YAJNA_DAMAGE 3 → 2, subahu 7 → 5, maricha 6 → 4 (2026-09-14): a human lost the fire every run before Subahu came.
+    rakshasa: { HEALTH: 30, SPEED: 2.8, DAMAGE: 6, ATTACK_COOLDOWN: 90, REACH: 1.6, YAJNA_DAMAGE: 2 },
     // Tuned for L3 tutorial margin: 180 cooldown (~3s) and 10 damage give room to aim arrows.
     tataka: { HEALTH: 150, SPEED: 2.4, DAMAGE: 10, ATTACK_COOLDOWN: 180, REACH: 2.4, YAJNA_DAMAGE: 0 },
     // ATTACK_COOLDOWN 90 → 150 (2026-09-14, SESSION-LOG "L5: interception"): with interception and regen, two runs lost
     // with Subahu at 15 / 120, one slash short; he dealt 72–94 of Rama's last health, a hit every 108 ticks while each
     // slash knocked him out of reach. 150 leaves ~5 hits in that fight instead of 7, still quicker than Tataka's 180.
-    subahu: { HEALTH: 120, SPEED: 3.0, DAMAGE: 12, ATTACK_COOLDOWN: 150, YAJNA_DAMAGE: 7, REACH: 2.0 },
-    maricha: { HEALTH: 90, SPEED: 3.4, DAMAGE: 10, ATTACK_COOLDOWN: 90, YAJNA_DAMAGE: 6, REACH: 2.0 },
+    subahu: { HEALTH: 120, SPEED: 3.0, DAMAGE: 12, ATTACK_COOLDOWN: 150, YAJNA_DAMAGE: 5, REACH: 2.0 },
+    maricha: { HEALTH: 90, SPEED: 3.4, DAMAGE: 10, ATTACK_COOLDOWN: 90, YAJNA_DAMAGE: 4, REACH: 2.0 },
   },
 
   combat: {
@@ -103,8 +105,8 @@ export const BALANCE = {
   },
 
   yajna: {
-    /** Sacred fire health (pass 3 phase G: raised to 150 to survive wave pressure). */
-    MAX_INTEGRITY: 150,
+    /** Sacred fire health (pass 3 phase G: 150; 2026-09-14: 200, a human lost it before Subahu ever came). */
+    MAX_INTEGRITY: 200,
     /** Level 5 total guard duration (the six days and nights, compressed). */
     GUARD_TICKS: 5400,
     /** Ticks the fire ignores further hits after one lands (prevents multi-hit stacking). */
@@ -185,10 +187,13 @@ export const BALANCE = {
     BOW_GRIP_POS: [0, 0, 0],
     BOW_GRIP_ROT: [Math.PI / 2, 0, 0],
     BOW_GRIP_SCALE: 0.65,
-    /** Quiver on the back: local offset, euler, and scale under spine_03. */
-    QUIVER_POS: [-0.15, 0.1, -0.12],
-    QUIVER_ROT: [0.3, 0, 0.5],
-    QUIVER_SCALE: 0.45,
+    /** Quiver on the back (render/quiver.ts, authored in metres, so scale 1): local offset and euler under spine_03.
+     * Measured 2026-09-14 from Rama's back profile in the idle pose: base 0.30 m under spine_03, the axis clearing the back
+     * by 2.5 cm at every height, mouth over his left shoulder, away from the sword arm. Clearance through walk, jog, draw
+     * and slash (the sword is put away during a draw, entities/Player.tsx): SESSION-LOG 2026-09-14. */
+    QUIVER_POS: [-0.135, -0.349, -0.186],
+    QUIVER_ROT: [-0.297, 0.056, -0.37],
+    QUIVER_SCALE: 1,
     /** Exponential smoothing factor for mouse aiming direction (0..1). */
     SMOOTH_FACTOR: 0.35,
   },
@@ -199,8 +204,11 @@ export const BALANCE = {
     SWORD_GRIP_SCALE: 0.4,
     SLASH_TICKS: 36,
     DAMAGE: 35,
-    RANGE: 2.2,
-    CONE_ANGLE_DEG: 120,
+    /** 2.2 m / 120° → 2.5 m / 180° (2026-09-14): a human never landed a slash. The cone is now the front half, so a
+     * trackpad's heading error cannot miss a foe on screen; 2.5 still leaves a knocked-back rakshasa (REACH 1.6 + 1.5 =
+     * 3.1 m) and Subahu (3.5 m) out of reach until they step back in. */
+    RANGE: 2.5,
+    CONE_ANGLE_DEG: 180,
     KNOCKBACK_DISTANCE: 1.5,
   },
 

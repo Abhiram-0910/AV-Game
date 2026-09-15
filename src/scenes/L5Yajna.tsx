@@ -3,7 +3,7 @@
 // Maricha ride in on the tail of the last wave; Maricha is only ever flung, never killed (the
 // Manava astra in systems/astra/step.ts). Wave rendering + the global 12-SkinnedMesh budget are
 // entities/wave-spawner.ts, reused as-is; this scene just supplies spawn points and layout.
-import { useEffect, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 import { BALANCE } from '@data/balance'
 import { gameStore } from '@core/game-state'
 import { levelDef } from '@core/progression'
@@ -74,6 +74,13 @@ function ArrowPickupsVisual() {
   )
 }
 
+/** Once, when Maricha arrives: select the Manava astra, the only thing that moves him, so a held Q does the right thing. */
+function selectManavaForMaricha(seen: RefObject<boolean>) {
+  if (seen.current || !world.enemies.some((e) => e.kind === 'maricha' && e.state !== 'dead')) return
+  seen.current = true
+  gameStore.getState().selectAstra('manavastra')
+}
+
 function useLevelLifecycle() {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
@@ -99,9 +106,11 @@ function useLevelLifecycle() {
 export function L5Yajna({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
   useLevelLifecycle()
   const { active, onTick } = useWaveSpawner(def.waves, spots, def.persistentSkinned.length)
+  const marichaSeen = useRef(false)
   const handleTick = (tick: number) => {
     onTick(tick)
     replenishSupply(tick)
+    selectManavaForMaricha(marichaSeen)
     gameStore.getState().progress({ kind: 'survive', ticks: 1 })
   }
   const { bounds } = scenery

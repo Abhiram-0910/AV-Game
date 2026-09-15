@@ -12,6 +12,7 @@ import { createAnimationController, type AnimationController } from '@systems/an
 import { acquireSkinnedSlot, releaseSkinnedSlot } from '@systems/spawner/skinned-budget'
 import { disposeTree } from './dispose'
 import { buildGarments, type SkinIndexCtor } from './garments'
+import { buildQuiver } from './quiver'
 import { assertSkeleton, loadClips, loadGltf } from './loaders'
 import { type ResolvedTier } from './manifest'
 import { applyTierMaterials, tierMaterial } from './materials'
@@ -129,8 +130,7 @@ async function attachProps(id: CharacterId, bones: Map<string, Bone>, tier: Reso
   const out = new Map<PropKind, Group>()
   for (const kind of CHARACTER_SPECS[id].props) {
     if (kind === 'bow') out.set(kind, attachProp(cloneSkeleton((await loadGltf('bow')).scene), bones.get(SKELETON.LEFT_HAND)!, { pos: aim.BOW_GRIP_POS, rot: aim.BOW_GRIP_ROT, scale: aim.BOW_GRIP_SCALE }, tier))
-    // ponytail: no quiver mesh in the pack; the arrow model stands in on the back.
-    if (kind === 'quiver') out.set(kind, attachProp(cloneSkeleton((await loadGltf('arrow')).scene), bones.get(SKELETON.SPINE_TOP)!, { pos: aim.QUIVER_POS, rot: aim.QUIVER_ROT, scale: aim.QUIVER_SCALE }, tier))
+    if (kind === 'quiver') out.set(kind, attachProp(buildQuiver(), bones.get(SKELETON.SPINE_TOP)!, { pos: aim.QUIVER_POS, rot: aim.QUIVER_ROT, scale: aim.QUIVER_SCALE }, tier))
     if (kind === 'sword') out.set(kind, attachProp(cloneSkeleton((await loadGltf('sword')).scene), bones.get(SKELETON.RIGHT_HAND)!, { pos: BALANCE.melee.SWORD_GRIP_POS, rot: BALANCE.melee.SWORD_GRIP_ROT, scale: BALANCE.melee.SWORD_GRIP_SCALE }, tier))
   }
   return out

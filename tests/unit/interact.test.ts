@@ -63,12 +63,13 @@ describe('turnToward (hero and NPC face each other in a talk)', () => {
 })
 
 describe('activeWaypoint (the waypoint marker)', () => {
-  it('marks the waypoint of every reach objective in every level, and nothing for any other kind', () => {
+  it('marks the waypoint of every reach objective and the straw man of a strike, and nothing for any other kind', () => {
     let reaches = 0
     for (const def of LEVELS) {
       def.objectives.forEach((o, i) => {
         const progress = def.objectives.map((_, k) => ({ done: k < i, progress: 0 }))
         const spot = activeWaypoint(def, progress)
+        if (o.kind === 'strike') return expect(spot, `${def.id} objective ${i}`).toEqual(def.strikeDummy)
         if (o.kind !== 'reach') return expect(spot, `${def.id} objective ${i}`).toBeNull()
         reaches += 1
         expect(spot, `${def.id} objective ${i}`).toEqual(def.waypoints[o.waypoint])

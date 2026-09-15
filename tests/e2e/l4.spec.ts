@@ -1,7 +1,7 @@
 // Drives the real build through Level 4 the way the playtester met it: a loss, a retry, then the whole trial with the
 // mouse. The loss is deliberate (one target hit, then the quiver emptied into the ground) because that is exactly when
 // the old in-place retry left the hit target gone for good and the level unfinishable. Then Vishwamitra's lesson, the
-// firing line (a marker in the world, and an edge arrow while it is behind the player), four arrow targets, the astra.
+// sword on the straw man (F, with the HUD's prompt up, as a player sees it), the firing line (a marker in the world, and an edge arrow while it is behind the player), four arrow targets, the astra.
 // Every shot is raw mouse coordinates (tests/e2e/play.ts); no pitch is solved.
 import { expect, test, type Page } from '@playwright/test'
 import { BALANCE } from '../../src/data/balance'
@@ -24,6 +24,34 @@ const target = <K extends TargetDef['kind']>(kind: K) => L4.targets.find((t) => 
 /** Middle of a target (target.glb stands 0.727 m tall), scaled. */
 const centreOf = (t: TargetDef): Point => ({ x: t.pos[0], y: 0.36 * ('scale' in t ? t.scale : 1), z: t.pos[2] })
 const hitText = (done: number) => UI['objective.hitTargets'].replace('{done}', String(done)).replace('{total}', '5')
+const STRIKES = L4.objectives.find((o) => o.kind === 'strike')!
+const strikeText = (done: number) => UI['objective.strike'].replace('{done}', String(done)).replace('{total}', String('count' in STRIKES ? STRIKES.count : 0))
+
+/** The sword lesson: walk up to the straw man, face it, and strike once the "Press F" prompt is up, until the objective
+ * moves on. Each blow waits for the count to rise, as the slash has a cooldown. */
+async function strikeTheStrawMan(page: Page) {
+  const objective = page.getByTestId('hud-objective')
+  await expect(objective).toContainText(strikeText(0))
+  const dummy = { x: L4.strikeDummy![0], z: L4.strikeDummy![2] }
+  const near = async () => {
+    const p = await player(page)
+    return Math.hypot(dummy.x - p.x, dummy.z - p.z) <= BALANCE.melee.RANGE - 0.6
+  }
+  expect(await steerTo(page, dummy, near)).toBe(true)
+  await face(page, dummy)
+  await expect(page.getByTestId('hud-prompt')).toHaveText(UI['hud.strike'])
+  const count = 'count' in STRIKES ? STRIKES.count : 0
+  for (let done = 1; done <= count; done += 1) {
+    // A slash has a cooldown (melee.SLASH_TICKS) and the count rises at its first tick: wait it out, or the key is ignored.
+    await pollUntil(page, () => page.evaluate(() => {
+      const w = window.__bk.world as unknown as { tick: number; swordSlashUntilTick: number }
+      return w.tick >= w.swordSlashUntilTick
+    }))
+    await page.keyboard.press('f')
+    await expect(objective).toContainText(done < count ? strikeText(done) : UI['objective.reach'], { timeout: 30_000 })
+    if (done === 1) await page.screenshot({ path: 'docs/screenshots/l4-strike.png' })
+  }
+}
 
 async function loseTheLevel(page: Page) {
   await shootUntilHit(page, async () => centreOf(target('static')))
@@ -107,6 +135,7 @@ test('Level 4: a loss, a retry that restores all five targets, then the trial wi
   expect(await steerTo(page, { x: vish.pos[0], z: vish.pos[2] }, () => prompt.isVisible())).toBe(true)
   await page.keyboard.press('e')
   await skipSpeech(page, UI['name.vishwamitra'])
+  await strikeTheStrawMan(page)
   await expect(objective).toContainText(UI['objective.reach'])
 
   // The firing line is behind the player: an edge arrow points at it, then the marker is on screen once he turns.

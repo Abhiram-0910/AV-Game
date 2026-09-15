@@ -15,7 +15,6 @@ import {
   Group as ThreeGroup,
   type Material,
   Mesh,
-  MeshStandardMaterial,
   type MeshStandardMaterialParameters,
   PlaneGeometry,
   type Texture,
@@ -24,6 +23,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { LEVELS } from '@data/levels'
 import { RANGE } from '@data/scenery'
 import { flameGeometry } from './fire'
+import type { ResolvedTier } from './manifest'
+import { authoredMaterial } from './materials'
 import { mergeByMaterial } from './merge'
 import { dappleTexture, flameTexture, seeded } from './procedural-textures'
 import { fibreTexture, pennantTexture } from './wild-textures'
@@ -32,11 +33,10 @@ const P = RANGE.palette
 
 type RangeMaterials = ReturnType<typeof rangeMaterials>
 
-const std = (p: MeshStandardMaterialParameters) => new MeshStandardMaterial({ roughness: 0.95, ...p })
-/** Lies on the GroundPlane: polygon offset wins the depth test; `units` stacks one decal over another. */
-const onGround = (p: MeshStandardMaterialParameters, units: number) => std({ ...p, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: units })
-
-function rangeMaterials(textures: Texture[]) {
+function rangeMaterials(textures: Texture[], tier: ResolvedTier) {
+  const std = (p: MeshStandardMaterialParameters) => authoredMaterial(tier, { roughness: 0.95, ...p })
+  /** Lies on the GroundPlane: polygon offset wins the depth test; `units` stacks one decal over another. */
+  const onGround = (p: MeshStandardMaterialParameters, units: number) => std({ ...p, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: units })
   const own = <T extends Texture>(t: T): T => {
     textures.push(t)
     return t
@@ -158,9 +158,9 @@ function firePit(g: Group, m: RangeMaterials): readonly [number, number, number]
   return [x, light.y, z]
 }
 
-export function buildRange(): { group: Group; fire: readonly [number, number, number]; textures: Texture[] } {
+export function buildRange(tier: ResolvedTier): { group: Group; fire: readonly [number, number, number]; textures: Texture[] } {
   const textures: Texture[] = []
-  const m = rangeMaterials(textures)
+  const m = rangeMaterials(textures, tier)
   const raw = new ThreeGroup()
   firingLine(raw, m)
   backstops(raw, m)

@@ -16,6 +16,7 @@ import { NpcCharacter } from '@entities/NpcCharacter'
 import { Player } from '@entities/Player'
 import { SimulationDriver } from '@entities/SimulationDriver'
 import { StaticProp } from '@entities/StaticProp'
+import { StrikeDummy } from '@entities/StrikeDummy'
 import { Target } from '@entities/Target'
 import { AstraVfx } from '@entities/AstraVfx'
 import { Atmosphere } from '@render/Atmosphere'
@@ -53,7 +54,7 @@ function useLevelLifecycle(tier: ResolvedTier) {
   useEffect(() => {
     resetWorld(def.playerSpawn.pos, def.playerSpawn.yaw)
     gameStore.getState().unlockAstra('manavastra')
-    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + (tier === 'high' ? 1 : 0)) // the wilds dressing counts once it is built
+    worldStore.getState().expect(scenery.statics.length + scenery.npcs.length + def.targets.length + 1 + 1) // the wilds dressing counts once it is built
     const unsubscribe = worldStore.subscribe((s) => {
       if (s.expected > 0 && s.loaded >= s.expected) gameStore.getState().dispatch('LOADED')
     })
@@ -78,7 +79,7 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
         size={[bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ]}
         ground={scenery.look.ground}
       />
-      {tier === 'high' && <WildsDressing level="l4" />}
+      <WildsDressing level="l4" tier={tier} />
       {scenery.statics.map((p, i) => (
         <StaticProp key={`${p.asset}-${i}`} placement={p} tier={tier} />
       ))}
@@ -88,6 +89,7 @@ export function L4Range({ tier, bow }: { tier: ResolvedTier; bow: boolean }) {
       {def.targets.map((t, i) => (
         <Target key={i} def={t} tier={tier} />
       ))}
+      {def.strikeDummy && <StrikeDummy at={def.strikeDummy} tier={tier} />}
       <Player tier={tier} bow={bow} />
       {bow && (
         <>

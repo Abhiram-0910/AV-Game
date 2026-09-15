@@ -1,7 +1,8 @@
-// Levels 2–4 outdoors on the high tier (render/wilds-dressing.ts): built once tree.glb and rock.glb are in,
+// Levels 2–4 outdoors on both tiers (render/wilds-dressing.ts): built once tree.glb and rock.glb are in,
 // counted toward the level's load gate, and animated where something moves — the Sarayu flowing, mist
-// drifting, the Level 4 fire pit's light, and in Level 3 the curse lifting once Tataka falls.
-import { useFrame } from '@react-three/fiber'
+// drifting, and on high the Level 4 fire pit's light and Level 3's curse lifting once Tataka falls. Low skips those
+// two: a point light is paid by every lit fragment, and the lift swaps in a textured sky low does not draw.
+import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type CanvasTexture, Color, type DirectionalLight, type Fog, type MeshBasicMaterial, type PointLight } from 'three'
 import { RANGE, SCENERY, WILDS } from '@data/scenery'
@@ -10,6 +11,8 @@ import { levelDef } from '@core/progression'
 import { DEBUG } from '@platform/debug'
 import { loadGltf } from '@render/loaders'
 import { skyTexture } from '@render/procedural-textures'
+import type { ResolvedTier } from '@render/manifest'
+import { isSoftwareRenderer, rendererName } from '@render/quality-tier'
 import { buildWilds, type WildsBuild, type WildsLevel } from '@render/wilds-dressing'
 import { worldStore } from '@systems/world'
 
@@ -77,7 +80,12 @@ function CurseLift({ mist }: { mist: MeshBasicMaterial | null }) {
   return <directionalLight ref={sun} position={[lift.sun.dir[0], lift.sun.dir[1], lift.sun.dir[2]]} color={lift.sun.color} intensity={0} />
 }
 
-export function WildsDressing({ level }: { level: WildsLevel }) {
+export function WildsDressing({ level, tier }: { level: WildsLevel; tier: ResolvedTier }) {
+  const gl = useThree((s) => s.gl)
+  // A software renderer (no GPU: SwiftShader in headless e2e and shoot-levels) keeps the bare low tier. It rasterises the
+  // alpha-tested forest on the CPU, which took L2's and L3's e2e past their 15-minute timeouts (2026-09-14). Lab PCs
+  // with a real GPU get the dressing.
+  const bare = useMemo(() => tier === 'low' && isSoftwareRenderer(rendererName(gl)), [tier, gl])
   const [built, setBuilt] = useState<WildsBuild | null>(null)
   const builtRef = useRef<WildsBuild | null>(null)
   useEffect(() => {
@@ -85,9 +93,11 @@ export function WildsDressing({ level }: { level: WildsLevel }) {
     let mine: WildsBuild | null = null
     Promise.all([loadGltf('tree'), loadGltf('rock')]).then(([tree, rock]) => {
       if (!live) return
-      mine = buildWilds(level, tree.scene, rock.scene, DEBUG.density)
-      builtRef.current = mine
-      setBuilt(mine)
+      if (!bare) {
+        mine = buildWilds(level, tree.scene, rock.scene, tier, DEBUG.density)
+        builtRef.current = mine
+        setBuilt(mine)
+      }
       worldStore.getState().markLoaded()
     })
     return () => {
@@ -95,7 +105,7 @@ export function WildsDressing({ level }: { level: WildsLevel }) {
       builtRef.current = null
       mine?.dispose()
     }
-  }, [level])
+  }, [level, tier, bare])
   useFrame((_, delta) => {
     const b = builtRef.current
     const w = WILDS[level]!
@@ -106,8 +116,8 @@ export function WildsDressing({ level }: { level: WildsLevel }) {
   return (
     <>
       <primitive object={built.group} />
-      {built.fire && <FireLight at={built.fire} />}
-      {level === 'l3' && <CurseLift mist={built.mist} />}
+      {tier === 'high' && built.fire && <FireLight at={built.fire} />}
+      {tier === 'high' && level === 'l3' && <CurseLift mist={built.mist} />}
     </>
   )
 }

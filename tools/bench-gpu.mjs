@@ -160,6 +160,8 @@ async function runLevel(browser, level, density) {
 
 const args = ['--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-background-timer-throttling', `--window-size=${VIEWPORT.width + 40},${VIEWPORT.height + 140}`]
 if (GPU === 'dgpu') args.push('--force_high_performance_gpu')
+// --uncapped: no vsync or frame-rate limit, so the interval is the frame's real cost instead of the 144 Hz floor.
+if (process.argv.includes('--uncapped')) args.push('--disable-gpu-vsync', '--disable-frame-rate-limit')
 const browser = await chromium.launch({ executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', headless: false, args })
 const all = []
 for (const density of DENSITIES) {

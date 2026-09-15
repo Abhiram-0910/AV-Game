@@ -68,5 +68,6 @@ test('the bow aims where the mouse points: flat launches, a hit from raw mouse c
   await page.screenshot({ path: 'docs/screenshots/archery-mouse-lock.png' })
   await release(page)
   expect(await hittableCount(page)).toBe(4)
-  expect(await page.evaluate(() => window.__bk.game.getState().objectives[2].progress)).toBe(1)
+  const hitTargets = L4.objectives.findIndex((o) => o.kind === 'hitTargets')
+  expect(await page.evaluate((i) => window.__bk.game.getState().objectives[i].progress, hitTargets)).toBe(1)
 })

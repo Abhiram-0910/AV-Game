@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BALANCE } from '@data/balance'
 import { damageFor, isHitValid, resolveHit, type Combatant } from '@core/combat-rules'
-import { checkMeleeHit } from '@systems/combat-rules'
+import { checkMeleeHit, inSwordReach } from '@systems/combat-rules'
 import { spawnEnemy } from '@systems/ai/enemy-ai'
 
 const rakshasa = (): Combatant => ({ kind: 'rakshasa', health: BALANCE.enemies.rakshasa.HEALTH, invulnUntil: 0 })
@@ -54,7 +54,7 @@ describe('combat rules', () => {
     expect(damageFor('melee', 'player')).toBe(BALANCE.melee.DAMAGE)
   })
 
-  it('checkMeleeHit damages and knocks back enemy in 120 deg frontal cone within 2.2m', () => {
+  it('checkMeleeHit damages and knocks back an enemy in the frontal cone within melee.RANGE', () => {
     const player = { x: 0, z: 0, yaw: 0 } // Facing +z (sin(0)=0, cos(0)=1)
     const inCone = spawnEnemy('rakshasa', [0, 0, 1.8])
     const outCone = spawnEnemy('rakshasa', [0, 0, -1.8]) // behind player
@@ -70,5 +70,25 @@ describe('combat rules', () => {
     expect(outCone.health).toBe(BALANCE.enemies.rakshasa.HEALTH)
     expect(outCone.z).toBe(-1.8)
     expect(outRange.health).toBe(BALANCE.enemies.rakshasa.HEALTH)
+  })
+
+  it('the sword reaches the whole front half, never behind or past melee.RANGE', () => {
+    const player = { x: 0, z: 0, yaw: 0 }
+    const at = (deg: number, dist: number) => [Math.sin((deg * Math.PI) / 180) * dist, Math.cos((deg * Math.PI) / 180) * dist] as const
+    expect(inSwordReach(player, ...at(85, 1.6))).toBe(true)
+    expect(inSwordReach(player, ...at(-85, 1.6))).toBe(true)
+    expect(inSwordReach(player, ...at(95, 1.6))).toBe(false)
+    expect(inSwordReach(player, ...at(0, BALANCE.melee.RANGE + 0.01))).toBe(false)
+    expect(inSwordReach(player, 0, 0)).toBe(false)
+  })
+
+  it('never strikes Maricha, and a straw man in reach takes the blow', () => {
+    const player = { x: 0, z: 0, yaw: 0 }
+    const maricha = spawnEnemy('maricha', [0, 0, 1.5])
+    const dummy = { x: 1, z: 1, struckTick: -1 }
+    expect(checkMeleeHit(player, [maricha], 20, [dummy])).toBe(true)
+    expect(maricha.health).toBe(BALANCE.enemies.maricha.HEALTH)
+    expect(dummy.struckTick).toBe(20)
+    expect(checkMeleeHit(player, [maricha], 40, [])).toBe(false)
   })
 })
